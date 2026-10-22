@@ -55,6 +55,8 @@ export interface RoomSnapshot {
   joined: boolean;
   you: Member | null;
   members: Member[];
+  /** The room's display name, if someone gave it one. */
+  roomName: string | null;
   chat: ChatMessage[];
   pendingChat: PendingChat[];
   game: GameSnapshot | null;
@@ -99,6 +101,7 @@ export class RoomClient {
     joined: false,
     you: null,
     members: [],
+    roomName: null,
     chat: [],
     pendingChat: [],
     game: null,
@@ -120,6 +123,7 @@ export class RoomClient {
     private readonly roomId: string,
     private readonly secret: string,
     private name: string,
+    private color: number,
   ) {}
 
   // --- lifecycle -----------------------------------------------------------
@@ -199,9 +203,15 @@ export class RoomClient {
     return this.enqueue({ type: "chat", cid, text }, "chat");
   }
 
-  setName(name: string) {
+  setProfile(name: string, color: number) {
+    if (name === this.name && color === this.color) return;
     this.name = name;
-    if (this.welcomed) this.sendRaw({ type: "setName", name });
+    this.color = color;
+    if (this.welcomed) this.sendRaw({ type: "setProfile", name, color });
+  }
+
+  renameRoom(name: string) {
+    return this.request({ type: "renameRoom", cid: crypto.randomUUID(), name }, "room");
   }
 
   selectGame(gameId: string, config: unknown) {
@@ -278,7 +288,7 @@ export class RoomClient {
     ws.onopen = () => {
       if (this.ws !== ws) return;
       const lastSeq = this.snapshot.chat.at(-1)?.seq ?? null;
-      this.sendRaw({ type: "hello", protocol: PROTOCOL_VERSION, secret: this.secret, name: this.name, chatCursor: lastSeq });
+      this.sendRaw({ type: "hello", protocol: PROTOCOL_VERSION, secret: this.secret, name: this.name, color: this.color, chatCursor: lastSeq });
     };
     ws.onmessage = (e) => {
       if (this.ws !== ws) return;
@@ -393,6 +403,7 @@ export class RoomClient {
           joined: true,
           you: msg.you,
           members: msg.members,
+          roomName: msg.roomName,
           chat: msg.chatReset ? msg.chat : mergeChat(this.snapshot.chat, msg.chat),
           game: msg.game,
           clockOffset: msg.serverTime - Date.now(),
@@ -406,6 +417,8 @@ export class RoomClient {
         const you = msg.members.find((m) => m.id === this.snapshot.you?.id) ?? this.snapshot.you;
         return this.update({ members: msg.members, you });
       }
+      case "room":
+        return this.update({ roomName: msg.name });
       case "chat":
         return this.update({ chat: mergeChat(this.snapshot.chat, msg.messages) });
       case "game":

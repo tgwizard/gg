@@ -3,8 +3,8 @@
 .ttt-player { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 130px; }
 .ttt-player .plate { width: 100%; max-width: 180px; }
 .ttt-mark { font-size: 3rem; font-weight: 700; line-height: 1; }
-.mark-0 { color: var(--accent); }
-.mark-1 { color: var(--blue); }
+.mark-0 { color: var(--pc, var(--accent)); }
+.mark-1 { color: var(--pc, var(--blue)); }
 .ttt .herald { width: min(100%, 460px); }
 
 .ttt-board {
@@ -36,7 +36,7 @@
 }
 .ttt-cell:disabled { cursor: default; }
 .ttt-cell:not(:disabled):hover { background: #fff3df; }
-.ttt-cell.mark-0 { color: var(--card-red); }
-.ttt-cell.mark-1 { color: #346a88; }
+.ttt-cell.mark-0 { color: color-mix(in oklab, var(--pc, var(--card-red)), black 8%); }
+.ttt-cell.mark-1 { color: color-mix(in oklab, var(--pc, #346a88), black 8%); }
 .ttt-cell.win { background: var(--gold); }
 .ttt-footer { display: flex; gap: 16px; align-items: center; }

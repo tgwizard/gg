@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { nameStyle } from "../../../ui";
+import { Avatar, PlayerName, usePlayerColors } from "../../../ui";
 import "./kit.css";
 
 /**
@@ -25,6 +25,7 @@ export function PlayerPlate(props: {
   testId?: string;
   children?: ReactNode;
 }) {
+  const color = usePlayerColors()(props.playerId);
   const classes = [
     "plate box on-brand",
     props.active && "active",
@@ -39,10 +40,8 @@ export function PlayerPlate(props: {
   const body = (
     <>
       <div className="plate-name">
-        <span className={`light ${props.online === false ? "bad" : "good"}`} title={props.online === false ? "Disconnected" : "Online"} />
-        <span className="name" style={nameStyle(props.playerId)}>
-          {props.name}
-        </span>
+        <Avatar name={props.name} color={color} online={props.online !== false} size="sm" />
+        <PlayerName name={props.name} color={color} />
         {props.you && <span className="tag accent">you</span>}
         {props.winner && <span className="tag gold">winner</span>}
         {props.tags}

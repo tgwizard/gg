@@ -3,12 +3,13 @@ import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { formatDateTime, formatTime } from "../format";
 import { noAutofill } from "../noAutofill";
-import { nameStyle, Panel } from "../../ui";
+import { Panel, playerStyle, usePlayerColors } from "../../ui";
 import { useToast } from "./Toasts";
 
 export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): Promise<void> }) {
   const [text, setText] = useState("");
   const toast = useToast();
+  const colorOf = usePlayerColors();
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -46,7 +47,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
             <div key={m.seq} className="msg" data-testid="chat-message">
               <time className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</time>
               <span className="msg-body">
-                <span className="name" style={nameStyle(m.playerId ?? "")}>
+                <span className="name" style={playerStyle(colorOf(m.playerId ?? ""))}>
                   {m.name}
                 </span>
                 <span className="msg-text">{m.text}</span>
@@ -65,7 +66,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
           <div key={p.cid} className="msg pending" title="Sending…" data-testid="chat-pending">
             <time className="msg-time" title={formatDateTime(p.ts)}>{formatTime(p.ts)}</time>
             <span className="msg-body">
-              <span className="name" style={nameStyle(snapshot.you?.id ?? "")}>
+              <span className="name" style={playerStyle(snapshot.you?.color ?? 0)}>
                 {snapshot.you?.name}
               </span>
               <span className="msg-text">{p.text}</span>

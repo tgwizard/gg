@@ -34,6 +34,8 @@ one Worker, Workers Assets for the SPA, and one Durable Object per room.
   With per-IP rate limits on lookups and connections, guessing a live room isn't
   practical: even 1,000 IPs guessing nonstop against 10,000 live rooms would expect
   one hit about every 50 years.
+- A room can have a **name** (`POST /api/rooms {name}`, or `renameRoom` from
+  anyone in it). It's only for display: rooms are still joined by code or link.
 - The DO stores everything in its SQLite database (`kv`, `members`, `chat`, `ops`),
   so it can be evicted or hibernate at any time and come back intact.
 
@@ -42,9 +44,16 @@ one Worker, Workers Assets for the SPA, and one Durable Object per room.
 There is no sign-in. Each browser makes a random **secret** (localStorage
 `gg.secret`) and sends it in `hello`. The server derives the public **player id**
 as `sha256(secret)[:16 hex]`. Player ids are visible to everyone, but you can't
-claim someone's id (and so see their hole cards) without their secret. Your
-**name** is global (localStorage `gg.name`), sent on every hello, and
-changeable at any time.
+claim someone's id (and so see their hole cards) without their secret.
+
+Your **profile** is global and local to the browser: a **name** (`gg.name`) and a
+preferred **color** (`gg.color`, an index into the 16 `PLAYER_COLORS` in
+`src/shared/colors.ts`; new browsers get a random one). Both are sent on every
+hello and can be changed any time (`setProfile`). In a room, colors are resolved in
+join order: the first member to want a color gets it, later ones get the next free
+color around the palette (`assignColors`). Members carry their resolved `color`,
+and the UI uses it everywhere: avatars, names in chat, nameplates, tic-tac-toe
+marks (via `PlayerColorsProvider` / `usePlayerColors` in `src/ui/players.tsx`).
 
 ## Protocol (`src/shared/protocol.ts`)
 
@@ -53,8 +62,9 @@ client-generated `cid`.
 
 | client → server | purpose |
 | --- | --- |
-| `hello {protocol, secret, name, chatCursor}` | (re)join; `chatCursor` = last chat seq seen |
-| `setName` | rename |
+| `hello {protocol, secret, name, color, chatCursor}` | (re)join; `chatCursor` = last chat seq seen |
+| `setProfile {name, color}` | change your name or preferred color |
+| `renameRoom {cid, name}` | name (or unname) the room |
 | `chat {cid, text}` | chat message |
 | `selectGame {cid, gameId, config}` / `endGame {cid, instanceId}` | game lifecycle |
 | `gameOp {cid, instanceId, op, ifVersion?}` | a move |
@@ -62,7 +72,7 @@ client-generated `cid`.
 | server → client | purpose |
 | --- | --- |
 | `welcome` | full snapshot: you, members, chat since cursor (or latest page), game view |
-| `members` / `chat` / `game` | incremental updates |
+| `members` / `room` / `chat` / `game` | incremental updates (`room` = the room's name) |
 | `ack {cid, ok, error?}` | result of a mutation |
 | `error` | protocol-level errors (`room_not_found`, `outdated`, …) |
 

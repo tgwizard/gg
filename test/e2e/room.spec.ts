@@ -83,3 +83,33 @@ test("joining by typing the room code, in any case", async ({ browser }) => {
   await expectConnected(bob.page);
   await expect(bob.page).toHaveURL(new RegExp(`/r/${code}$`));
 });
+
+test("profile colors resolve clashes, and rooms can be named and renamed", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const bob = await newPlayer(browser);
+
+  // Alice picks Sky on the home page and names her room.
+  await alice.page.goto("/");
+  await alice.page.getByLabel("Your name").fill("Alice");
+  await alice.page.getByRole("radio", { name: "Sky" }).click();
+  await alice.page.getByLabel(/Room name/).fill("Friday poker");
+  await alice.page.getByRole("button", { name: "Create a room" }).click();
+  await alice.page.waitForURL(/\/r\//);
+  await expectConnected(alice.page);
+  await expect(alice.page.getByTestId("room-name")).toHaveText("Friday poker");
+
+  // Bob wants Sky too; he joined second, so he gets the next free color.
+  await bob.page.goto(alice.page.url());
+  await bob.page.getByLabel("Your name").fill("Bob");
+  await bob.page.getByRole("radio", { name: "Sky" }).click();
+  await bob.page.getByRole("button", { name: "Join room" }).click();
+  await expectConnected(bob.page);
+  await expect(bob.page.getByText("Sky is taken here, so you're Teal in this room.")).toBeVisible();
+
+  // Anyone can rename the room.
+  await bob.page.getByTestId("room-name").click();
+  await bob.page.getByLabel("Room name").fill("Taco night");
+  await bob.page.getByLabel("Room name").press("Enter");
+  await expect(alice.page.getByTestId("room-name")).toHaveText("Taco night");
+  await expect(chat(alice.page)).toContainText("Bob named the room “Taco night”.");
+});

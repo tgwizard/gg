@@ -8,12 +8,16 @@ const BASE = "http://gg.test";
 export const randomIp = () => `10.${rand()}.${rand()}.${rand()}`;
 const rand = () => Math.floor(Math.random() * 256);
 
-export function postRoom(ip = randomIp()) {
-  return exports.default.fetch(`${BASE}/api/rooms`, { method: "POST", headers: { "CF-Connecting-IP": ip } });
+export function postRoom(ip = randomIp(), body?: unknown) {
+  return exports.default.fetch(`${BASE}/api/rooms`, {
+    method: "POST",
+    headers: { "CF-Connecting-IP": ip },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
-export async function createRoom(): Promise<string> {
-  const body = (await (await postRoom()).json()) as { id: string };
+export async function createRoom(name?: string): Promise<string> {
+  const body = (await (await postRoom(randomIp(), name === undefined ? undefined : { name })).json()) as { id: string };
   return body.id;
 }
 
@@ -54,10 +58,10 @@ export class TestClient {
   }
 
   /** Connect and say hello; resolves with the welcome message. */
-  static async join(roomId: string, secret: string, name: string, chatCursor: number | null = null) {
+  static async join(roomId: string, secret: string, name: string, chatCursor: number | null = null, color = 0) {
     const c = await TestClient.connect(roomId);
     const welcome = c.next("welcome");
-    c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret, name, chatCursor });
+    c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret, name, color, chatCursor });
     return { client: c, welcome: await welcome };
   }
 

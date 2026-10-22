@@ -6,10 +6,12 @@
  * stale tabs are told to reload instead of misbehaving.
  */
 import { z } from "zod";
+import { COLOR_COUNT } from "./colors";
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const MAX_NAME_LENGTH = 24;
+export const MAX_ROOM_NAME_LENGTH = 40;
 export const MAX_CHAT_LENGTH = 500;
 
 /** Heartbeat literals, answered by the DO's auto-response without waking it up. */
@@ -39,6 +41,8 @@ export interface Member {
   id: string;
   name: string;
   kind: MemberKind;
+  /** Index into PLAYER_COLORS: their preference, unless someone who joined earlier has it. */
+  color: number;
   online: boolean;
   joinedAt: number;
   lastSeenAt: number;
@@ -86,10 +90,16 @@ export const ClientMessage = z.discriminatedUnion("type", [
     /** Per-browser secret; the server derives the public player id from it. */
     secret: z.string().min(16).max(128),
     name: z.string().max(200),
+    /**
+     * Preferred color (index into PLAYER_COLORS). Optional so that old clients still
+     * get as far as the version check and are told to reload.
+     */
+    color: z.number().int().min(0).max(COLOR_COUNT - 1).optional(),
     /** Highest chat seq the client has; null on first load. */
     chatCursor: z.number().int().nullable(),
   }),
-  z.object({ type: z.literal("setName"), name: z.string().max(200) }),
+  z.object({ type: z.literal("setProfile"), name: z.string().max(200), color: z.number().int().min(0).max(COLOR_COUNT - 1) }),
+  z.object({ type: z.literal("renameRoom"), cid, name: z.string().max(200) }),
   z.object({ type: z.literal("chat"), cid, text: z.string().max(4 * MAX_CHAT_LENGTH) }),
   z.object({ type: z.literal("selectGame"), cid, gameId: z.string().max(64), config: z.unknown() }),
   z.object({ type: z.literal("endGame"), cid, instanceId: z.string().max(64) }),
@@ -113,6 +123,7 @@ export type ServerMessage =
   | {
       type: "welcome";
       roomId: string;
+      roomName: string | null;
       you: Member;
       members: Member[];
       chat: ChatMessage[];
@@ -122,6 +133,7 @@ export type ServerMessage =
       serverTime: number;
     }
   | { type: "members"; members: Member[] }
+  | { type: "room"; name: string | null }
   | { type: "chat"; messages: ChatMessage[] }
   | { type: "game"; game: GameSnapshot | null }
   | { type: "ack"; cid: string; ok: true }
@@ -137,6 +149,11 @@ const INVISIBLE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u00ad\u061c\u180e\u2
 export function sanitizeName(raw: string): string {
   const name = raw.normalize("NFC").replace(INVISIBLE, "").replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
   return name || "Anonymous";
+}
+
+/** A room's display name; empty means unnamed. */
+export function sanitizeRoomName(raw: string): string | null {
+  return raw.normalize("NFC").replace(INVISIBLE, "").replace(/\s+/g, " ").trim().slice(0, MAX_ROOM_NAME_LENGTH) || null;
 }
 
 export function sanitizeChat(raw: string): string {

@@ -3,31 +3,36 @@ import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
 import { CardBack, PlayingCard } from "../../games/kit/ui/Cards";
 import { TableSurface } from "../../games/kit/ui/CardTable";
-import { Panel } from "../../ui";
+import { MAX_ROOM_NAME_LENGTH } from "../../shared/protocol";
+import { Avatar, Panel, playerStyle } from "../../ui";
+import { ColorPicker, NameField } from "../components/Profile";
 import { ModeToggle } from "../components/ModeToggle";
 import { GameCard } from "../components/GameCard";
-import { saveName, useName } from "../identity";
+import { saveColor, saveName, useColor, useName } from "../identity";
 import { noAutofill } from "../noAutofill";
 import { navigate } from "../router";
 
 export function HomePage() {
   const savedName = useName();
   const [name, setName] = useState(savedName ?? "");
+  const color = useColor();
+  const [roomName, setRoomName] = useState("");
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // A problem with one of the two forms, shown as a bubble by its button.
+  const [error, setError] = useState<{ form: "create" | "join"; text: string } | null>(null);
 
   async function create(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return setError("Pick a name first.");
+    if (!name.trim()) return setError({ form: "create", text: "Add your name in Profile first." });
     saveName(name);
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/rooms", { method: "POST" });
+      const res = await fetch("/api/rooms", { method: "POST", body: JSON.stringify({ name: roomName }) });
       if (res.status === 429) {
         const body = (await res.json().catch(() => ({}))) as { message?: string };
-        setError(body.message ?? "Slow down a little, then try again.");
+        setError({ form: "create", text: body.message ?? "Slow down a little, then try again." });
         setBusy(false);
         return;
       }
@@ -35,7 +40,7 @@ export function HomePage() {
       const { id } = (await res.json()) as { id: string };
       navigate(`/r/${id}`);
     } catch {
-      setError("Couldn't create a room. Check your connection and try again.");
+      setError({ form: "create", text: "Couldn't create a room. Check your connection and try again." });
       setBusy(false);
     }
   }
@@ -43,7 +48,7 @@ export function HomePage() {
   function join(e: FormEvent) {
     e.preventDefault();
     const id = roomCodeFromInput(link);
-    if (!id) return setError("That doesn't look like a room code or link.");
+    if (!id) return setError({ form: "join", text: "That doesn't look like a room code or link." });
     if (name.trim()) saveName(name);
     navigate(`/r/${id}`);
   }
@@ -68,41 +73,82 @@ export function HomePage() {
 
       <main className="home-main">
         <div className="home-forms">
-          <Panel title="Start a room">
-            <form onSubmit={create} className="stack">
-              <label className="field">
-                <span>Your name</span>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ada" maxLength={24} autoFocus {...noAutofill} />
+          <Panel title="Profile" className="home-profile">
+            <div className="profile-preview">
+              <Avatar name={name || "?"} color={color} size="lg" />
+              <div className="profile-preview-text">
+                <strong className="name" style={playerStyle(color)}>
+                  {name.trim() || "Your name"}
+                </strong>
+                <span className="muted small">Saved in this browser, used in every room.</span>
+              </div>
+            </div>
+            <NameField
+              value={name}
+              onChange={(v) => {
+                setName(v);
+                if (error?.form === "create") setError(null);
+              }} onBlur={() => name.trim() && saveName(name)} autoFocus={!savedName} />
+            <div className="field">
+              <span>Your color</span>
+              <ColorPicker value={color} onChange={saveColor} />
+            </div>
+          </Panel>
+          <Panel title="Start a room" className="home-start">
+            <form onSubmit={create} className="home-form">
+              <label className="field" htmlFor="room-name">
+                <span>
+                  Room name <span className="hint">optional</span>
+                </span>
               </label>
-              <button className="btn primary big" disabled={busy}>
-                {busy ? "Creating…" : "Create a room"}
-              </button>
+              <div className="home-form-row">
+                <input
+                  id="room-name"
+                  value={roomName}
+                  onChange={(e) => {
+                    setRoomName(e.target.value);
+                    if (error?.form === "create") setError(null);
+                  }}
+                  placeholder="e.g. Friday poker"
+                  maxLength={MAX_ROOM_NAME_LENGTH}
+                  {...noAutofill}
+                />
+                <button className="btn primary" disabled={busy}>
+                  {busy ? "Creating…" : "Create a room"}
+                </button>
+                {error?.form === "create" && <Bubble text={error.text} />}
+              </div>
             </form>
           </Panel>
-          <Panel title="Join a room">
-            <form onSubmit={join} className="stack">
-              <label className="field">
+          <div className="or-divider" aria-hidden>
+            or
+          </div>
+          <Panel title="Join a room" className="home-join">
+            <form onSubmit={join} className="home-form">
+              <label className="field" htmlFor="room-code">
                 <span>Room code or link</span>
+              </label>
+              <div className="home-form-row">
                 <input
+                  id="room-code"
                   value={link}
                   // Codes are shown upper-case as you type; pasted links are left alone.
-                  onChange={(e) => setLink(e.target.value.includes("/") ? e.target.value : e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    setLink(e.target.value.includes("/") ? e.target.value : e.target.value.toUpperCase());
+                    if (error?.form === "join") setError(null);
+                  }}
                   placeholder="e.g. 7KQ2M9XH4D"
                   aria-label="Room code or link"
                   spellCheck={false}
                   {...noAutofill}
                 />
-              </label>
-              <button className="btn big">Join</button>
+                <button className="btn">Join</button>
+                {error?.form === "join" && <Bubble text={error.text} />}
+              </div>
             </form>
           </Panel>
         </div>
 
-        {error && (
-          <p className="error-text home-error" role="alert">
-            {error}
-          </p>
-        )}
 
         <section className="home-games">
           <h2 className="label">Games in the box</h2>
@@ -117,6 +163,15 @@ export function HomePage() {
       <footer className="home-footer">
         <a href="https://github.com/tgwizard/gg">Open source</a> · MIT · Rooms are private to whoever has the link.
       </footer>
+    </div>
+  );
+}
+
+/** A small speech bubble under a form's button, for what went wrong. */
+function Bubble({ text }: { text: string }) {
+  return (
+    <div className="bubble" role="alert">
+      {text}
     </div>
   );
 }

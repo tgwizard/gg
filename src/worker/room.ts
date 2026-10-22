@@ -19,6 +19,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { games } from "../games/registry";
 import { type AnyGameDefinition, type GameContext, GameError } from "../games/types";
+import { assignColors } from "../shared/colors";
 import {
   type AckError,
   type ChatKind,
@@ -35,6 +36,7 @@ import {
   type ServerMessage,
   sanitizeChat,
   sanitizeName,
+  sanitizeRoomName,
 } from "../shared/protocol";
 import type { TokenBucket } from "../shared/token-bucket";
 import {
@@ -66,6 +68,8 @@ interface Attachment {
 interface RoomInfo {
   id: string;
   createdAt: number;
+  /** Display name; rooms are still only joined by code. */
+  name?: string | null;
 }
 
 interface StoredGame {
@@ -136,12 +140,12 @@ export class Room extends DurableObject<Env> {
 
   // --- RPC (called by the worker) ------------------------------------------
 
-  async create(id: string): Promise<{ created: boolean; info: RoomInfo }> {
+  async create(id: string, name: string | null = null): Promise<{ created: boolean; info: RoomInfo }> {
     const existing = this.getKv<RoomInfo>("room");
     if (existing) return { created: false, info: existing };
     this.migrate();
     this.ready = true;
-    const info = { id, createdAt: Date.now() };
+    const info: RoomInfo = { id, createdAt: Date.now(), name: sanitizeRoomName(name ?? "") };
     this.setKv("room", info);
     // Schedules expiry, so rooms nobody ever opens are cleaned up too.
     await this.scheduleAlarm();
@@ -186,7 +190,7 @@ export class Room extends DurableObject<Env> {
       if (!this.allow(ws, "ops")) return;
       return this.send(ws, { type: "error", code: "bad_message", message: "Malformed message." });
     }
-    if (!this.allow(ws, msg.type === "chat" || msg.type === "setName" ? "chat" : "ops")) {
+    if (!this.allow(ws, msg.type === "chat" || msg.type === "setProfile" || msg.type === "renameRoom" ? "chat" : "ops")) {
       return this.onLimited(ws, msg);
     }
 
@@ -197,8 +201,10 @@ export class Room extends DurableObject<Env> {
     this.touch();
 
     switch (msg.type) {
-      case "setName":
-        return this.onSetName(playerId, msg.name);
+      case "setProfile":
+        return this.onSetProfile(playerId, msg.name, msg.color);
+      case "renameRoom":
+        return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onRenameRoom(playerId, msg.name)));
       case "chat":
         return this.ack(ws, msg.cid, this.onChat(playerId, msg.cid, msg.text));
       case "selectGame":
@@ -276,10 +282,11 @@ export class Room extends DurableObject<Env> {
     const wasOnline = this.isOnline(playerId);
 
     this.sql.exec(
-      `INSERT INTO members (id, name, kind, joined_at, last_seen_at) VALUES (?, ?, 'human', ?, ?)
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, last_seen_at = excluded.last_seen_at`,
+      `INSERT INTO members (id, name, color, kind, joined_at, last_seen_at) VALUES (?, ?, ?, 'human', ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = excluded.color, last_seen_at = excluded.last_seen_at`,
       playerId,
       name,
+      msg.color ?? 0,
       now,
       now,
     );
@@ -294,6 +301,7 @@ export class Room extends DurableObject<Env> {
     this.send(ws, {
       type: "welcome",
       roomId: this.getKv<RoomInfo>("room")?.id ?? "",
+      roomName: this.getKv<RoomInfo>("room")?.name ?? null,
       you: this.getMember(playerId)!,
       members: this.getMembers(),
       chat: messages,
@@ -303,19 +311,35 @@ export class Room extends DurableObject<Env> {
     });
 
     if (joinMessage) this.broadcast({ type: "chat", messages: [joinMessage] }, ws);
-    if (!wasOnline || existing?.name !== name) this.broadcast({ type: "members", members: this.getMembers() }, ws);
+    const members = this.getMembers();
+    const changed = existing && (existing.name !== name || members.some((m) => m.id === playerId && m.color !== existing.color));
+    if (!wasOnline || !existing || changed) this.broadcast({ type: "members", members: this.getMembers() }, ws);
     // The hello-timeout check for this socket is no longer needed.
     await this.scheduleAlarm();
   }
 
-  private onSetName(playerId: string, raw: string) {
+  private onSetProfile(playerId: string, raw: string, color: number) {
     const name = sanitizeName(raw);
-    const before = this.getMember(playerId);
-    if (!before || before.name === name) return;
-    this.sql.exec(`UPDATE members SET name = ? WHERE id = ?`, name, playerId);
-    const msg = this.insertChat("system", null, null, `${before.name} is now known as ${name}.`);
-    this.broadcast({ type: "chat", messages: [msg] });
+    const before = this.sql.exec<MemberRow>(`SELECT * FROM members WHERE id = ?`, playerId).toArray()[0];
+    if (!before || (before.name === name && before.color === color)) return;
+    this.sql.exec(`UPDATE members SET name = ?, color = ? WHERE id = ?`, name, color, playerId);
+    if (before.name !== name) {
+      const msg = this.insertChat("system", null, null, `${before.name} is now known as ${name}.`);
+      this.broadcast({ type: "chat", messages: [msg] });
+    }
     this.broadcast({ type: "members", members: this.getMembers() });
+  }
+
+  private onRenameRoom(playerId: string, raw: string): AckResult {
+    const room = this.getKv<RoomInfo>("room")!;
+    const name = sanitizeRoomName(raw);
+    if ((room.name ?? null) === name) return { ok: true };
+    this.setKv("room", { ...room, name });
+    const who = this.nameOf(playerId);
+    const msg = this.insertChat("system", null, null, name ? `${who} named the room “${name}”.` : `${who} cleared the room's name.`);
+    this.broadcast({ type: "room", name });
+    this.broadcast({ type: "chat", messages: [msg] });
+    return { ok: true };
   }
 
   private onChat(playerId: string, cid: string, raw: string): AckResult {
@@ -607,23 +631,23 @@ export class Room extends DurableObject<Env> {
   // --- members & chat ------------------------------------------------------
 
   private getMember(id: string): Member | null {
-    const row = this.sql.exec<MemberRow>(`SELECT * FROM members WHERE id = ?`, id).toArray()[0];
-    return row ? this.toMember(row) : null;
+    // Colors depend on who else is here, so this resolves the whole list (it's small).
+    return this.getMembers().find((m) => m.id === id) ?? null;
   }
 
   private getMembers(): Member[] {
     const online = this.onlineIds();
-    return this.sql
-      .exec<MemberRow>(`SELECT * FROM members ORDER BY joined_at`)
-      .toArray()
-      .map((r) => this.toMember(r, online));
+    const rows = this.sql.exec<MemberRow>(`SELECT * FROM members ORDER BY joined_at, id`).toArray();
+    const colors = assignColors(rows.map((r) => ({ id: r.id, preferred: r.color })));
+    return rows.map((r) => this.toMember(r, online, colors.get(r.id)!));
   }
 
-  private toMember(row: MemberRow, online = this.onlineIds()): Member {
+  private toMember(row: MemberRow, online: Set<string>, color: number): Member {
     return {
       id: row.id,
       name: row.name,
       kind: row.kind as Member["kind"],
+      color,
       online: online.has(row.id),
       joinedAt: row.joined_at,
       lastSeenAt: row.last_seen_at,
@@ -741,6 +765,7 @@ export class Room extends DurableObject<Env> {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS members (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      color INTEGER NOT NULL DEFAULT 0,
       kind TEXT NOT NULL,
       joined_at INTEGER NOT NULL,
       last_seen_at INTEGER NOT NULL
@@ -766,7 +791,7 @@ export class Room extends DurableObject<Env> {
   }
 }
 
-type MemberRow = { id: string; name: string; kind: string; joined_at: number; last_seen_at: number };
+type MemberRow = { id: string; name: string; color: number; kind: string; joined_at: number; last_seen_at: number };
 type ChatRow = { seq: number; ts: number; kind: string; player_id: string | null; name: string | null; text: string; cid: string | null };
 
 function toChat(r: ChatRow): ChatMessage {

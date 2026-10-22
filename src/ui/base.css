@@ -51,8 +51,8 @@ h3.display { font-size: 1.4rem; }
 .error-text { color: var(--danger); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* Player names get a stable hue each; lightness depends on the surface. */
-.name { color: hsl(var(--hue, 0) var(--name-s) var(--name-l)); font-weight: 700; }
+/* Player names in their color (--pc, see players.tsx), darkened or lightened to read on the surface. */
+.name { color: color-mix(in oklab, var(--pc, var(--text)), var(--name-mix)); font-weight: 700; }
 
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 ::selection { background: var(--gold); color: #3a2e24; }

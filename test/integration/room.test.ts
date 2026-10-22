@@ -111,8 +111,40 @@ describe("chat", () => {
     const room = await createRoom();
     const { client: alice } = await TestClient.join(room, secret("alice"), "Alice");
     const msg = alice.next("chat", (m) => m.messages.some((x) => x.text.includes("now known as")));
-    alice.send({ type: "setName", name: "Alicia" });
+    alice.send({ type: "setProfile", name: "Alicia", color: 0 });
     expect((await msg).messages[0]!.text).toBe("Alice is now known as Alicia.");
+  });
+});
+
+describe("profiles and room names", () => {
+  it("gives the first member a color, and the next one the next free color", async () => {
+    const room = await createRoom();
+    const { client: alice } = await TestClient.join(room, secret("alice"), "Alice", null, 5);
+    const { welcome } = await TestClient.join(room, secret("bob"), "Bob", null, 5);
+    const colorOf = (members: { name: string; color: number }[], name: string) => members.find((m) => m.name === name)!.color;
+    expect(colorOf(welcome.members, "Alice")).toBe(5);
+    expect(welcome.you.color).toBe(6);
+
+    // Alice moves on, so Bob gets the color he asked for.
+    const update = alice.next("members", (m) => colorOf(m.members, "Bob") === 5);
+    alice.send({ type: "setProfile", name: "Alice", color: 9 });
+    expect(colorOf((await update).members, "Alice")).toBe(9);
+  });
+
+  it("names rooms at creation and lets anyone in them rename it", async () => {
+    const room = await createRoom("  Friday   poker ");
+    const { client: alice, welcome } = await TestClient.join(room, secret("alice"), "Alice");
+    expect(welcome.roomName).toBe("Friday poker");
+
+    const renamed = alice.next("room");
+    const announced = alice.next("chat", (m) => m.messages.some((x) => x.text.includes("named the room")));
+    expect((await alice.request({ type: "renameRoom", name: "Taco night" })).ok).toBe(true);
+    expect((await renamed).name).toBe("Taco night");
+    expect((await announced).messages[0]!.text).toBe("Alice named the room “Taco night”.");
+
+    const { welcome: later } = await TestClient.join(room, secret("bob"), "Bob");
+    expect(later.roomName).toBe("Taco night");
+    expect(((await (await exports.default.fetch(`http://gg.test/api/rooms/${room}`)).json()) as { name: string }).name).toBe("Taco night");
   });
 });
 

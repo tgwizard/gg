@@ -1,3 +1,4 @@
+import { playerStyle, usePlayerColors } from "../../../ui";
 import { Herald } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -10,6 +11,12 @@ const MARKS = ["X", "O"] as const;
 export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: GameUIProps<TttView, TttOp>) {
   const nameOf = (id: string) => members.get(id)?.name ?? "Player";
   const mySeat = view.you.seat;
+  const colorOf = usePlayerColors();
+  // Marks are drawn in their player's color (or a default once they've left).
+  const markStyle = (m: Mark) => {
+    const seat = view.seats[m];
+    return seat ? playerStyle(colorOf(seat.playerId)) : undefined;
+  };
   const myTurn = view.status === "playing" && view.turn === mySeat;
   const winLine = new Set(view.result?.line ?? []);
   const nextIn = view.nextRoundAt ? Math.max(0, Math.ceil((view.nextRoundAt - serverNow) / 1000)) : null;
@@ -35,7 +42,7 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
           const turn = view.status === "playing" && view.turn === m;
           return (
             <div key={m} className="ttt-player" data-testid={`ttt-seat-${m}`}>
-              <span className={`ttt-mark display mark-${m}`} aria-hidden>
+              <span className={`ttt-mark display mark-${m}`} style={markStyle(m)} aria-hidden>
                 {MARKS[m]}
               </span>
               {seat ? (
@@ -71,6 +78,7 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
           <button
             key={i}
             className={`ttt-cell ${cell !== null ? `mark-${cell}` : ""} ${winLine.has(i) ? "win" : ""}`}
+            style={cell !== null ? markStyle(cell) : undefined}
             disabled={!myTurn || cell !== null || !connected}
             onClick={() => sendOp({ type: "place", cell: i })}
             aria-label={cell === null ? `Empty square ${i + 1}` : `${MARKS[cell]} in square ${i + 1}`}

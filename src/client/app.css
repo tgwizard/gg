@@ -31,9 +31,43 @@
 .hero-cards { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding-bottom: 6px; }
 
 .home-main { flex: 1; width: 100%; max-width: 1040px; margin: 0 auto; padding: 52px 24px 32px; display: flex; flex-direction: column; gap: 40px; }
-.home-forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+/* Profile on the left; starting and joining stacked on the right. */
+.home-forms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-areas: "profile start" "profile or" "profile join";
+  gap: 14px 28px;
+  align-items: start;
+}
 .home-forms .panel { padding: 26px 22px 22px; }
-.home-forms form { height: 100%; justify-content: space-between; }
+.home-profile { grid-area: profile; align-self: stretch; }
+.home-start { grid-area: start; }
+.home-join { grid-area: join; }
+.or-divider { grid-area: or; display: flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
+.or-divider::before, .or-divider::after { content: ""; flex: 1; border-top: 1px solid var(--line-strong); }
+.home-form { display: flex; flex-direction: column; gap: 8px; }
+.home-form-row { display: flex; gap: 10px; }
+.home-form-row { position: relative; }
+.home-form-row .btn { flex-shrink: 0; }
+/* An error bubble pointing up at the button at the end of the row. */
+.bubble {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 5;
+  max-width: 280px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #fffaf2;
+  background: var(--danger);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  animation: bubble-in 160ms ease-out both;
+}
+.bubble::before { content: ""; position: absolute; top: -5px; right: 24px; width: 10px; height: 10px; background: inherit; rotate: 45deg; border-radius: 2px; }
+@keyframes bubble-in { from { opacity: 0; translate: 0 -4px; } }
 .home-games { display: flex; flex-direction: column; gap: 16px; }
 .home-footer { padding: 20px 24px 28px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
@@ -150,6 +184,10 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   .chat-list { max-height: 50vh; }
   .stage { padding: 16px 12px 24px; }
 }
+@media (max-width: 760px) {
+  .home-forms { grid-template-columns: 1fr; grid-template-areas: "profile" "start" "or" "join"; }
+  .home-profile { margin-bottom: 14px; }
+}
 @media (max-width: 640px) {
   .home .logo { font-size: 5rem; }
   .hero-table { width: 100%; height: 190px; }
@@ -178,3 +216,32 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .guide-art img.square { border-radius: 20px; }
 .guide-cards { gap: 10px; align-items: flex-end; }
 .guide-plates { gap: 24px; align-items: flex-start; padding-top: 8px; }
+
+/* ---------- profile ---------- */
+.profile-form { display: flex; flex-direction: column; gap: 14px; }
+.profile-preview { display: flex; align-items: center; gap: 12px; }
+.profile-preview-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.profile-preview .name { font-size: 1.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-menu { position: relative; }
+/* Rendered into <body> (outside the green bar, so it gets page colors); placed by JS. */
+.profile-pop { position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px)); padding: 18px; }
+
+/* ---------- room title ---------- */
+.room-title {
+  font: inherit;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--on-brand);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  cursor: text;
+}
+.room-title.display { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; }
+.room-title.unnamed { font-size: 13px; color: var(--on-brand-2); border-style: dashed; border-color: rgb(255 255 255 / 0.25); }
+.room-title:hover:not(:disabled) { border-color: rgb(255 255 255 / 0.3); }
+.room-title-form input { width: min(320px, 50vw); padding: 6px 12px; }
+.subtle-banner { background: var(--surface-2); color: var(--text-2); border-color: var(--line); font-size: 13px; }

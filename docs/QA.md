@@ -31,6 +31,9 @@ profile is a separate identity). With Claude: "run the QA playbook". It drives
 these through the browser and reports back.
 
 ### Rooms & identity
+- [ ] Home: Profile (name + color, saved in the browser), Start a room (optional name), Join a room. A new browser starts with a random color.
+- [ ] Two people pick the same color: whoever joined first keeps it, the other sees "X is taken here, so you're Y" and gets the next free color; taken colors are marked in the profile picker (top right).
+- [ ] Rename the room from the top bar: everyone sees the new name and a chat note; clearing it shows "Name this room".
 - [ ] Create a room from the home page. The URL is `/r/<10-char code>`, the code shows in the top bar, and the status pill says *Connected*.
 - [ ] Type the code (lower-case, with a space) into *Room code or link* on the home page: it shows upper-case and joins the room.
 - [ ] With 1Password (or another password manager) installed, the name, code and chat inputs don't offer to autofill.
