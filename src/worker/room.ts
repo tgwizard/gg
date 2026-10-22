@@ -125,6 +125,12 @@ export class Room extends DurableObject<Env> {
     this.sql = ctx.storage.sql;
     this.ready = this.sql.exec(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'kv'`).toArray().length > 0;
     this.game = this.getKv<StoredGame>("game");
+    if (this.game && !games[this.game.gameId]) {
+      // A deploy removed or renamed this game. Drop it rather than wedge the room.
+      this.sql.exec(`DELETE FROM kv WHERE key = 'game'`);
+      this.insertChat("system", null, null, `The game that was running here is no longer available.`);
+      this.game = null;
+    }
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING, PONG));
   }
 
@@ -357,7 +363,7 @@ export class Room extends DurableObject<Env> {
   private onGameOp(playerId: string, instanceId: string, rawOp: unknown, ifVersion: number | undefined): AckResult {
     if (!this.game || this.game.instanceId !== instanceId) return fail("no_such_game", "That game is no longer running.");
     if (ifVersion !== undefined && ifVersion !== this.game.version)
-      return fail("stale", "The game moved on while you were disconnected. Please try again.");
+      return fail("stale", "The game changed just before your move. Have another look.");
     const def = this.definition();
     const parsed = def.opSchema.safeParse(rawOp);
     if (!parsed.success) return fail("bad_op", "Invalid move.");

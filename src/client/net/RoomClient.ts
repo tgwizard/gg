@@ -7,7 +7,8 @@
  *     the browser would otherwise consider open for minutes.
  *   - Every mutation goes through an outbox keyed by a client id (cid). After a
  *     reconnect, un-acked messages are resent; the server dedupes by cid. Game ops
- *     are resent with `ifVersion` so they only apply if nothing changed meanwhile.
+ *     carry the game version they were made against (`ifVersion`), so a click
+ *     never applies to a situation the player hasn't seen, first send or resend.
  *   - Chat typed while offline is queued and shown as pending.
  *   - Server limits are explained, not hidden: a refused connection carries a
  *     message and a retry-after, which wins over the normal backoff.
@@ -77,9 +78,6 @@ type Mutation = Extract<ClientMessage, { cid: string }>;
 interface Outgoing {
   msg: Mutation;
   kind: "chat" | "room" | "game";
-  /** Game version the op was made against (for safe resends). */
-  baseVersion: number | null;
-  sent: boolean;
   resolve(): void;
   reject(e: RequestError): void;
 }
@@ -198,7 +196,7 @@ export class RoomClient {
     if (!text) return Promise.resolve();
     const cid = crypto.randomUUID();
     this.update({ pendingChat: [...this.snapshot.pendingChat, { cid, text, ts: Date.now() }] });
-    return this.enqueue({ type: "chat", cid, text }, "chat", null);
+    return this.enqueue({ type: "chat", cid, text }, "chat");
   }
 
   setName(name: string) {
@@ -219,32 +217,27 @@ export class RoomClient {
   sendGameOp(op: unknown) {
     const game = this.snapshot.game;
     if (!game) return Promise.reject(new RequestError("no_game", "No game is running."));
-    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId: game.instanceId, op }, "game", game.version);
+    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId: game.instanceId, op, ifVersion: game.version }, "game");
   }
 
   // --- outbox --------------------------------------------------------------
 
   /** Mutations other than chat need a live connection: acting on stale state is worse than failing. */
-  private request(msg: Mutation, kind: Outgoing["kind"], baseVersion: number | null = null) {
+  private request(msg: Mutation, kind: Outgoing["kind"]) {
     if (!this.isConnected()) return Promise.reject(new RequestError("offline", "You're offline. Reconnecting…"));
-    return this.enqueue(msg, kind, baseVersion);
+    return this.enqueue(msg, kind);
   }
 
-  private enqueue(msg: Mutation, kind: Outgoing["kind"], baseVersion: number | null) {
+  private enqueue(msg: Mutation, kind: Outgoing["kind"]) {
     return new Promise<void>((resolve, reject) => {
-      const out: Outgoing = { msg, kind, baseVersion, sent: false, resolve, reject };
+      const out: Outgoing = { msg, kind, resolve, reject };
       this.outbox.set(msg.cid, out);
       this.transmit(out);
     });
   }
 
   private transmit(out: Outgoing) {
-    if (!this.isConnected()) return;
-    const { msg } = out;
-    // A game op resent after a reconnect must not apply to a game that has moved on.
-    const resendGuarded = out.sent && msg.type === "gameOp" && out.baseVersion !== null;
-    this.sendRaw(resendGuarded ? { ...msg, ifVersion: out.baseVersion! } : msg);
-    out.sent = true;
+    if (this.isConnected()) this.sendRaw(out.msg);
   }
 
   private settle(cid: string, error: RequestError | null) {

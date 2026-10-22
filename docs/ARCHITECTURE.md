@@ -77,8 +77,9 @@ all look like a short blip, never lost or duplicated actions.
   table (1h retention). Chat dedupes on `(player, cid)` in the chat table.
 - **Outbox.** The client keeps un-acked mutations and resends them after
   reconnecting. Chat typed while offline is queued and shown as pending. Game
-  ops need a live connection, and a resent op carries `ifVersion`, so it's
-  rejected (`stale`) instead of applied to a game the player hasn't seen.
+  ops need a live connection, and every op carries `ifVersion` (the game version
+  the player was looking at), so it's rejected (`stale`) instead of applied to a
+  game the player hasn't seen, whether it's a first send or a resend.
 - **Liveness.** The client pings every 10s and treats 8s of silence as a dead
   connection (catching half-open sockets), reconnecting with jittered
   exponential backoff (max 10s), immediately on `online`, and on tab focus. The

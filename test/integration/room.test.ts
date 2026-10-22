@@ -1,4 +1,4 @@
-import { env, evictDurableObject, runDurableObjectAlarm } from "cloudflare:test";
+import { env, evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { PokerView } from "../../src/games/poker/engine";
@@ -200,6 +200,18 @@ describe("games", () => {
     expect((update.game!.view as PokerView).hand!.status).toBe("complete");
     // And the next alarm is already queued (sweep or next hand).
     expect(await runDurableObjectAlarm(stub(room))).toBe(true);
+  });
+
+  it("drops a game that no longer exists after a deploy, instead of wedging the room", async () => {
+    const { room } = await headsUp();
+    await runInDurableObject(stub(room), (_i, state) => {
+      const row = state.storage.sql.exec<{ value: string }>(`SELECT value FROM kv WHERE key = 'game'`).one();
+      state.storage.sql.exec(`UPDATE kv SET value = ? WHERE key = 'game'`, JSON.stringify({ ...JSON.parse(row.value), gameId: "retired" }));
+    });
+    await evictDurableObject(stub(room));
+    const { welcome } = await TestClient.join(room, secret("alice"), "Alice");
+    expect(welcome.game).toBeNull();
+    expect(welcome.chat.at(-1)!.text).toMatch(/no longer available/);
   });
 
   it("ends games, and refuses ops for an ended game", async () => {

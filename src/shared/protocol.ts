@@ -99,9 +99,10 @@ export const ClientMessage = z.discriminatedUnion("type", [
     instanceId: z.string().max(64),
     op: z.unknown(),
     /**
-     * Only set when resending after a reconnect: the op is rejected as stale unless
-     * the game is still at this version, so an old click is never applied to a
-     * situation the player hasn't seen.
+     * The game version the player was looking at. The op is rejected as stale unless
+     * the game is still at this version, so a click is never applied to a situation
+     * the player hasn't seen (e.g. one made just before a reconnect). Browsers always
+     * send it; server-side actors (future bots) may omit it.
      */
     ifVersion: z.number().int().optional(),
   }),
@@ -127,13 +128,19 @@ export type ServerMessage =
   | { type: "ack"; cid: string; ok: false; error: AckError }
   | { type: "error"; code: string; message: string; retryAfterMs?: number };
 
+/**
+ * Control characters, zero-width characters and bidi overrides: invisible, and
+ * useful for impersonating someone or reversing text in chat.
+ */
+const INVISIBLE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff\ufff9-\ufffb]/g;
+
 export function sanitizeName(raw: string): string {
-  const name = raw.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
+  const name = raw.normalize("NFC").replace(INVISIBLE, "").replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
   return name || "Anonymous";
 }
 
 export function sanitizeChat(raw: string): string {
-  return raw.trim().slice(0, MAX_CHAT_LENGTH);
+  return raw.normalize("NFC").replace(INVISIBLE, "").trim().slice(0, MAX_CHAT_LENGTH);
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
