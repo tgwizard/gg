@@ -96,6 +96,22 @@ describe("raising", () => {
   });
 });
 
+describe("short all-ins", () => {
+  it("re-open betting when together they add up to a full raise", () => {
+    // Flop: b bets 100; c and d go all-in for less than a full raise each, but +100 combined.
+    const { state, ctx } = table([0, 1, 2, 3], { button: 0, stacks: [1000, 1000, 150, 210] });
+    for (const id of ["d", "a", "b"]) act(state, id, { type: "call" }, ctx());
+    act(state, "c", { type: "check" }, ctx());
+    expect(state.hand!.street).toBe("flop");
+    act(state, "b", { type: "raise", to: 100 }, ctx());
+    act(state, "c", { type: "raise", to: 140 }, ctx()); // all-in, +40
+    act(state, "d", { type: "raise", to: 200 }, ctx()); // all-in, +60
+    act(state, "a", { type: "call" }, ctx()); // a live opponent, so raising means something
+    expect(state.hand!.toAct).toBe(1);
+    expect(legalActions(state, 1)).toMatchObject({ toCall: 100, canRaise: true, minRaiseTo: 300 });
+  });
+});
+
 describe("pots", () => {
   it("everyone folds to a raise: uncontested, uncalled bet returned", () => {
     const { state, ctx, announcements } = table([0, 1, 2], { button: 0 });
@@ -210,6 +226,14 @@ describe("runout and timers", () => {
     onDeadline(state, ctx(next));
     expect(state.hand!.id).toBe(2);
     expect(state.hand!.players.map((p) => p.seat)).toEqual([1, 2]); // a sat out
+  });
+
+  it("standing up and sitting back down keeps your stack", () => {
+    const { state, ctx } = table([0, 1, 2], { button: 0, stacks: [3, 1000, 1000] });
+    act(state, "a", { type: "fold" }, ctx());
+    leave(state, "a", ctx());
+    sit(state, "a", 5, ctx());
+    expect(state.seats[5]!.stack).toBe(3);
   });
 
   it("leaving mid-hand folds and frees the seat", () => {

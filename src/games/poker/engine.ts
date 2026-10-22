@@ -42,8 +42,12 @@ export interface HandPlayer {
   committed: number;
   /** Has acted since the last bet/raise on this street. */
   acted: boolean;
-  /** hand.raiseLevel when this player last acted (-1: not yet this street). */
-  raiseLevel: number;
+  /**
+   * hand.currentBet when this player last acted this street (null: hasn't acted).
+   * They may re-raise only if the bet has since grown by at least a full raise,
+   * whether through one raise or several short all-ins adding up to one.
+   */
+  actedAtBet: number | null;
   /** Hole cards are public (showdown or all-in runout). */
   shown: boolean;
   lastAction: string | null;
@@ -86,8 +90,6 @@ export interface Hand {
   currentBet: number;
   /** Size of the last full bet/raise this street: the minimum raise increment. */
   minRaise: number;
-  /** Incremented on each full raise; a player may re-raise only if it moved since they acted. */
-  raiseLevel: number;
   actionDeadline: number | null;
   runoutAt: number | null;
   result: HandResult | null;
@@ -103,6 +105,8 @@ export interface PokerState {
   /** Someone pressed "deal"; hands keep coming automatically after that. */
   started: boolean;
   nextHandAt: number | null;
+  /** Stacks of players who stood up, restored when they sit down again. */
+  away: Record<string, number>;
 }
 
 export type PokerAction =
@@ -131,6 +135,7 @@ export function createState(config: PokerConfig): PokerState {
     hand: null,
     started: false,
     nextHandAt: null,
+    away: {},
   };
 }
 
@@ -214,7 +219,10 @@ export function sit(state: PokerState, playerId: string, seat: number, ctx: Game
   if (seatOf(state, playerId) >= 0) throw new GameError("already_seated", "You already have a seat.");
   if (seat < 0 || seat >= SEAT_COUNT) throw new GameError("bad_seat", "No such seat.");
   if (state.seats[seat]) throw new GameError("seat_taken", "That seat is taken.");
-  state.seats[seat] = { playerId, stack: state.config.startingStack, sittingOut: false };
+  // Standing up and sitting back down must not top you up: you get your old stack back.
+  const stack = state.away[playerId] ?? state.config.startingStack;
+  delete state.away[playerId];
+  state.seats[seat] = { playerId, stack, sittingOut: false };
   maybeScheduleNextHand(state, ctx);
 }
 
@@ -224,6 +232,7 @@ export function leave(state: PokerState, playerId: string, ctx: GameContext) {
   const p = inCurrentHand(state, seat);
   if (p && !p.folded) foldOutOfTurn(state, p, ctx);
   // Chips already committed stay in the pot; the hand keeps a record of the player.
+  state.away[playerId] = state.seats[seat]!.stack;
   state.seats[seat] = null;
 }
 
@@ -283,7 +292,7 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
     bet: 0,
     committed: 0,
     acted: false,
-    raiseLevel: -1,
+    actedAtBet: null,
     shown: false,
     lastAction: null,
   }));
@@ -306,7 +315,6 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
     toAct: null,
     currentBet: state.config.bigBlind,
     minRaise: state.config.bigBlind,
-    raiseLevel: 0,
     actionDeadline: null,
     runoutAt: null,
     result: null,
@@ -338,7 +346,7 @@ export function legalActions(state: PokerState, seat: number): LegalActions | nu
     canFold: true,
     canCheck: owed === 0,
     toCall: Math.min(owed, s.stack),
-    canRaise: s.stack > owed && othersCanAct && p.raiseLevel < hand.raiseLevel,
+    canRaise: s.stack > owed && othersCanAct && (p.actedAtBet === null || hand.currentBet - p.actedAtBet >= hand.minRaise),
     minRaiseTo: Math.min(hand.currentBet + hand.minRaise, maxRaiseTo),
     maxRaiseTo,
   };
@@ -375,11 +383,8 @@ export function act(state: PokerState, playerId: string, action: PokerAction, ct
       const wasBet = hand.currentBet === 0;
       putIn(state, p, to - p.bet);
       const increment = to - hand.currentBet;
-      if (increment >= hand.minRaise) {
-        // A full raise re-opens the betting for everyone.
-        hand.minRaise = increment;
-        hand.raiseLevel++;
-      }
+      // A full raise sets the new minimum increment; a short all-in leaves it alone.
+      if (increment >= hand.minRaise) hand.minRaise = increment;
       hand.currentBet = to;
       for (const o of hand.players) if (o !== p && !o.folded && !o.allIn) o.acted = false;
       log(hand, p, p.allIn ? `All-in ${to}` : wasBet ? `Bet ${to}` : `Raise to ${to}`);
@@ -387,7 +392,7 @@ export function act(state: PokerState, playerId: string, action: PokerAction, ct
     }
   }
   p.acted = true;
-  p.raiseLevel = hand.raiseLevel;
+  p.actedAtBet = hand.currentBet;
   advance(state, seat, ctx);
 }
 
@@ -418,11 +423,10 @@ function endStreet(state: PokerState, ctx: GameContext) {
   for (const p of hand.players) {
     p.bet = 0;
     p.acted = false;
-    p.raiseLevel = -1;
+    p.actedAtBet = null;
   }
   hand.currentBet = 0;
   hand.minRaise = state.config.bigBlind;
-  hand.raiseLevel = 0;
 
   if (hand.street === "river") return showdown(state, ctx);
 
