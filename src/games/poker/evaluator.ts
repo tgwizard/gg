@@ -1,4 +1,4 @@
-import { type Card, rankValue, suitOf } from "./cards";
+import { type Card, RANKS, rankName, rankValue, suitOf } from "../kit/cards";
 
 /** [category, ...tiebreakers]; compare lexicographically. Higher is better. */
 export type Score = number[];
@@ -9,23 +9,9 @@ export interface HandValue {
   cards: Card[];
 }
 
-const NAMES: Record<number, [string, string]> = {
-  2: ["Two", "Twos"],
-  3: ["Three", "Threes"],
-  4: ["Four", "Fours"],
-  5: ["Five", "Fives"],
-  6: ["Six", "Sixes"],
-  7: ["Seven", "Sevens"],
-  8: ["Eight", "Eights"],
-  9: ["Nine", "Nines"],
-  10: ["Ten", "Tens"],
-  11: ["Jack", "Jacks"],
-  12: ["Queen", "Queens"],
-  13: ["King", "Kings"],
-  14: ["Ace", "Aces"],
-};
-const one = (v: number | undefined) => NAMES[v ?? 2]![0];
-const many = (v: number | undefined) => NAMES[v ?? 2]![1];
+/** Rank names by value (2..14). */
+const one = (v: number | undefined) => rankName(RANKS[(v ?? 2) - 2]!);
+const many = (v: number | undefined) => rankName(RANKS[(v ?? 2) - 2]!, true);
 
 export function evaluate5(cards: Card[]): Score {
   const values = cards.map(rankValue).sort((a, b) => b - a);

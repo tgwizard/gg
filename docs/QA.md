@@ -20,7 +20,8 @@ Visual snapshot of the main screens (desktop and mobile), for eyeballing layout 
 
 ```sh
 npm run dev -- --port 5311 &
-node test/e2e/screens.ts http://localhost:5311 ./screens
+node test/e2e/screens.ts http://localhost:5311 ./screens        # rooms + poker
+node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
 ```
 
 ## 2. Manual scenarios
@@ -69,6 +70,16 @@ these through the browser and reports back.
 - [ ] Paste 20 chat messages as fast as possible: a "going a bit fast" toast appears, and the refused text is back in the input.
 - [ ] Create 11 rooms within a minute: the 11th shows a friendly "try again in a minute" message.
 - [ ] (Automated only) a connection told to back off shows the server's reason, hides "Retry now", and reconnects after the requested delay. Expiry runs in integration tests, by back-dating the room's stored timestamps.
+
+### Finns i sjön
+- [ ] 2–3 players get 7 cards, 4–6 get 5; the lake count matches.
+- [ ] Pick a card, then an opponent; *Ask X for Ys*. If they have some, they move to your hand and it's still your turn.
+- [ ] "Finns i sjön!": you draw (only you see the card under "You drew"); catching the asked rank shows it to everyone and gives you another turn.
+- [ ] Four of a kind is laid down at once (book badge + chat announcement).
+- [ ] Let the turn timer run out: your move is made for you and you're marked away; later turns are auto-played until *I'm back*.
+- [ ] *Leave game* mid-game: your cards go back to the lake and the others play on (with two players, the other wins).
+- [ ] Play to the end: all 13 books down, winner(s) announced, *Play again* deals a new game with whoever's seated.
+- [ ] Phone layout: opponents, lake, news line and your hand all fit, and cards are tappable.
 
 ### Tic-tac-toe
 - [ ] Two players take X and O; the round starts at once; a win highlights the line, scores it and announces it in chat.

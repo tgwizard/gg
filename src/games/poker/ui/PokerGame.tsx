@@ -4,7 +4,7 @@ import type { GameUIProps } from "../../ui";
 import type { HandPlayerView, HandView, PokerSeat, PokerView } from "../engine";
 import type { PokerOp } from "../index";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
-import { CardBack, CardSlot, PlayingCard } from "./Cards";
+import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 
 type Props = GameUIProps<PokerView, PokerOp>;
 type Send = Props["sendOp"];

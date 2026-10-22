@@ -130,7 +130,9 @@ can once none of its players are online).
 - `timers.ts`: named deadlines in state (`turn`, `nextRound`, ...).
   `nextDeadline`/`onDeadline` become `nextTimer` plus a switch over
   `takeDueTimer`.
-- `ui/TurnTimer.tsx`: the turn-clock bar.
+- `cards.ts`: a standard 52-card deck, shuffling, rank names.
+- `ui/TurnTimer.tsx`: the turn-clock bar. `ui/Cards.tsx`: face-up and face-down
+  playing cards.
 - `testing.ts`: a seeded RNG for tests.
 
 **Conformance (`src/games/conformance.test.ts`).** Every registered game is
@@ -158,6 +160,26 @@ hands per run, with people joining, leaving and sitting out mid-hand.
 The smallest complete game, and the template to copy: kit seats (scores survive
 standing up), a turn clock that forfeits the round, alternating openers, and a
 pause between rounds. It has no hidden information, so the view is the state.
+
+### Finns i sjön (`src/games/finnsisjon`)
+
+Go Fish, the Swedish way, for 2–6 players. You ask an opponent for a rank you
+hold. If they have none ("Finns i sjön!"), you draw from the lake and go again
+only if you catch what you asked for. Fours are laid down as books; most books
+wins.
+- **Hidden information:** hands and drawn cards are private; asks and answers are
+  public, as at a real table. A lucky catch is shown, since you have to show it.
+- **Running out of cards:** with an empty hand you draw at the start of your turn.
+  If nobody you could ask has cards, you draw and pass. With no cards and an empty
+  lake, you're out.
+- **Away players:** running out of time plays your turn for you and marks you away.
+  After that your turns are played quickly (asking for what you hold most of)
+  until you're back. A dropped player never stalls the table.
+- **Leaving mid-game** shuffles your hand back into the lake. Your books stay on
+  the table, but you can't win.
+
+This was the generality test: the room and protocol needed no changes. The
+shared deck and card UI moved from poker into the kit.
 
 ### Texas Hold'em (`src/games/poker`)
 

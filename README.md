@@ -4,7 +4,7 @@ Games with friends. Create a room, share the link, pick a game, chat. No account
 
 Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSockets,
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
-Games so far: no-limit Texas Hold'em and tic-tac-toe.
+Games so far: no-limit Texas Hold'em, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
 
 - **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.
 - **Names** are set once per browser and used in every room.

@@ -1,7 +1,7 @@
 /** Helpers for poker tests: deterministic contexts and rigged decks. */
 import { seededRandomInt } from "../kit/testing";
 import type { GameContext } from "../types";
-import type { Card } from "./cards";
+import type { Card } from "../kit/cards";
 import type { PokerState } from "./engine";
 
 export function makeCtx(opts: { now?: number; seed?: number } = {}) {

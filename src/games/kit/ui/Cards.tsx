@@ -1,10 +1,11 @@
-import type { Card } from "../cards";
+import { type Card, rankLabel } from "../cards";
+import "./cards.css";
 
 const SUITS: Record<string, string> = { s: "♠", h: "♥", d: "♦", c: "♣" };
 const SUIT_NAMES: Record<string, string> = { s: "spades", h: "hearts", d: "diamonds", c: "clubs" };
 
 export function PlayingCard({ card, dim, highlight }: { card: Card; dim?: boolean; highlight?: boolean }) {
-  const rank = card[0] === "T" ? "10" : card[0];
+  const rank = rankLabel(card[0]!);
   const suit = card[1]!;
   const red = suit === "h" || suit === "d";
   return (

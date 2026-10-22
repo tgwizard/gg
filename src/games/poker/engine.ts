@@ -20,7 +20,7 @@ import {
 } from "../kit/seating";
 import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
 import { GameError, type GameContext } from "../types";
-import { type Card, newDeck, shuffle } from "./cards";
+import { type Card, newDeck, shuffle } from "../kit/cards";
 import { bestHand, compareScores, type HandValue } from "./evaluator";
 
 export const SEAT_COUNT = 9;
