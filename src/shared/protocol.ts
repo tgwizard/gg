@@ -22,6 +22,11 @@ export const CloseCode = {
   Outdated: 4426,
   /** Too many connections or messages; reconnect after the error's retryAfterMs. */
   RateLimited: 4429,
+  /**
+   * This player opened the room in too many tabs and this one is the oldest. Not
+   * retried automatically: two tabs taking turns kicking each other out would loop.
+   */
+  Replaced: 4409,
 } as const;
 
 /** Error codes for limits; the message is meant to be shown to the user as-is. */

@@ -39,10 +39,17 @@ import {
 import type { TokenBucket } from "../shared/token-bucket";
 import {
   chatBucket,
+  clientIp,
   FLOOD_RETRY_MS,
+  HELLO_TIMEOUT_MS,
+  ipChatBucket,
+  ipOpsBucket,
+  MAX_MEMBERS,
+  MAX_SOCKETS_PER_IP,
   MAX_SOCKETS_PER_PLAYER,
   MAX_SOCKETS_PER_ROOM,
   MAX_VIOLATIONS,
+  newMemberBucket,
   opsBucket,
   ROOM_IDLE_TTL_MS,
   ROOM_UNUSED_TTL_MS,
@@ -52,6 +59,8 @@ import {
 interface Attachment {
   playerId: string | null;
   connectedAt: number;
+  /** Limit key for the client's IP (an IPv6 /64). */
+  ip: string;
 }
 
 interface RoomInfo {
@@ -70,7 +79,12 @@ interface StoredGame {
 
 type AckResult = { ok: true } | { ok: false; error: AckError };
 
-const SWEEP_INTERVAL_MS = 30_000;
+/**
+ * How often a room with connected players wakes up to close dead sockets. Clients
+ * notice their own dead connections within seconds; this only keeps other people's
+ * presence dots honest, so it can be lazy (and each wake-up is billed).
+ */
+const SWEEP_INTERVAL_MS = 5 * 60_000;
 /** Generous, since browsers throttle timers (and so pings) in background tabs. */
 const STALE_SOCKET_MS = 120_000;
 const CHAT_PAGE = 100;
@@ -80,23 +94,36 @@ const OP_RETAIN_MS = 60 * 60 * 1000;
 /** Activity is persisted at most this often. */
 const TOUCH_EVERY_MS = 60_000;
 
-interface Limits {
+interface Buckets {
   chat: TokenBucket;
   ops: TokenBucket;
+}
+
+interface Limits extends Buckets {
   violations: number;
+  lastViolationAt: number;
 }
 
 export class Room extends DurableObject<Env> {
   private sql: SqlStorage;
+  /**
+   * Whether this room's tables exist. Requests for room ids that were never created
+   * must not create storage (that would be free, permanent junk for anyone to make).
+   */
+  private ready: boolean;
   private game: StoredGame | null;
-  /** In memory only: buckets reset if the DO hibernates, which is fine. */
+  // In memory only: limits reset if the DO hibernates, which is fine.
   private limits = new WeakMap<WebSocket, Limits>();
+  private ipLimits = new Map<string, Buckets>();
+  private newMembers = new Map<string, TokenBucket>();
   private lastTouch = 0;
+  /** Sweeps run on a fixed cadence from the last one, so busy rooms still get swept. */
+  private lastSweepAt = Date.now();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
-    this.migrate();
+    this.ready = this.sql.exec(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'kv'`).toArray().length > 0;
     this.game = this.getKv<StoredGame>("game");
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING, PONG));
   }
@@ -106,6 +133,8 @@ export class Room extends DurableObject<Env> {
   async create(id: string): Promise<RoomInfo> {
     const existing = this.getKv<RoomInfo>("room");
     if (existing) return existing;
+    this.migrate();
+    this.ready = true;
     const info = { id, createdAt: Date.now() };
     this.setKv("room", info);
     // Schedules expiry, so rooms nobody ever opens are cleaned up too.
@@ -123,18 +152,22 @@ export class Room extends DurableObject<Env> {
     if (request.headers.get("Upgrade") !== "websocket") {
       return new Response("Expected a WebSocket upgrade", { status: 426 });
     }
-    if (this.getKv<RoomInfo>("room") && this.ctx.getWebSockets().length >= MAX_SOCKETS_PER_ROOM) {
+    if (!this.getKv<RoomInfo>("room")) {
+      return rejectSocket("room_not_found", "This room doesn't exist.", undefined, CloseCode.RoomNotFound);
+    }
+    const sockets = this.ctx.getWebSockets();
+    if (sockets.filter((ws) => this.attachment(ws)?.playerId).length >= MAX_SOCKETS_PER_ROOM) {
       return rejectSocket(ROOM_FULL, "This room is full right now.", 30_000);
+    }
+    // Stops one client from hoarding connections that never join (which would fill the room).
+    const ip = clientIp(request);
+    if (sockets.filter((ws) => this.attachment(ws)?.ip === ip).length >= MAX_SOCKETS_PER_IP) {
+      return rejectSocket(RATE_LIMITED, "Too many connections from your network to this room.", 30_000);
     }
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
-    if (!this.getKv<RoomInfo>("room")) {
-      this.send(server, { type: "error", code: "room_not_found", message: "This room doesn't exist." });
-      server.close(CloseCode.RoomNotFound, "room not found");
-    } else {
-      server.serializeAttachment({ playerId: null, connectedAt: Date.now() } satisfies Attachment);
-      await this.scheduleAlarm();
-    }
+    server.serializeAttachment({ playerId: null, connectedAt: Date.now(), ip } satisfies Attachment);
+    await this.scheduleAlarm();
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -184,6 +217,7 @@ export class Room extends DurableObject<Env> {
   }
 
   async alarm() {
+    if (!this.ready) return;
     const now = Date.now();
     if (this.ctx.getWebSockets().length === 0) {
       const expiresAt = this.expiresAt();
@@ -217,10 +251,22 @@ export class Room extends DurableObject<Env> {
       ws.close(CloseCode.Outdated, "outdated");
       return;
     }
+    const att = this.attachment(ws);
+    // One identity per connection: re-hello with new secrets would mint members for free.
+    if (!att || att.playerId) return this.send(ws, { type: "error", code: "already_joined", message: "Already joined." });
+    const joined = this.ctx.getWebSockets().filter((s) => s !== ws && this.attachment(s)?.playerId).length;
+    if (joined >= MAX_SOCKETS_PER_ROOM) return this.refuse(ws, ROOM_FULL, "This room is full right now.", 30_000);
+
     const playerId = await playerIdFromSecret(msg.secret);
     const name = sanitizeName(msg.name);
     const now = Date.now();
     const existing = this.getMember(playerId);
+    if (!existing) {
+      if (!this.bucket(this.newMembers, att.ip, newMemberBucket).take(now)) {
+        return this.refuse(ws, RATE_LIMITED, "Too many new players from your network just now.", 60_000);
+      }
+      this.makeRoomForMember();
+    }
     const wasOnline = this.isOnline(playerId);
 
     this.sql.exec(
@@ -231,8 +277,7 @@ export class Room extends DurableObject<Env> {
       now,
       now,
     );
-    const att = this.attachment(ws);
-    ws.serializeAttachment({ playerId, connectedAt: att?.connectedAt ?? now } satisfies Attachment);
+    ws.serializeAttachment({ ...att, playerId } satisfies Attachment);
     this.closeOldSockets(playerId, ws);
     this.touch();
 
@@ -253,6 +298,8 @@ export class Room extends DurableObject<Env> {
 
     if (joinMessage) this.broadcast({ type: "chat", messages: [joinMessage] }, ws);
     if (!wasOnline || existing?.name !== name) this.broadcast({ type: "members", members: this.getMembers() }, ws);
+    // The hello-timeout check for this socket is no longer needed.
+    await this.scheduleAlarm();
   }
 
   private onSetName(playerId: string, raw: string) {
@@ -399,59 +446,105 @@ export class Room extends DurableObject<Env> {
       const due = this.definition().nextDeadline?.(this.game.state);
       if (due != null) next = Math.min(next, due);
     }
-    if (this.ctx.getWebSockets().length > 0) next = Math.min(next, now + SWEEP_INTERVAL_MS);
-    else next = Math.min(next, this.expiresAt() ?? Infinity);
+    const sockets = this.ctx.getWebSockets();
+    for (const ws of sockets) {
+      const att = this.attachment(ws);
+      // Connections that haven't joined get closed promptly; joined ones are swept lazily.
+      next = Math.min(next, att?.playerId ? this.lastSweepAt + SWEEP_INTERVAL_MS : (att?.connectedAt ?? now) + HELLO_TIMEOUT_MS);
+    }
+    if (sockets.length === 0) next = Math.min(next, this.expiresAt() ?? Infinity);
     const current = await this.ctx.storage.getAlarm();
     if (next === Infinity) {
       if (current !== null) await this.ctx.storage.deleteAlarm();
       return;
     }
-    // Keep an earlier pending alarm (the handler re-plans), so busy rooms still get swept.
-    if (current === null || current > next || current < now) await this.ctx.storage.setAlarm(Math.max(next, now));
+    next = Math.max(next, now);
+    if (current === null || Math.abs(current - next) > 1000) await this.ctx.storage.setAlarm(next);
   }
 
-  /** Close sockets that stopped heartbeating (e.g. a laptop lid closed mid-game). */
+  /**
+   * Close sockets that stopped heartbeating (e.g. a laptop lid closed mid-game), and
+   * ones that never said hello (pings alone don't count: they'd let anyone squat).
+   */
   private sweep(now: number) {
+    this.lastSweepAt = now;
     for (const ws of this.ctx.getWebSockets()) {
       const att = this.attachment(ws);
-      const lastPing = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? 0;
-      const lastActivity = Math.max(lastPing, att?.connectedAt ?? 0);
-      if (now - lastActivity > STALE_SOCKET_MS) {
-        try {
-          ws.close(1001, "stale");
-        } catch {
-          // already closed
-        }
-        this.onDisconnect(ws);
+      const connectedAt = att?.connectedAt ?? 0;
+      let reason: string | null = null;
+      if (!att?.playerId) {
+        if (now - connectedAt >= HELLO_TIMEOUT_MS) reason = "hello timeout";
+      } else {
+        const lastPing = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? 0;
+        if (now - Math.max(lastPing, connectedAt) > STALE_SOCKET_MS) reason = "stale";
       }
+      if (!reason) continue;
+      try {
+        ws.close(1001, reason);
+      } catch {
+        // already closed
+      }
+      this.onDisconnect(ws);
     }
   }
 
   // --- limits & expiry -----------------------------------------------------
 
-  /** Take a token for this socket; disconnect sockets that keep flooding. */
+  /**
+   * Take a token from this socket's bucket and its IP's (so opening more connections
+   * doesn't buy more throughput); disconnect sockets that keep flooding.
+   */
   private allow(ws: WebSocket, kind: "chat" | "ops"): boolean {
+    const now = Date.now();
     let limits = this.limits.get(ws);
     if (!limits) {
-      limits = { chat: chatBucket(), ops: opsBucket(), violations: 0 };
+      limits = { chat: chatBucket(), ops: opsBucket(), violations: 0, lastViolationAt: now };
       this.limits.set(ws, limits);
     }
-    if (limits[kind].take()) return true;
-    if (++limits.violations > MAX_VIOLATIONS) {
-      this.send(ws, {
-        type: "error",
-        code: RATE_LIMITED,
-        message: "Too many messages. Reconnecting in a moment.",
-        retryAfterMs: FLOOD_RETRY_MS,
-      });
-      try {
-        ws.close(CloseCode.RateLimited, RATE_LIMITED);
-      } catch {
-        // already closing
-      }
-      this.onDisconnect(ws);
+    const ip = this.attachment(ws)?.ip ?? "unknown";
+    if (this.ipLimits.size > 10_000) this.ipLimits.clear();
+    const perIp = this.ipLimits.get(ip) ?? { chat: ipChatBucket(), ops: ipOpsBucket() };
+    this.ipLimits.set(ip, perIp);
+    if (limits[kind].take(now) && perIp[kind].take(now)) return true;
+
+    // Violations are forgiven at one per second, so only sustained flooding disconnects.
+    limits.violations = Math.max(0, limits.violations - (now - limits.lastViolationAt) / 1000) + 1;
+    limits.lastViolationAt = now;
+    if (limits.violations > MAX_VIOLATIONS) {
+      this.refuse(ws, RATE_LIMITED, "Too many messages. Reconnecting in a moment.", FLOOD_RETRY_MS);
     }
     return false;
+  }
+
+  /** Tell a client why, then close it; it will come back after `retryAfterMs`. */
+  private refuse(ws: WebSocket, code: string, message: string, retryAfterMs: number) {
+    this.send(ws, { type: "error", code, message, retryAfterMs });
+    try {
+      ws.close(CloseCode.RateLimited, code);
+    } catch {
+      // already closing
+    }
+    this.onDisconnect(ws);
+  }
+
+  private bucket(map: Map<string, TokenBucket>, key: string, make: () => TokenBucket): TokenBucket {
+    if (map.size > 10_000) map.clear();
+    let b = map.get(key);
+    if (!b) map.set(key, (b = make()));
+    return b;
+  }
+
+  /** Keep the member list bounded: forget the offline members who've been gone longest. */
+  private makeRoomForMember() {
+    const count = this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM members`).one().n;
+    if (count < MAX_MEMBERS) return;
+    const online = this.onlineIds();
+    const gone = this.sql
+      .exec<{ id: string }>(`SELECT id FROM members ORDER BY last_seen_at`)
+      .toArray()
+      .filter((r) => !online.has(r.id))
+      .slice(0, count - MAX_MEMBERS + 1);
+    for (const r of gone) this.sql.exec(`DELETE FROM members WHERE id = ?`, r.id);
   }
 
   private onLimited(ws: WebSocket, msg: ClientMessage) {
@@ -469,7 +562,7 @@ export class Room extends DurableObject<Env> {
       .sort((a, b) => (this.attachment(b)?.connectedAt ?? 0) - (this.attachment(a)?.connectedAt ?? 0));
     for (const ws of others.slice(MAX_SOCKETS_PER_PLAYER - 1)) {
       try {
-        ws.close(4001, "replaced by a newer connection");
+        ws.close(CloseCode.Replaced, "replaced by a newer connection");
       } catch {
         // already closing
       }
@@ -495,9 +588,9 @@ export class Room extends DurableObject<Env> {
   private async expire() {
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll();
+    this.ready = false;
     this.game = null;
     this.lastTouch = 0;
-    this.migrate();
   }
 
   // --- members & chat ------------------------------------------------------
@@ -508,18 +601,19 @@ export class Room extends DurableObject<Env> {
   }
 
   private getMembers(): Member[] {
+    const online = this.onlineIds();
     return this.sql
       .exec<MemberRow>(`SELECT * FROM members ORDER BY joined_at`)
       .toArray()
-      .map((r) => this.toMember(r));
+      .map((r) => this.toMember(r, online));
   }
 
-  private toMember(row: MemberRow): Member {
+  private toMember(row: MemberRow, online = this.onlineIds()): Member {
     return {
       id: row.id,
       name: row.name,
       kind: row.kind as Member["kind"],
-      online: this.isOnline(row.id),
+      online: online.has(row.id),
       joinedAt: row.joined_at,
       lastSeenAt: row.last_seen_at,
     };
@@ -527,6 +621,16 @@ export class Room extends DurableObject<Env> {
 
   private nameOf(id: string): string {
     return this.getMember(id)?.name ?? "Someone";
+  }
+
+  /** One pass over the sockets, rather than one per member. */
+  private onlineIds(): Set<string> {
+    const ids = new Set<string>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const id = ws.readyState === WebSocket.READY_STATE_OPEN ? this.attachment(ws)?.playerId : null;
+      if (id) ids.add(id);
+    }
+    return ids;
   }
 
   private isOnline(playerId: string, except?: WebSocket): boolean {
@@ -567,16 +671,20 @@ export class Room extends DurableObject<Env> {
 
   // --- infra ---------------------------------------------------------------
 
-  /** Run a mutation at most once per (player, cid); replays return the stored result. */
+  /** Run a mutation at most once per (player, cid); a replayed success returns the stored result. */
   private idempotent(playerId: string, cid: string, fn: () => AckResult): AckResult {
     const prior = this.sql
       .exec<{ result: string }>(`SELECT result FROM ops WHERE player_id = ? AND cid = ?`, playerId, cid)
       .toArray()[0];
     if (prior) return JSON.parse(prior.result) as AckResult;
     const result = fn();
-    const now = Date.now();
-    this.sql.exec(`INSERT INTO ops (player_id, cid, ts, result) VALUES (?, ?, ?, ?)`, playerId, cid, now, JSON.stringify(result));
-    this.sql.exec(`DELETE FROM ops WHERE ts < ?`, now - OP_RETAIN_MS);
+    // Only successes need remembering: a refused op changed nothing, so re-running it is
+    // harmless, and not writing on refusal stops spam from turning into storage writes.
+    if (result.ok) {
+      const now = Date.now();
+      this.sql.exec(`INSERT INTO ops (player_id, cid, ts, result) VALUES (?, ?, ?, ?)`, playerId, cid, now, JSON.stringify(result));
+      if (Math.random() < 0.05) this.sql.exec(`DELETE FROM ops WHERE ts < ?`, now - OP_RETAIN_MS);
+    }
     return result;
   }
 
@@ -608,6 +716,7 @@ export class Room extends DurableObject<Env> {
   }
 
   private getKv<T>(key: string): T | null {
+    if (!this.ready) return null;
     const row = this.sql.exec<{ value: string }>(`SELECT value FROM kv WHERE key = ?`, key).toArray()[0];
     return row ? (JSON.parse(row.value) as T) : null;
   }

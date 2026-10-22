@@ -78,3 +78,22 @@ test("hammering refresh never trips a limit", async ({ browser }) => {
   await expect(chat(alice.page)).toContainText("still here");
   await expect(alice.page.getByTestId("member").filter({ hasText: "Bob" })).toHaveClass(/online/);
 });
+
+test("too many tabs pauses the oldest instead of fighting over the connection", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const url = await createRoom(alice.page, "Alice");
+  const tabs = [alice.page];
+  for (let i = 0; i < 6; i++) {
+    const tab = await alice.context.newPage();
+    await tab.goto(url);
+    await expectConnected(tab);
+    tabs.push(tab);
+  }
+  const first = tabs[0]!;
+  await expect(first.getByRole("heading", { name: "Open in another tab" })).toBeVisible();
+  // It stays paused: no reconnect loop.
+  await first.waitForTimeout(2000);
+  await expect(first.getByRole("heading", { name: "Open in another tab" })).toBeVisible();
+  await first.getByRole("button", { name: "Use this tab" }).click();
+  await expectConnected(first);
+});

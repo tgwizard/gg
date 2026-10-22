@@ -1,7 +1,7 @@
 import { env, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
-import { CloseCode, RATE_LIMITED, ROOM_FULL } from "../../src/shared/protocol";
+import { CloseCode, PROTOCOL_VERSION, RATE_LIMITED, ROOM_FULL } from "../../src/shared/protocol";
 import { ROOM_IDLE_TTL_MS, ROOM_UNUSED_TTL_MS } from "../../src/worker/limits";
 import { createRoom, postRoom, randomIp, secret, TestClient } from "./client";
 
@@ -68,7 +68,7 @@ describe("rate limits", () => {
     expect(client.received.some((m) => m.type === "error" && m.code === RATE_LIMITED && m.retryAfterMs! > 0)).toBe(true);
   });
 
-  it("keeps only a player's newest connections", async () => {
+  it("keeps only a player's newest connections, telling the old tab not to reconnect", async () => {
     const room = await createRoom();
     const tabs: TestClient[] = [];
     for (let i = 0; i < 7; i++) {
@@ -76,17 +76,138 @@ describe("rate limits", () => {
       await sleep(2);
     }
     await sleep(20);
-    expect(tabs[0]!.closed?.code).toBe(4001);
+    expect(tabs[0]!.closed?.code).toBe(CloseCode.Replaced);
     expect(tabs.slice(1).every((t) => t.closed === null)).toBe(true);
   });
+});
 
-  it("refuses connections to a full room", async () => {
+describe("griefing a room", () => {
+  /** Move every socket's connect time into the past, as if they'd been open a while. */
+  async function ageSockets(roomId: string, ms: number) {
+    await runInDurableObject(stub(roomId), (_i, state) => {
+      for (const ws of state.getWebSockets()) {
+        const att = ws.deserializeAttachment() as { connectedAt: number };
+        ws.serializeAttachment({ ...att, connectedAt: att.connectedAt - ms });
+      }
+    });
+  }
+
+  it("closes connections that never say hello, even if they keep pinging", async () => {
     const room = await createRoom();
-    for (let i = 0; i < 100; i++) await TestClient.connect(room);
+    const { client: player } = await TestClient.join(room, secret("real"), "Real");
+    const squatters = await Promise.all(Array.from({ length: 10 }, () => TestClient.connect(room)));
+    for (const s of squatters) s.send("ping");
+    await sleep(20);
+    await ageSockets(room, 11_000);
+    await runDurableObjectAlarm(stub(room));
+    await sleep(20);
+    expect(squatters.every((s) => s.closed !== null)).toBe(true);
+    expect(player.closed).toBeNull();
+  });
+
+  it("caps connections per IP per room, and counts only joined players towards a full room", async () => {
+    const room = await createRoom();
+    const ip = randomIp();
+    for (let i = 0; i < 20; i++) await TestClient.connect(room, ip);
+    const extra = await TestClient.connect(room, ip);
+    await sleep(10);
+    expect(extra.received[0]).toMatchObject({ type: "error", code: RATE_LIMITED });
+    // Those 20 squatters don't stop real players from joining.
+    const { welcome } = await TestClient.join(room, secret("someone"), "Someone");
+    expect(welcome.you.name).toBe("Someone");
+  });
+
+  it("refuses new players once 100 are connected", async () => {
+    const room = await createRoom();
+    for (let i = 0; i < 100; i++) await TestClient.join(room, secret(`p${i}`), `P${i}`);
     const extra = await TestClient.connect(room);
     await sleep(10);
     expect(extra.received[0]).toMatchObject({ type: "error", code: ROOM_FULL });
     expect(extra.closed?.code).toBe(CloseCode.RateLimited);
+  });
+
+  it("allows one identity per connection", async () => {
+    const room = await createRoom();
+    const { client } = await TestClient.join(room, secret("first"), "First");
+    client.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("second"), name: "Second", chatCursor: null });
+    expect((await client.next("error")).code).toBe("already_joined");
+    const { welcome } = await TestClient.join(room, secret("observer"), "Observer");
+    expect(welcome.members.map((m) => m.name)).toEqual(["First", "Observer"]);
+  });
+
+  it("limits how fast one network can mint new identities", async () => {
+    const room = await createRoom();
+    const ip = randomIp();
+    for (let i = 0; i < 6; i++) {
+      const c = await TestClient.connect(room, ip);
+      const welcome = c.next("welcome");
+      c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret(`fresh${i}`), name: `Fresh${i}`, chatCursor: null });
+      await welcome;
+    }
+    const c = await TestClient.connect(room, ip);
+    c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("fresh-too-many"), name: "Spam", chatCursor: null });
+    expect(await c.next("error")).toMatchObject({ code: RATE_LIMITED, retryAfterMs: expect.any(Number) });
+    await sleep(10);
+    expect(c.closed?.code).toBe(CloseCode.RateLimited);
+    // A returning player (known identity) from the same network is fine.
+    const back = await TestClient.connect(room, ip);
+    const welcome = back.next("welcome");
+    back.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("fresh0"), name: "Fresh0", chatCursor: null });
+    await welcome;
+  });
+
+  it("forgets the longest-gone members once the room has 200", async () => {
+    const room = await createRoom();
+    await TestClient.join(room, secret("seed"), "Seed");
+    await runInDurableObject(stub(room), (_i, state) => {
+      for (let i = 0; i < 199; i++) {
+        state.storage.sql.exec(`INSERT INTO members (id, name, kind, joined_at, last_seen_at) VALUES (?, ?, 'human', ?, ?)`, `old${i}`, `Old${i}`, i, i);
+      }
+    });
+    const { welcome } = await TestClient.join(room, secret("newcomer"), "Newcomer");
+    expect(welcome.members).toHaveLength(200);
+    expect(welcome.members.some((m) => m.id === "old0")).toBe(false);
+    expect(welcome.members.some((m) => m.name === "Seed")).toBe(true); // online: never evicted
+  });
+
+  it("shares a budget across connections from one network, and refused moves write nothing", async () => {
+    const room = await createRoom();
+    const ip = randomIp();
+    const clients: TestClient[] = [];
+    for (let i = 0; i < 4; i++) {
+      const c = await TestClient.connect(room, ip);
+      const welcome = c.next("welcome");
+      c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret(`house${i}`), name: `House${i}`, chatCursor: null });
+      await welcome;
+      clients.push(c);
+    }
+    // 4 x 15 bursts would pass per-connection limits; the network's shared budget stops it.
+    const acks = await Promise.all(clients.flatMap((c) => Array.from({ length: 15 }, (_, i) => c.request({ type: "chat", text: `m${i}` }))));
+    expect(acks.filter((a) => !a.ok).length).toBeGreaterThan(0);
+
+    const opsRows = () => runInDurableObject(stub(room), (_i, state) => state.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM ops`).one().n);
+    const before = await opsRows();
+    const { client: other } = await TestClient.join(room, secret("mover"), "Mover");
+    for (let i = 0; i < 10; i++) await other.request({ type: "gameOp", instanceId: "nope", op: { type: "fold" } });
+    expect(await opsRows()).toBe(before);
+  });
+
+  it("doesn't create storage for rooms that don't exist", async () => {
+    const ghost = crypto.randomUUID();
+    expect((await exports.default.fetch(`${BASE}/api/rooms/${ghost}`)).status).toBe(404);
+    const c = await TestClient.connect(ghost);
+    await c.next("error");
+    const tables = await runInDurableObject(stub(ghost), (_i, state) =>
+      state.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'`).one().n,
+    );
+    expect(tables).toBe(0);
+  });
+
+  it("wakes an idle room with connected players only every few minutes", async () => {
+    const room = await createRoom();
+    await TestClient.join(room, secret("idle"), "Idle");
+    const alarm = await runInDurableObject(stub(room), (_i, state) => state.storage.getAlarm());
+    expect(alarm! - Date.now()).toBeGreaterThan(4 * 60_000);
   });
 });
 
@@ -129,6 +250,11 @@ describe("room expiry", () => {
     expect(await exists(room)).toBe(false);
     const c = await TestClient.connect(room);
     expect((await c.next("error")).code).toBe("room_not_found");
+    // And nothing is left behind.
+    const tables = await runInDurableObject(stub(room), (_i, state) =>
+      state.storage.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'`).one().n,
+    );
+    expect(tables).toBe(0);
   });
 
   it("never expires a room while someone is connected", async () => {

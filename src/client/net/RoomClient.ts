@@ -29,7 +29,15 @@ import {
   sanitizeChat,
 } from "../../shared/protocol";
 
-export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "offline" | "not_found" | "outdated";
+export type ConnectionStatus =
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "offline"
+  | "not_found"
+  | "outdated"
+  /** Too many tabs of this room open; this one was closed in favour of a newer one. */
+  | "replaced";
 
 export interface PendingChat {
   cid: string;
@@ -141,6 +149,13 @@ export class RoomClient {
     ws?.close(1000, "bye");
   }
 
+  /** Reconnect a tab that was replaced by a newer one (the user asked to use this one). */
+  takeOver() {
+    if (this.stopped || this.snapshot.status !== "replaced") return;
+    this.update({ status: "reconnecting", attempt: 0 });
+    this.connect();
+  }
+
   /** Skip the backoff and try now. */
   retryNow() {
     if (this.stopped || this.isTerminal()) return;
@@ -248,7 +263,8 @@ export class RoomClient {
   }
 
   private isTerminal() {
-    return this.snapshot.status === "not_found" || this.snapshot.status === "outdated";
+    const s = this.snapshot.status;
+    return s === "not_found" || s === "outdated" || s === "replaced";
   }
 
   private connect() {
@@ -285,6 +301,11 @@ export class RoomClient {
       if (this.ws !== ws) return;
       if (e.code === CloseCode.RoomNotFound) return this.terminate("not_found");
       if (e.code === CloseCode.Outdated) return this.terminate("outdated");
+      if (e.code === CloseCode.Replaced) {
+        // Keep queued chat: it goes out if the user takes this tab back.
+        this.dropSocket();
+        return this.update({ status: "replaced", nextRetryAt: null });
+      }
       this.onSocketLost(ws);
     };
   }

@@ -62,6 +62,19 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
       </div>
     );
   }
+  if (snapshot.status === "replaced") {
+    return (
+      <div className="center-page">
+        <div className="card narrow">
+          <h2>Open in another tab</h2>
+          <p className="muted">You have this room open in several other tabs, so this one was paused.</p>
+          <button className="btn primary" onClick={() => client.takeOver()}>
+            Use this tab
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (!snapshot.joined) {
     return (
       <div className="center-page">

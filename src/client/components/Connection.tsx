@@ -8,6 +8,7 @@ const LABELS: Record<RoomSnapshot["status"], string> = {
   offline: "Offline",
   not_found: "Not found",
   outdated: "Outdated",
+  replaced: "Open elsewhere",
 };
 
 export function ConnectionPill({ snapshot }: { snapshot: RoomSnapshot }) {

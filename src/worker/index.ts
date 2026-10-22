@@ -45,6 +45,9 @@ export default {
         return stub.fetch(request);
       }
       if (request.method !== "GET") return new Response(null, { status: 405 });
+      if (!(await env.CONNECT_LIMITER.limit({ key: clientIp(request) })).success) {
+        return Response.json({ error: RATE_LIMITED }, { status: 429, headers: { "Retry-After": "60" } });
+      }
       const info = await stub.info();
       return info ? Response.json(info) : Response.json({ error: "not_found" }, { status: 404 });
     }
