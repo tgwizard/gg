@@ -1,11 +1,11 @@
 import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
 import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
+import { formatDateTime, formatTime } from "../format";
 import { noAutofill } from "../noAutofill";
 import { colorFor } from "./Members";
 import { useToast } from "./Toasts";
 
-const time = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): Promise<void> }) {
   const [text, setText] = useState("");
@@ -46,7 +46,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
         {snapshot.chat.map((m) =>
           m.kind === "user" ? (
             <div key={m.seq} className="msg" data-testid="chat-message">
-              <span className="msg-time">{time(m.ts)}</span>
+              <span className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</span>
               <span className="msg-name" style={{ color: colorFor(m.playerId ?? "") }}>
                 {m.name}
               </span>
@@ -54,14 +54,14 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
             </div>
           ) : (
             <div key={m.seq} className={`msg msg-${m.kind}`} data-testid="chat-message">
-              <span className="msg-time">{time(m.ts)}</span>
+              <span className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</span>
               <span className="msg-text">{m.text}</span>
             </div>
           ),
         )}
         {snapshot.pendingChat.map((p) => (
           <div key={p.cid} className="msg pending" title="Sending…" data-testid="chat-pending">
-            <span className="msg-time">{time(p.ts)}</span>
+            <span className="msg-time" title={formatDateTime(p.ts)}>{formatTime(p.ts)}</span>
             <span className="msg-name" style={{ color: colorFor(snapshot.you?.id ?? "") }}>
               {snapshot.you?.name}
             </span>
