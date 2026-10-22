@@ -1,0 +1,224 @@
+.bs { display: flex; flex-direction: column; gap: 16px; }
+
+/* What just happened: a fixed height so the boards don't jump as shots come in. */
+.bs-news { min-height: 64px; }
+.bs-news .herald-text { gap: 3px; }
+.bs-latest { font-weight: 700; }
+.bs-latest.hit, .bs-latest.sunk { color: var(--accent-text); }
+.bs-news-sub { font-family: var(--font-body); font-size: 14px; font-weight: 400; color: var(--text-2); }
+
+/* ---------- the two seas ---------- */
+.bs-wrap { position: relative; }
+.bs-boards { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px 40px; }
+.bs-boards.idle { filter: grayscale(0.9); opacity: 0.45; pointer-events: none; }
+.bs-side { flex: 1 1 320px; max-width: 370px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+/* The same height with or without a timer in it, so the two seas line up. */
+.bs-side .plate { width: 100%; max-width: 200px; min-height: 66px; justify-content: center; }
+.bs-board-wrap { position: relative; width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.bs-caption { text-align: center; }
+
+.bs-board {
+  position: relative;
+  padding: 4px 10px 10px 4px;
+  border-radius: 16px;
+  background: var(--wood);
+  border: 1px solid var(--wood-edge);
+  box-shadow: var(--table-shadow);
+  transition: box-shadow 160ms ease;
+}
+.bs-board.target { box-shadow: 0 0 0 3px var(--gold), var(--table-shadow); }
+.bs-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px repeat(10, 1fr);
+  grid-template-rows: 20px repeat(10, 1fr);
+  aspect-ratio: 1;
+}
+.bs-water {
+  grid-row: 2 / -1;
+  grid-column: 2 / -1;
+  border-radius: 6px;
+  background: var(--sea);
+  box-shadow: inset 0 0 0 1px var(--wood-edge);
+}
+.bs-label {
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--on-brand);
+  opacity: 0.85;
+  user-select: none;
+}
+
+/* The ships: wooden game pieces, a little inset from their cells. */
+.bs-ship {
+  z-index: 1;
+  margin: 4px 3px;
+  border-radius: var(--pill);
+  background: var(--wood);
+  border: 1.5px solid var(--wood-edge);
+  box-shadow: var(--card-shadow);
+  position: relative;
+  pointer-events: none;
+}
+.bs-ship.vertical { margin: 3px 4px; }
+/* a deck stripe down the middle */
+.bs-ship::after {
+  content: "";
+  position: absolute;
+  inset: 42% 18%;
+  border-radius: var(--pill);
+  background: var(--card-face);
+  opacity: 0.35;
+}
+.bs-ship.vertical::after { inset: 18% 42%; }
+.bs-ship.sunk { filter: saturate(0.35) brightness(0.7); }
+.bs-ship.moving { opacity: 0.35; }
+
+/* Cells sit on top: transparent, with the sea's grid lines, holding the pegs. */
+.bs-cell {
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: inset 0 0 0 0.5px var(--sea-line);
+  font: inherit;
+  cursor: default;
+  transition: background-color 100ms ease;
+}
+.bs-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.bs-board.target .bs-cell:not(:disabled) { cursor: crosshair; }
+.bs-board.target .bs-cell:not(:disabled):hover { background: color-mix(in oklab, var(--gold) 55%, transparent); }
+.bs-board.placing .bs-cell:not(:disabled) { cursor: pointer; }
+.bs-cell.preview { background: color-mix(in oklab, var(--good) 60%, transparent); }
+.bs-cell.preview.bad { background: color-mix(in oklab, var(--danger) 55%, transparent); }
+
+/* pegs: cream for a miss, terracotta for a hit */
+.bs-peg { border-radius: 50%; box-shadow: var(--card-shadow); }
+.bs-cell.miss .bs-peg { width: 30%; height: 30%; background: var(--card-face); border: 1px solid var(--card-edge); }
+.bs-cell.hit .bs-peg { width: 46%; height: 46%; background: var(--accent); border: 2px solid var(--card-face); }
+.bs-cell.hit.sunk .bs-peg { background: var(--danger); }
+.bs-cell.last { box-shadow: inset 0 0 0 2px var(--gold); }
+.bs-cell.last .bs-peg { animation: bs-drop 320ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes bs-drop {
+  from { scale: 2; opacity: 0; }
+  to { scale: 1; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bs-cell.last .bs-peg { animation: none; }
+}
+
+/* The other side's sea while fleets are being hidden. */
+.bs-board.resting .bs-grid { filter: saturate(0.4); opacity: 0.75; }
+.bs-note {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  z-index: 3;
+  white-space: nowrap;
+  color: var(--on-brand);
+  background: var(--brand);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--pill);
+  padding: 7px 14px 6px;
+  box-shadow: var(--shadow-md);
+}
+
+.bs-open-seat {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 200px;
+  height: 56px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+
+/* Waiting for players: a prompt over the greyed-out seas. */
+.bs-prompt {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  z-index: 4;
+  width: min(360px, calc(100vw - 32px));
+  padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.bs-prompt h3 { font-size: 1.5rem; }
+.bs-prompt p { font-size: 14px; }
+
+/* ---------- the tray ---------- */
+.bs-tray-text { color: var(--text); font-size: 15px; }
+.bs-dock { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.bs-dock-ships { display: flex; flex-wrap: wrap; gap: 8px; }
+.bs-dock-ship {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+.bs-dock-ship:hover:not(:disabled) { background: var(--surface-hover); }
+.bs-dock-ship:disabled { cursor: default; opacity: 0.6; }
+.bs-dock-ship.on { box-shadow: 0 0 0 2px var(--gold); border-color: transparent; }
+.bs-dock-hull { display: inline-flex; gap: 2px; }
+.bs-dock-hull i { width: 9px; height: 11px; border-radius: 3px; background: var(--wood); border: 1px solid var(--wood-edge); }
+.bs-dock-ship.placed .bs-dock-hull i { opacity: 0.45; }
+.bs-dock-size { color: var(--text-muted); font-weight: 600; }
+.bs-dock-check { color: var(--good); font-weight: 800; }
+.bs-dock-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.bs-hint { color: var(--text-2); font-size: 14px; }
+.bs-hint kbd {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+}
+
+/* ---------- setup ---------- */
+.bs-setup { display: flex; flex-direction: column; gap: 14px; }
+.bs-setup > p { margin: 0; }
+.bs-setup-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.bs-setup > .btn { align-self: flex-start; }
+.bs-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.bs-check .muted { font-weight: 400; }
+.bs-check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  padding: 0;
+  box-shadow: none;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .bs-boards { gap: 18px; }
+  .bs-side { flex-basis: 100%; }
+  /* On a phone: while placing, the other side's empty sea is just their nameplate; while firing,
+     the sea you aim at comes first and your own shrinks below it. */
+  .bs-boards.placing .bs-side.resting .bs-board-wrap { display: none; }
+  .bs-boards.firing .bs-side.theirs { order: -1; }
+  .bs-boards.firing .bs-side.mine { max-width: 280px; }
+  .bs-board { padding: 3px 7px 7px 3px; border-radius: 12px; }
+  .bs-grid { grid-template-columns: 16px repeat(10, 1fr); grid-template-rows: 16px repeat(10, 1fr); }
+  .bs-label { font-size: 10px; }
+}

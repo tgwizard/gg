@@ -22,6 +22,7 @@ Visual snapshot of the main screens (desktop and mobile), for eyeballing layout 
 npm run dev -- --port 5311 &
 node test/e2e/screens.ts http://localhost:5311 ./screens        # rooms + poker
 node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
+node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battleship, light + dark
 ```
 
 ## 2. Manual scenarios
@@ -91,6 +92,17 @@ these through the browser and reports back.
 - [ ] Two players take X and O; the round starts at once; a win highlights the line, scores it and announces it in chat.
 - [ ] The next round starts on its own with the other player opening. Draws are counted.
 - [ ] Leaving mid-round forfeits it. Leaving and coming back keeps your win count.
+
+### Battleship
+- [ ] Nobody seated: the seas are greyed out with a "Take a seat" prompt; seated alone, it says you're waiting for an opponent.
+- [ ] Placing: the next ship goes where you click (green/red preview on hover), *Rotate* or <kbd>R</kbd> turns it, clicking a placed ship picks it up, *Random* deals a fleet, *Ready* needs all five. With "ships may touch" off, touching ships are refused.
+- [ ] The other player only sees "placing…" / "ready" over a blank sea. DevTools → WS: no `row`/`col` of the opponent's ships ever arrives before game over.
+- [ ] Firing: misses get a cream peg, hits a terracotta one; a hit doesn't show the ship; a sinking shows the ship and says "You sank Bob's Cruiser". The defender is told which of their ships was hit.
+- [ ] Strict alternation by default; with "a hit earns another shot" on, you keep shooting until you miss.
+- [ ] Let the clock run out: a random shot is fired for you; three in a row forfeits. The placement clock completes unfinished fleets at random.
+- [ ] Sink the fleet: winner announced in chat, both fleets revealed, *Play again* starts placing with the other player shooting first.
+- [ ] Leaving while placing calls the game off; leaving while firing forfeits.
+- [ ] Phone: while placing, your sea and the dock fit with the other side as just a nameplate; while firing, the sea you aim at comes first.
 
 ### Lifecycle & layout
 - [ ] The gear next to *End game* shows the running game's settings (turn timer, and for poker chips and blinds).

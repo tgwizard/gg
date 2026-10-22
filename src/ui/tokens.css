@@ -51,6 +51,9 @@
   --table-shadow: 0 14px 30px rgb(58 46 36 / 0.3);
   --pond: radial-gradient(ellipse at 40% 35%, #8cc1d9, #4a86a8 65%, #346a88);
   --pond-edge: #e9d8b4;
+  /* open water on a game grid (Battleship), and the lines between its cells */
+  --sea: linear-gradient(165deg, #a3cad8, #7aaec4 55%, #6a9fb6);
+  --sea-line: rgb(255 255 255 / 0.4);
   --card-face: #fffaf0;
   --card-edge: #c9b48f;
   --card-ink: #3a2e24;
@@ -115,6 +118,8 @@
   --table-shadow: 0 14px 34px rgb(0 0 0 / 0.55);
   --pond: radial-gradient(ellipse at 40% 35%, #6aa3bf, #3a7092 65%, #29566f);
   --pond-edge: #c9b48f;
+  --sea: linear-gradient(165deg, #3f7088, #2f5b71 55%, #284f63);
+  --sea-line: rgb(255 255 255 / 0.13);
   --card-face: #f3ead9;
   --card-edge: #8f7a58;
   --badge: #e9dfcc;

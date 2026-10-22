@@ -213,6 +213,26 @@ wins.
 This was the generality test: the room and protocol needed no changes. The
 shared deck and card UI moved from poker into the kit.
 
+### Battleship (`src/games/battleship`)
+
+Classic Battleship for two: each player hides a fleet (Carrier 5, Battleship 4,
+Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firing.
+- **Placing** is server-validated one ship at a time (`arrange` sends the whole,
+  possibly unfinished layout), or `random` lets the server deal a valid fleet.
+  `ready` needs all five; `unready` is allowed until both are ready. The other
+  side only learns "placing…" or "ready".
+- **Hidden information:** a fleet's layout is only in its owner's view until the
+  game is over, when both are revealed. Shots and their results are public, and
+  a sunk ship's cells are shown (as at a real table). A plain hit doesn't say
+  which ship it was, not even in the log. Tests check that the opponent's and a
+  spectator's views don't change when the untouched ships are moved.
+- **Settings:** ships may touch (default yes; never overlap), a hit earns another
+  shot (default no), a placement clock (unfinished fleets are completed at
+  random) and a turn clock (a random shot is fired for you; three in a row
+  forfeits).
+- Leaving while placing calls the game off unscored; leaving while firing
+  forfeits. *Play again* starts the next game with the opener alternating.
+
 ### Texas Hold'em (`src/games/poker`)
 
 No-limit hold'em for 2–9 seats: blinds (heads-up rules included), min-raise
