@@ -3,6 +3,7 @@ import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { CloseCode, PROTOCOL_VERSION, RATE_LIMITED, ROOM_FULL } from "../../src/shared/protocol";
 import { ROOM_IDLE_TTL_MS, ROOM_UNUSED_TTL_MS } from "../../src/worker/limits";
+import { generateRoomCode } from "../../src/shared/roomCode";
 import { createRoom, postRoom, randomIp, secret, TestClient } from "./client";
 
 const BASE = "http://gg.test";
@@ -193,7 +194,7 @@ describe("griefing a room", () => {
   });
 
   it("doesn't create storage for rooms that don't exist", async () => {
-    const ghost = crypto.randomUUID();
+    const ghost = generateRoomCode();
     expect((await exports.default.fetch(`${BASE}/api/rooms/${ghost}`)).status).toBe(404);
     const c = await TestClient.connect(ghost);
     await c.next("error");

@@ -1,6 +1,7 @@
 import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
 import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
+import { noAutofill } from "../noAutofill";
 import { colorFor } from "./Members";
 import { useToast } from "./Toasts";
 
@@ -75,6 +76,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
           placeholder="Say something…"
           aria-label="Chat message"
           maxLength={MAX_CHAT_LENGTH}
+          {...noAutofill}
         />
         <button className="btn" disabled={!text.trim()}>
           Send

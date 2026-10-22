@@ -3,6 +3,7 @@ import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { PokerView } from "../../src/games/poker/engine";
 import { CloseCode, PROTOCOL_VERSION } from "../../src/shared/protocol";
+import { generateRoomCode } from "../../src/shared/roomCode";
 import { createRoom, secret, TestClient } from "./client";
 
 const BASE = "http://gg.test";
@@ -23,14 +24,16 @@ describe("HTTP API", () => {
     expect(info.status).toBe(200);
     expect(await info.json()).toMatchObject({ id });
 
-    const missing = await exports.default.fetch(`${BASE}/api/rooms/${crypto.randomUUID()}`);
+    expect((await exports.default.fetch(`${BASE}/api/rooms/${id.toLowerCase()}`)).status).toBe(200);
+    expect(id).toMatch(/^[0-9A-Z]{10}$/);
+    const missing = await exports.default.fetch(`${BASE}/api/rooms/${generateRoomCode()}`);
     expect(missing.status).toBe(404);
-    const bogus = await exports.default.fetch(`${BASE}/api/rooms/not-a-uuid`);
+    const bogus = await exports.default.fetch(`${BASE}/api/rooms/not-a-code`);
     expect(bogus.status).toBe(404);
   });
 
   it("closes sockets to rooms that don't exist", async () => {
-    const c = await TestClient.connect(crypto.randomUUID());
+    const c = await TestClient.connect(generateRoomCode());
     await c.next("error");
     await sleep(20);
     expect(c.closed?.code).toBe(CloseCode.RoomNotFound);

@@ -17,7 +17,7 @@ export async function createRoom(page: Page, name: string): Promise<string> {
   await page.goto("/");
   await page.getByLabel("Your name").fill(name);
   await page.getByRole("button", { name: "Create a room" }).click();
-  await page.waitForURL(/\/r\/[0-9a-f-]{36}$/);
+  await page.waitForURL(/\/r\/[0-9A-Z]{10}$/);
   await expectConnected(page);
   return page.url();
 }

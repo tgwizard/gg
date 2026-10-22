@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { MAX_NAME_LENGTH } from "../../shared/protocol";
+import { noAutofill } from "../noAutofill";
 
 export function NameForm(props: {
   initial: string;
@@ -23,6 +24,7 @@ export function NameForm(props: {
         aria-label="Your name"
         maxLength={MAX_NAME_LENGTH}
         autoFocus
+        {...noAutofill}
       />
       <button className="btn primary" disabled={!value.trim()}>
         {props.submitLabel}

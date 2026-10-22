@@ -6,7 +6,7 @@ Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSoc
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
 Games so far: no-limit Texas Hold'em and tic-tac-toe.
 
-- **Rooms** are UUID links. Whoever has the link can join.
+- **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.
 - **Names** are set once per browser and used in every room.
 - **Resilient**: reconnects automatically, catches up on chat and game state, and
   survives refreshes, flaky networks and sleeping laptops without losing or

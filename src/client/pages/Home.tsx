@@ -1,7 +1,8 @@
 import { type FormEvent, useState } from "react";
-import { UUID_RE } from "../../shared/protocol";
+import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
 import { saveName, useName } from "../identity";
+import { noAutofill } from "../noAutofill";
 import { navigate } from "../router";
 
 export function HomePage() {
@@ -36,8 +37,8 @@ export function HomePage() {
 
   function join(e: FormEvent) {
     e.preventDefault();
-    const id = link.trim().toLowerCase().match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)?.[0];
-    if (!id || !UUID_RE.test(id)) return setError("That doesn't look like a room link.");
+    const id = roomCodeFromInput(link);
+    if (!id) return setError("That doesn't look like a room code or link.");
     if (name.trim()) saveName(name);
     navigate(`/r/${id}`);
   }
@@ -53,7 +54,7 @@ export function HomePage() {
         <form onSubmit={create} className="stack">
           <label className="field">
             <span>Your name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ada" maxLength={24} autoFocus />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ada" maxLength={24} autoFocus {...noAutofill} />
           </label>
           <button className="btn primary big" disabled={busy}>
             {busy ? "Creating…" : "Create a room"}
@@ -64,7 +65,15 @@ export function HomePage() {
           <span>or join one</span>
         </div>
         <form onSubmit={join} className="row">
-          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Paste a room link" aria-label="Room link" />
+          <input
+            value={link}
+            // Codes are shown upper-case as you type; pasted links are left alone.
+            onChange={(e) => setLink(e.target.value.includes("/") ? e.target.value : e.target.value.toUpperCase())}
+            placeholder="Room code or link"
+            aria-label="Room code or link"
+            spellCheck={false}
+            {...noAutofill}
+          />
           <button className="btn">Join</button>
         </form>
 

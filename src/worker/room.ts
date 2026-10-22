@@ -136,16 +136,16 @@ export class Room extends DurableObject<Env> {
 
   // --- RPC (called by the worker) ------------------------------------------
 
-  async create(id: string): Promise<RoomInfo> {
+  async create(id: string): Promise<{ created: boolean; info: RoomInfo }> {
     const existing = this.getKv<RoomInfo>("room");
-    if (existing) return existing;
+    if (existing) return { created: false, info: existing };
     this.migrate();
     this.ready = true;
     const info = { id, createdAt: Date.now() };
     this.setKv("room", info);
     // Schedules expiry, so rooms nobody ever opens are cleaned up too.
     await this.scheduleAlarm();
-    return info;
+    return { created: true, info };
   }
 
   async info(): Promise<RoomInfo | null> {

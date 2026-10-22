@@ -2,11 +2,14 @@
  * HTTP entry point. Static assets (the SPA) are served by Workers Assets; only
  * /api/* reaches this code.
  *
- *   POST /api/rooms            -> { id }       create a room
- *   GET  /api/rooms/:id        -> { id, createdAt } | 404
- *   GET  /api/rooms/:id/ws     -> WebSocket into the room's Durable Object
+ *   POST /api/rooms            -> { id, createdAt }   create a room (id is a room code)
+ *   GET  /api/rooms/:code      -> { id, createdAt } | 404
+ *   GET  /api/rooms/:code/ws   -> WebSocket into the room's Durable Object
+ *
+ * Codes are matched case-insensitively (see shared/roomCode.ts).
  */
-import { RATE_LIMITED, UUID_RE } from "../shared/protocol";
+import { RATE_LIMITED } from "../shared/protocol";
+import { generateRoomCode, normalizeRoomCode } from "../shared/roomCode";
 import { clientIp, rejectSocket } from "./limits";
 
 export { Room } from "./room";
@@ -28,15 +31,19 @@ export default {
           { status: 429, headers: { "Retry-After": "60" } },
         );
       }
-      const id = crypto.randomUUID();
-      const info = await roomStub(env, id).create(id);
-      return Response.json(info, { status: 201 });
+      // A collision is astronomically unlikely, but cheap to rule out.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const id = generateRoomCode();
+        const { created, info } = await roomStub(env, id).create(id);
+        if (created) return Response.json(info, { status: 201 });
+      }
+      return Response.json({ error: "try_again" }, { status: 503 });
     }
 
     const m = path.match(/^\/api\/rooms\/([^/]+)(\/ws)?$/);
     if (m) {
-      const id = m[1]!.toLowerCase();
-      if (!UUID_RE.test(id)) return Response.json({ error: "not_found" }, { status: 404 });
+      const id = normalizeRoomCode(decodeURIComponent(m[1]!));
+      if (!id) return Response.json({ error: "not_found" }, { status: 404 });
       const stub = roomStub(env, id);
       if (m[2]) {
         if (request.headers.get("Upgrade") !== "websocket") return new Response("Expected a WebSocket upgrade", { status: 426 });

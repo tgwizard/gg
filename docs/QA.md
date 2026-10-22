@@ -30,7 +30,9 @@ profile is a separate identity). With Claude: "run the QA playbook". It drives
 these through the browser and reports back.
 
 ### Rooms & identity
-- [ ] Create a room from the home page. The URL is `/r/<uuid>` and the status pill says *Connected*.
+- [ ] Create a room from the home page. The URL is `/r/<10-char code>`, the code shows in the top bar, and the status pill says *Connected*.
+- [ ] Type the code (lower-case, with a space) into *Room code or link* on the home page: it shows upper-case and joins the room.
+- [ ] With 1Password (or another password manager) installed, the name, code and chat inputs don't offer to autofill.
 - [ ] Open the invite link in another profile: you're asked for a name once, then you join. Both member lists show two people online.
 - [ ] Reload: same member, no new "joined" message, chat history intact.
 - [ ] Open the same room in a second tab of the same profile: still one member.

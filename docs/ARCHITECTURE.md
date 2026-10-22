@@ -23,10 +23,17 @@ one Worker, Workers Assets for the SPA, and one Durable Object per room.
 
 ## Rooms
 
-- `POST /api/rooms` makes a random UUID and calls `create()` on the Durable Object
-  `idFromName(uuid)`. Rooms only exist once created, so a mistyped link shows
+- `POST /api/rooms` makes a random **room code** and calls `create()` on the Durable
+  Object `idFromName(code)`. Rooms only exist once created, so a mistyped link shows
   "Room not found" instead of silently making a new empty room. There is no room
-  listing; the UUID is the only capability.
+  listing; the code is the only capability.
+- Codes are 10 characters of Crockford's base32 (digits and upper-case letters
+  without I, L, O, U): 50 bits, easy to read aloud and type. Lookups are
+  case-insensitive, ignore spaces and dashes, and map look-alikes (O→0, I/L→1),
+  so a typed code can't land in a different room (`src/shared/roomCode.ts`).
+  With per-IP rate limits on lookups and connections, guessing a live room isn't
+  practical: even 1,000 IPs guessing nonstop against 10,000 live rooms would expect
+  one hit about every 50 years.
 - The DO stores everything in its SQLite database (`kv`, `members`, `chat`, `ops`),
   so it can be evicted or hibernate at any time and come back intact.
 

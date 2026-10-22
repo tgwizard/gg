@@ -101,6 +101,9 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
         >
           gg<span className="logo-dot">.</span>
         </a>
+        <span className="room-code" title="Room code" data-testid="room-code">
+          {roomId}
+        </span>
         <InviteButton />
         <div className="spacer" />
         <ConnectionPill snapshot={snapshot} />

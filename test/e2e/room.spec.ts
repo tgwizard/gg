@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { generateRoomCode } from "../../src/shared/roomCode";
 import { chat, createRoom, expectConnected, joinRoom, newPlayer, sendChat } from "./helpers";
 
 test("create a room, invite someone, chat both ways", async ({ browser }) => {
@@ -56,6 +57,29 @@ test("refreshing keeps your identity and the chat history", async ({ browser }) 
 test("unknown rooms show a friendly error", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.setItem("gg.name", "Ghost"));
-  await page.goto(`/r/${crypto.randomUUID()}`);
+  await page.goto(`/r/${generateRoomCode()}`);
   await expect(page.getByRole("heading", { name: "Room not found" })).toBeVisible();
+});
+
+test("joining by typing the room code, in any case", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const bob = await newPlayer(browser);
+  const url = await createRoom(alice.page, "Alice");
+  const code = url.split("/r/")[1]!;
+  await expect(alice.page.getByTestId("room-code")).toHaveText(code);
+
+  await bob.page.goto("/");
+  await bob.page.getByLabel("Your name").fill("Bob");
+  const input = bob.page.getByLabel("Room code or link");
+  await input.fill(`${code.slice(0, 5).toLowerCase()} ${code.slice(5).toLowerCase()}`);
+  await expect(input).toHaveValue(`${code.slice(0, 5)} ${code.slice(5)}`);
+  await bob.page.getByRole("button", { name: "Join" }).click();
+  await expectConnected(bob.page);
+  await expect(bob.page).toHaveURL(new RegExp(`/r/${code}$`));
+  await expect(alice.page.getByTestId("member")).toHaveCount(2);
+
+  // A lower-cased link works too, and is shown canonically.
+  await bob.page.goto(`/r/${code.toLowerCase()}`);
+  await expectConnected(bob.page);
+  await expect(bob.page).toHaveURL(new RegExp(`/r/${code}$`));
 });
