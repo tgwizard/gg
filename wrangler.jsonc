@@ -5,6 +5,8 @@
   "compatibility_date": "2026-10-01",
   // Cloudflare creates the DNS record and certificate on deploy (tgwizard.com is a zone on the account).
   "routes": [{ "pattern": "gg.tgwizard.com", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
