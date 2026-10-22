@@ -25,7 +25,8 @@ test("Finns i sjön: deal, keep hands private, and play a turn", async ({ browse
 
   // Whoever's turn it is asks for the rank of their first card (one opponent, so it's preselected).
   const pages = [alice.page, bob.page];
-  const asker = (await alice.page.getByRole("button", { name: /^Ask / }).isVisible()) ? alice.page : bob.page;
+  await expect(alice.page.getByTestId("fish-ask")).toBeVisible();
+  const asker = (await alice.page.getByTestId("fish-ask").getByRole("button").isVisible()) ? alice.page : bob.page;
   const other = pages.find((p) => p !== asker)!;
   await asker.locator(".fish-card").first().click();
   const ask = asker.getByRole("button", { name: /^Ask (Alice|Bob) for / });

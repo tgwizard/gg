@@ -1,6 +1,10 @@
 import { type FormEvent, useState } from "react";
 import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
+import { CardBack, PlayingCard } from "../../games/kit/ui/Cards";
+import { drawTable } from "../../games/kit/ui/tableArt";
+import { Panel, PixelArt, PixelIcon } from "../../ui";
+import { GameCard } from "../components/GameCard";
 import { saveName, useName } from "../identity";
 import { noAutofill } from "../noAutofill";
 import { navigate } from "../router";
@@ -45,52 +49,86 @@ export function HomePage() {
 
   return (
     <div className="home">
-      <div className="home-card">
-        <h1 className="logo">
-          gg<span className="logo-dot">.</span>
-        </h1>
-        <p className="tagline">Games with friends. Make a room, share the link, play.</p>
-
-        <form onSubmit={create} className="stack">
-          <label className="field">
-            <span>Your name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ada" maxLength={24} autoFocus {...noAutofill} />
-          </label>
-          <button className="btn primary big" disabled={busy}>
-            {busy ? "Creating…" : "Create a room"}
-          </button>
-        </form>
-
-        <div className="divider">
-          <span>or join one</span>
+      <header className="home-hero on-night">
+        <div className="home-hero-inner">
+          <div className="home-hero-text">
+            <h1 className="display logo">
+              gg<span className="logo-dot">.</span>
+            </h1>
+            <p className="tagline">Games with friends. Make a room, share the link, play.</p>
+            <p className="label">No accounts · No installs · Private by link</p>
+          </div>
+          <HeroTable />
         </div>
-        <form onSubmit={join} className="row">
-          <input
-            value={link}
-            // Codes are shown upper-case as you type; pasted links are left alone.
-            onChange={(e) => setLink(e.target.value.includes("/") ? e.target.value : e.target.value.toUpperCase())}
-            placeholder="Room code or link"
-            aria-label="Room code or link"
-            spellCheck={false}
-            {...noAutofill}
-          />
-          <button className="btn">Join</button>
-        </form>
+      </header>
 
-        {error && <p className="error-text">{error}</p>}
-
-        <div className="game-list">
-          {Object.values(gameUIs).map((g) => (
-            <div key={g.meta.id} className="game-chip">
-              <strong>{g.meta.name}</strong>
-              <span>{g.meta.tagline}</span>
-            </div>
-          ))}
+      <main className="home-main">
+        <div className="home-forms">
+          <Panel title="Start a room" icon="sparkle">
+            <form onSubmit={create} className="stack">
+              <label className="field">
+                <span>Your name</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ada" maxLength={24} autoFocus {...noAutofill} />
+              </label>
+              <button className="btn primary big" disabled={busy}>
+                {busy ? "Creating…" : "Create a room"}
+                <PixelIcon name="arrow" />
+              </button>
+            </form>
+          </Panel>
+          <Panel title="Join a room" icon="link">
+            <form onSubmit={join} className="stack">
+              <label className="field">
+                <span>Room code or link</span>
+                <input
+                  value={link}
+                  // Codes are shown upper-case as you type; pasted links are left alone.
+                  onChange={(e) => setLink(e.target.value.includes("/") ? e.target.value : e.target.value.toUpperCase())}
+                  placeholder="e.g. 7KQ2M9XH4D"
+                  aria-label="Room code or link"
+                  spellCheck={false}
+                  {...noAutofill}
+                />
+              </label>
+              <button className="btn big">Join</button>
+            </form>
+          </Panel>
         </div>
-      </div>
+
+        {error && (
+          <p className="error-text home-error" role="alert">
+            <PixelIcon name="warning" /> {error}
+          </p>
+        )}
+
+        <section className="home-games">
+          <h2 className="label">Games in the box</h2>
+          <div className="game-grid">
+            {Object.values(gameUIs).map((g) => (
+              <GameCard key={g.meta.id} game={g} />
+            ))}
+          </div>
+        </section>
+      </main>
+
       <footer className="home-footer">
-        <a href="https://github.com/tgwizard/gg">Open source</a> · No accounts. Rooms are private to whoever has the link.
+        <a href="https://github.com/tgwizard/gg">Open source</a> · MIT · Rooms are private to whoever has the link.
       </footer>
+    </div>
+  );
+}
+
+/** A little table with a winning hand on it. */
+function HeroTable() {
+  return (
+    <div className="hero-table" aria-hidden>
+      <PixelArt draw={(c, r) => drawTable(c, r)} drawKey="hero" pixel={3} />
+      <div className="hero-cards">
+        <PlayingCard card="As" size="lg" highlight />
+        <PlayingCard card="Ah" size="lg" highlight />
+        <CardBack size="lg" />
+      </div>
+      <PixelIcon name="crown" scale={4} className="hero-crown" />
     </div>
   );
 }

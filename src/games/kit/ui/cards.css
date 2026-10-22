@@ -1,25 +1,87 @@
-/* Playing cards, shared by card games. Games resize them in their own CSS. */
+/* Playing cards: notched pixel corners, pixel pips, a gilt-latticed back. */
 .pcard {
-  width: 42px;
-  height: 60px;
-  border-radius: 6px;
-  background: #fbfaf7;
-  color: #1a1a1a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  box-shadow: 0 2px 6px #0007;
-  font-weight: 700;
+  --cw: 44px;
+  --ch: 62px;
+  --card-shadow: rgb(7 8 15 / 0.55);
+  position: relative;
+  flex-shrink: 0;
+  width: var(--cw);
+  height: var(--ch);
+  filter: drop-shadow(2px 2px 0 var(--card-shadow));
   user-select: none;
-  transition: transform 0.15s;
+  transition: translate 120ms steps(3);
 }
-.pcard.red { color: #c81e1e; }
-.pcard-rank { font-size: 1.05rem; }
-.pcard-suit { font-size: 1.25rem; }
-.pcard.dim { opacity: 0.35; }
-.pcard.hl { box-shadow: 0 0 0 2px var(--gold), 0 0 14px #f5c45199; transform: translateY(-3px); }
-.pcard.back { background: repeating-linear-gradient(45deg, #2d5aa8, #2d5aa8 4px, #244a8c 4px, #244a8c 8px); border: 2px solid #e8ecf5; }
-.pcard.slot { background: transparent; border: 1.5px dashed #ffffff30; box-shadow: none; }
+.pcard.sm { --cw: 30px; --ch: 42px; }
+.pcard.lg { --cw: 60px; --ch: 84px; }
 
+.pcard-face {
+  position: absolute;
+  inset: 0;
+  background: var(--paper-hi);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  /* 2px notch at each corner: a pixel-rounded card. */
+  clip-path: polygon(
+    2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px), 0 2px, 2px 2px
+  );
+}
+.pcard.red .pcard-face { color: var(--ember); }
+
+.pcard-rank {
+  position: absolute;
+  top: 0;
+  left: 3px;
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.pcard-corner { position: absolute; top: 21px; left: 4px; }
+.pcard-pip { position: absolute; right: 3px; bottom: 3px; }
+.pcard.sm .pcard-rank { font-size: 18px; left: 2px; }
+.pcard.sm .pcard-pip { right: 2px; bottom: 2px; }
+.pcard.lg .pcard-rank { font-size: 30px; left: 4px; }
+.pcard.lg .pcard-corner { top: 28px; left: 6px; }
+.pcard.lg .pcard-pip { right: 5px; bottom: 6px; }
+
+/* Out of play. */
+.pcard.dim { opacity: 0.4; filter: grayscale(0.7); }
+
+/* A one-pixel outline that follows the notched shape (stacked hard drop-shadows). */
+.pcard.hl, .pcard.picked {
+  --o: var(--gilt);
+  translate: 0 -4px;
+  filter: drop-shadow(2px 0 0 var(--o)) drop-shadow(-2px 0 0 var(--o)) drop-shadow(0 2px 0 var(--o)) drop-shadow(0 -2px 0 var(--o))
+    drop-shadow(2px 2px 0 var(--card-shadow));
+}
+.pcard.picked { --o: var(--arcane-hi); translate: 0 -10px; }
+
+.pcard.back .pcard-face {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23a26f1d' d='M3 0h2v1H3zM2 1h1v1H2zM5 1h1v1H5zM1 2h1v1H1zM6 2h1v1H6zM0 3h1v2H0zM7 3h1v2H7zM1 5h1v1H1zM6 5h1v1H6zM2 6h1v1H2zM5 6h1v1H5zM3 7h2v1H3z'/%3E%3Cpath fill='%23e6b345' d='M3 3h2v2H3z'/%3E%3C/svg%3E")
+      center / 14px 14px,
+    var(--night-2);
+}
+.pcard.back .pcard-face::before { content: ""; position: absolute; inset: 2px; border: 2px solid var(--gilt-lo); }
+.pcard.sm.back .pcard-face { background-size: 10px 10px; }
+.pcard.sm.back .pcard-face::before { inset: 1px; }
+
+.pcard.slot { filter: none; }
+.pcard.slot .pcard-face { background: rgb(0 0 0 / 0.12); border: 2px dashed rgb(255 255 255 / 0.22); }
+
+/* Someone else's hand: overlapping backs with a count. */
+.card-fan { display: flex; align-items: center; padding-left: calc(var(--cw) * 0.62); position: relative; min-height: 42px; }
+.card-fan .pcard { margin-left: calc(var(--cw) * -0.62); }
+.card-fan.sm { --cw: 30px; }
+.card-fan-count {
+  position: absolute;
+  right: -10px;
+  bottom: -4px;
+  font-size: 15px;
+  line-height: 1;
+  padding: 1px 4px 0;
+  color: var(--ink);
+  background: var(--gilt);
+  border: 2px solid var(--ink);
+}

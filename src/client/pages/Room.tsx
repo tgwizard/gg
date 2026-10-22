@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { saveName, getSecret, useName } from "../identity";
 import { useRoom } from "../net/useRoom";
 import { navigate } from "../router";
@@ -8,18 +8,18 @@ import { GameStage } from "../components/GameStage";
 import { Members } from "../components/Members";
 import { NameForm } from "../components/NameForm";
 import { ToastProvider, useToast } from "../components/Toasts";
+import { type IconName, Panel, PixelIcon, Spinner } from "../../ui";
 
 export function RoomPage({ roomId }: { roomId: string }) {
   const name = useName();
   if (!name) {
     return (
-      <div className="center-page">
-        <div className="card narrow">
-          <h2>You've been invited to a room</h2>
-          <p className="muted">What should people call you?</p>
-          <NameForm initial="" submitLabel="Join room" onSubmit={saveName} />
-        </div>
-      </div>
+      <Notice icon="sparkle" title="You're invited">
+        <p>
+          Someone's waiting for you in room <span className="code">{roomId}</span>. What should people call you?
+        </p>
+        <NameForm initial="" submitLabel="Join room" onSubmit={saveName} />
+      </Notice>
     );
   }
   return (
@@ -38,49 +38,40 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
 
   if (snapshot.status === "not_found") {
     return (
-      <div className="center-page">
-        <div className="card narrow">
-          <h2>Room not found</h2>
-          <p className="muted">The link may be mistyped, or the room never existed.</p>
-          <button className="btn primary" onClick={() => navigate("/")}>
-            Create a new room
-          </button>
-        </div>
-      </div>
+      <Notice icon="warning" title="Room not found">
+        <p className="muted">The link may be mistyped, the room may have expired, or it never existed.</p>
+        <button className="btn primary" onClick={() => navigate("/")}>
+          Create a new room
+        </button>
+      </Notice>
     );
   }
   if (snapshot.status === "outdated") {
     return (
-      <div className="center-page">
-        <div className="card narrow">
-          <h2>gg has been updated</h2>
-          <p className="muted">Reload to get the latest version. You'll rejoin right where you were.</p>
-          <button className="btn primary" onClick={() => location.reload()}>
-            Reload
-          </button>
-        </div>
-      </div>
+      <Notice icon="sparkle" title="gg has been updated">
+        <p className="muted">Reload to get the latest version. You'll rejoin right where you were.</p>
+        <button className="btn primary" onClick={() => location.reload()}>
+          Reload
+        </button>
+      </Notice>
     );
   }
   if (snapshot.status === "replaced") {
     return (
-      <div className="center-page">
-        <div className="card narrow">
-          <h2>Open in another tab</h2>
-          <p className="muted">You have this room open in several other tabs, so this one was paused.</p>
-          <button className="btn primary" onClick={() => client.takeOver()}>
-            Use this tab
-          </button>
-        </div>
-      </div>
+      <Notice icon="hourglass" title="Open in another tab">
+        <p className="muted">You have this room open in several other tabs, so this one was paused.</p>
+        <button className="btn primary" onClick={() => client.takeOver()}>
+          Use this tab
+        </button>
+      </Notice>
     );
   }
   if (!snapshot.joined) {
     return (
       <div className="center-page">
         <div className="joining">
-          <div className="spinner" />
-          <p>Joining room…</p>
+          <Spinner />
+          <p className="label">Joining room {roomId}</p>
           {snapshot.attempt > 0 && <ConnectionBanner snapshot={snapshot} onRetry={() => client.retryNow()} />}
         </div>
       </div>
@@ -90,9 +81,9 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
   const connected = snapshot.status === "connected";
   return (
     <div className="room">
-      <header className="topbar">
+      <header className="topbar on-night">
         <a
-          className="brand"
+          className="brand display"
           href="/"
           onClick={(e) => {
             e.preventDefault();
@@ -101,8 +92,11 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
         >
           gg<span className="logo-dot">.</span>
         </a>
-        <span className="room-code" title="Room code" data-testid="room-code">
-          {roomId}
+        <span className="room-id">
+          <span className="label">Room</span>
+          <span className="code" title="Room code" data-testid="room-code">
+            {roomId}
+          </span>
         </span>
         <InviteButton />
         <div className="spacer" />
@@ -119,8 +113,10 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
             onCancel={() => setEditingName(false)}
           />
         ) : (
-          <button className="name-button" onClick={() => setEditingName(true)} title="Change your name">
-            {name} <span className="muted">✎</span>
+          <button className="btn ghost name-button" onClick={() => setEditingName(true)} title="Change your name">
+            <PixelIcon name="person" />
+            {name}
+            <PixelIcon name="pencil" className="muted" />
           </button>
         )}
       </header>
@@ -142,7 +138,7 @@ function InviteButton() {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className="btn ghost small"
+      className="btn dark small"
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(location.href);
@@ -153,7 +149,20 @@ function InviteButton() {
         }
       }}
     >
-      {copied ? "Link copied ✓" : "Copy invite link"}
+      <PixelIcon name={copied ? "check" : "link"} />
+      {copied ? "Link copied" : "Copy invite link"}
     </button>
+  );
+}
+
+function Notice({ icon, title, children }: { icon: IconName; title: string; children: ReactNode }) {
+  return (
+    <div className="center-page">
+      <Panel className="notice">
+        <PixelIcon name={icon} scale={4} className="notice-icon" />
+        <h2 className="display">{title}</h2>
+        {children}
+      </Panel>
+    </div>
   );
 }

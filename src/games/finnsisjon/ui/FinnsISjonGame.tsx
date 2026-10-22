@@ -1,9 +1,14 @@
 import { useState } from "react";
+import { hash2, PixelArt, PixelIcon } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
-import { CardBack, PlayingCard } from "../../kit/ui/Cards";
+import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
+import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
+import { ActionTray, GameLog, Herald } from "../../kit/ui/GameParts";
+import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
+import { drawPond } from "../../kit/ui/tableArt";
 import type { GameUIProps } from "../../ui";
-import type { FishEvent, FishPlayerView, FishView } from "../engine";
+import { AUTO_PLAY_DELAY_MS, type FishEvent, type FishPlayerView, type FishView } from "../engine";
 import type { FishOp } from "../index";
 import "./finnsisjon.css";
 
@@ -29,101 +34,132 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
     if (ok && op.type === "ask") setPicked({ rank: null, target: null });
   };
 
-  // Opponents in seat order, starting to your left.
-  const n = view.seats.length;
-  const from = mine?.seat ?? -1;
-  const others = view.players
-    .filter((p) => p !== mine)
-    .sort((a, b) => ((a.seat - from + n) % n) - ((b.seat - from + n) % n));
+  const playing = view.phase !== "lobby";
+  const seats: TableSeat[] = view.seats.map((seat, i) => {
+    const p = playing ? view.players.find((x) => x.seat === i && !x.left) : undefined;
+    const isMe = (p?.playerId ?? seat?.playerId) === me;
+    return {
+      key: i,
+      testId: `fish-seat-${i}`,
+      className: isMe ? "me" : undefined,
+      node: p ? (
+        <InGamePlate
+          p={p}
+          view={view}
+          isMe={isMe}
+          name={members.get(p.playerId)?.name ?? "Player"}
+          online={members.get(p.playerId)?.online ?? false}
+          selectable={!!ask?.targets.includes(p.playerId)}
+          selected={target === p.playerId}
+          onSelect={() => setPicked({ rank, target: p.playerId })}
+          serverNow={serverNow}
+        />
+      ) : seat ? (
+        <PlayerPlate
+          playerId={seat.playerId}
+          name={members.get(seat.playerId)?.name ?? "Player"}
+          you={isMe}
+          online={members.get(seat.playerId)?.online ?? false}
+          dim={seat.sittingOut}
+        >
+          <div className="plate-line status">
+            {seat.gamesWon} {seat.gamesWon === 1 ? "win" : "wins"}
+            {seat.sittingOut ? " · away" : view.phase === "playing" ? " · next game" : ""}
+          </div>
+        </PlayerPlate>
+      ) : (
+        <div className="seat-open">
+          {view.you.seat === null ? (
+            <button className="btn small" disabled={!connected} onClick={() => send({ type: "sit", seat: i })}>
+              Sit here
+            </button>
+          ) : (
+            <span className="label">Open seat</span>
+          )}
+        </div>
+      ),
+    };
+  });
 
   return (
     <div className="fish">
-      {view.phase === "lobby" ? (
-        <Seats view={view} me={me} nameOf={nameOf} connected={connected} send={send} />
-      ) : (
-        <>
-          <div className="fish-opponents">
-            {others.map((p) => (
-              <Opponent
-                key={`${p.seat}-${p.playerId}`}
-                p={p}
-                view={view}
-                name={nameOf(p.playerId)}
-                online={members.get(p.playerId)?.online ?? false}
-                selectable={!!ask?.targets.includes(p.playerId)}
-                selected={target === p.playerId}
-                onSelect={() => setPicked({ rank, target: p.playerId })}
-                serverNow={serverNow}
-              />
-            ))}
-          </div>
-
-          <Lake count={view.lakeCount} />
-          <Happenings view={view} me={me} nameOf={nameOf} mine={mine} />
-
-          {view.phase === "over" && view.result && <Result view={view} nameOf={nameOf} />}
-
-          {mine && (
-            <div className={`fish-me ${view.turn === mine.seat ? "turn" : ""}`} data-testid="fish-me">
-              <div className="fish-me-head">
-                <strong>Your hand</strong>
-                <Books ranks={mine.books} />
-                {view.turn === mine.seat && (
-                  <TurnTimer deadline={view.turnDeadline} totalMs={awayOrClock(view, mine.seat)} serverNow={serverNow} />
-                )}
-              </div>
-              <div className="fish-hand">
-                {mine.hand!.map((c) => (
-                  <button
-                    key={c}
-                    className={`fish-card ${rank === c[0] ? "picked" : ""}`}
-                    disabled={!ask || busy}
-                    onClick={() => setPicked({ rank: c[0]!, target })}
-                    aria-label={`${rankName(c[0]!)} of ${c[1]}`}
-                    data-card={c}
-                  >
-                    <PlayingCard card={c} />
-                  </button>
-                ))}
-                {mine.hand!.length === 0 && <span className="muted">No cards.</span>}
-              </div>
-              <div className="fish-ask" data-testid="fish-ask">
-                {ask ? (
-                  <>
-                    <span className="muted">
-                      {!rank ? "Pick a card to ask for its rank" : !target ? "Now pick who to ask" : "Ready?"}
-                    </span>
-                    <button
-                      className="btn primary"
-                      disabled={!rank || !target || busy || !connected}
-                      onClick={() => rank && target && send({ type: "ask", target, rank })}
-                    >
-                      {rank && target ? `Ask ${nameOf(target)} for ${rankName(rank, true)}` : "Ask"}
-                    </button>
-                  </>
-                ) : (
-                  view.phase === "playing" && <span className="muted">Waiting for {nameOf(view.players.find((p) => p.seat === view.turn && !p.left)?.playerId ?? "")}…</span>
-                )}
-              </div>
+      <CardTable
+        seats={seats}
+        rotation={view.you.seat ?? 0}
+        center={
+          playing ? (
+            <Lake count={view.lakeCount} />
+          ) : (
+            <div className="fish-center-msg">
+              <p className="display">Finns i sjön</p>
+              <p>{view.seats.filter(Boolean).length < 2 ? "Take a seat. Two to six can play." : "Deal when everyone's seated."}</p>
             </div>
-          )}
+          )
+        }
+      />
 
-          <Controls view={view} connected={connected} busy={busy} send={send} />
-          {view.phase === "over" && <Seats view={view} me={me} nameOf={nameOf} connected={connected} send={send} />}
-          <Log log={view.log} nameOf={nameOf} />
-        </>
+      {view.phase === "over" && view.result ? <Result view={view} nameOf={nameOf} /> : playing && <Happenings view={view} me={me} nameOf={nameOf} mine={mine} />}
+
+      <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />}>
+        {mine && view.phase === "playing" ? (
+          <div className="fish-me" data-testid="fish-me">
+            <div className="fish-hand">
+              {mine.hand!.map((c) => (
+                <button
+                  key={c}
+                  className="fish-card"
+                  disabled={!ask || busy}
+                  onClick={() => setPicked({ rank: c[0]!, target })}
+                  aria-label={`${rankName(c[0]!)} of ${c[1]}`}
+                  aria-pressed={rank === c[0]}
+                  data-card={c}
+                >
+                  <PlayingCard card={c} picked={rank === c[0]} />
+                </button>
+              ))}
+              {mine.hand!.length === 0 && <span className="muted">No cards in hand.</span>}
+            </div>
+            <div className="fish-ask" data-testid="fish-ask">
+              {ask ? (
+                <>
+                  <span className="label fish-hint">{!rank ? "Pick a card to ask for its rank" : !target ? "Now pick who to ask" : "Ready?"}</span>
+                  <button
+                    className="btn primary"
+                    disabled={!rank || !target || busy || !connected}
+                    onClick={() => rank && target && send({ type: "ask", target, rank })}
+                  >
+                    {rank && target ? `Ask ${nameOf(target)} for ${rankName(rank, true)}` : "Ask"}
+                  </button>
+                </>
+              ) : (
+                <span className="muted">Waiting for {nameOf(view.players.find((p) => p.seat === view.turn && !p.left)?.playerId ?? "")}…</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Status view={view} />
+        )}
+      </ActionTray>
+
+      {view.log.length > 0 && (
+        <GameLog title="What happened">
+          {view.log.map((e, i) => (
+            <li key={i}>{describe(e, nameOf)}</li>
+          ))}
+        </GameLog>
       )}
     </div>
   );
 }
 
 function awayOrClock(view: FishView, seat: number) {
-  return view.seats[seat]?.sittingOut ? 2500 : view.config.turnSeconds * 1000;
+  return view.seats[seat]?.sittingOut ? AUTO_PLAY_DELAY_MS : view.config.turnSeconds * 1000;
 }
 
-function Opponent(props: {
+function InGamePlate(props: {
   p: FishPlayerView;
   view: FishView;
+  isMe: boolean;
   name: string;
   online: boolean;
   selectable: boolean;
@@ -132,36 +168,42 @@ function Opponent(props: {
   serverNow: number;
 }) {
   const { p, view } = props;
-  const turn = view.turn === p.seat && !p.left && view.phase === "playing";
-  const away = !p.left && view.seats[p.seat]?.playerId === p.playerId && view.seats[p.seat]!.sittingOut;
-  const classes = ["fish-opp", turn && "turn", props.selected && "selected", props.selectable && "selectable", p.left && "left"].filter(Boolean).join(" ");
+  const turn = view.turn === p.seat && view.phase === "playing";
+  const away = view.seats[p.seat]?.playerId === p.playerId && view.seats[p.seat]!.sittingOut;
+  const won = view.phase === "over" && !!view.result?.winners.includes(p.playerId);
   return (
-    <button className={classes} disabled={!props.selectable} onClick={props.onSelect} data-testid={`fish-opp-${p.seat}`}>
-      <div className="fish-opp-name">
-        {!props.online && !p.left && <span className="offline-dot" title="Disconnected" />}
-        {props.name}
-        {away && <span className="tag">away</span>}
-        {p.left && <span className="tag">left</span>}
-      </div>
-      <div className="fish-fan" aria-label={`${p.cardCount} cards`}>
-        {Array.from({ length: Math.min(p.cardCount, 8) }, (_, i) => (
-          <CardBack key={i} />
-        ))}
-        {p.cardCount > 8 && <span className="fish-more">+{p.cardCount - 8}</span>}
-        {p.cardCount === 0 && <span className="muted small">no cards</span>}
-      </div>
-      <Books ranks={p.books} />
-      {turn && <TurnTimer deadline={view.turnDeadline} totalMs={awayOrClock(view, p.seat)} serverNow={props.serverNow} />}
-    </button>
+    <div className="fish-spot">
+      {!props.isMe && (
+        <div className="fish-fan">{p.cardCount > 0 ? <CardFan count={p.cardCount} /> : <span className="label">no cards</span>}</div>
+      )}
+      <PlayerPlate
+        playerId={p.playerId}
+        name={props.name}
+        you={props.isMe}
+        online={props.online}
+        active={turn}
+        dim={away}
+        winner={won}
+        selectable={props.selectable}
+        selected={props.selected}
+        onClick={props.isMe ? undefined : props.onSelect}
+        className={props.isMe ? undefined : "fish-opp"}
+        tags={away && <span className="tag">away</span>}
+      >
+        <Books ranks={p.books} />
+        {turn && <TurnTimer deadline={view.turnDeadline} totalMs={awayOrClock(view, p.seat)} serverNow={props.serverNow} />}
+      </PlayerPlate>
+    </div>
   );
 }
 
 function Books({ ranks }: { ranks: string[] }) {
-  if (!ranks.length) return null;
+  if (!ranks.length) return <div className="plate-line status">no books yet</div>;
   return (
-    <div className="fish-books" title={`${ranks.length} books`}>
+    <div className="fish-books" title={`${ranks.length} ${ranks.length === 1 ? "book" : "books"}`}>
+      <PixelIcon name="book" className="fish-books-icon" />
       {ranks.map((r) => (
-        <span key={r} className="fish-book">
+        <span key={r} className="fish-book num">
           {rankLabel(r)}
         </span>
       ))}
@@ -169,23 +211,23 @@ function Books({ ranks }: { ranks: string[] }) {
   );
 }
 
-/** A pond of face-down cards, scattered the same way every render. */
+/** A pond with face-down cards floating in it, scattered the same way every render. */
 function Lake({ count }: { count: number }) {
-  const shown = Math.min(count, 16);
+  const shown = Math.min(count, 14);
   return (
     <div className="fish-lake" data-testid="fish-lake">
+      <PixelArt className="fish-pond" draw={drawPond} drawKey="pond" pixel={3} />
       {Array.from({ length: shown }, (_, i) => {
-        // Fixed pseudo-random scatter (multipliers coprime to the ranges).
-        const x = 20 + ((i * 37) % 61);
-        const y = 24 + ((i * 29) % 47);
-        const rot = ((i * 47) % 71) - 35;
+        // A fixed pseudo-random scatter, the same on every render.
+        const x = 18 + hash2(i, 1) * 64;
+        const y = 24 + hash2(i, 2) * 50;
         return (
-          <div key={i} className="fish-lake-card" style={{ left: `${x}%`, top: `${y}%`, transform: `translate(-50%, -50%) rotate(${rot}deg)` }}>
-            <CardBack />
+          <div key={i} className="fish-lake-card" style={{ left: `${x}%`, top: `${y}%` }}>
+            <CardBack size="sm" />
           </div>
         );
       })}
-      <div className="fish-lake-label">{count ? `Sjön · ${count} cards` : "The lake is empty"}</div>
+      <div className="fish-lake-label label">{count ? `Sjön · ${count} cards` : "The lake is empty"}</div>
     </div>
   );
 }
@@ -197,13 +239,13 @@ function describe(e: FishEvent, nameOf: (id: string) => string): string {
     case "ask":
       return e.got > 0
         ? `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)} and got ${e.got}.`
-        : `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)}. Finns i sjön! 🎣`;
+        : `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)}. Finns i sjön!`;
     case "fish":
       return e.lucky ? `Lucky catch for ${whom(e.who)}: the ${cardLabel(e.card!)}! Another turn.` : `${who(e.who)} fished from the lake.`;
     case "draw":
       return `${who(e.who)} drew a card from the lake.`;
     case "book":
-      return `${who(e.who)} laid down four ${rankName(e.rank, true)}! 📚`;
+      return `${who(e.who)} laid down four ${rankName(e.rank, true)}!`;
     case "left":
       return `${who(e.who)} left the game.`;
   }
@@ -212,23 +254,28 @@ function describe(e: FishEvent, nameOf: (id: string) => string): string {
 /** The last couple of things that happened, big enough to follow at a glance. */
 function Happenings({ view, me, nameOf, mine }: { view: FishView; me: string; nameOf(id: string): string; mine: FishPlayerView | undefined }) {
   const recent = view.log.slice(-2);
-  if (!recent.length) return <div className="fish-news muted">Game {view.game} is dealt. Good luck!</div>;
+  if (!recent.length) {
+    return (
+      <Herald testId="fish-news">
+        <span>Game {view.game} is dealt. Good luck!</span>
+      </Herald>
+    );
+  }
   const last = recent.at(-1)!;
   // Your own catch is private: show it to you.
   const yourCatch = (last.type === "fish" || last.type === "draw") && last.who === me && mine?.lastDrawn ? mine.lastDrawn : null;
   return (
-    <div className="fish-news" aria-live="polite" data-testid="fish-news">
-      {recent.map((e, i) => (
-        <div key={view.log.length - recent.length + i} className={i === recent.length - 1 ? "latest" : "muted"}>
-          {describe(e, nameOf)}
-        </div>
-      ))}
-      {yourCatch && !(last.type === "fish" && last.lucky) && (
-        <div className="fish-catch">
-          You drew <PlayingCard card={yourCatch} />
-        </div>
-      )}
-    </div>
+    <Herald testId="fish-news">
+      {recent.length > 1 && <span className="muted">{describe(recent[0]!, nameOf)}</span>}
+      <span className="fish-latest">
+        {describe(last, nameOf)}
+        {yourCatch && !(last.type === "fish" && last.lucky) && (
+          <span className="fish-catch">
+            You drew <PlayingCard card={yourCatch} size="sm" />
+          </span>
+        )}
+      </span>
+    </Herald>
   );
 }
 
@@ -236,97 +283,59 @@ function Result({ view, nameOf }: { view: FishView; nameOf(id: string): string }
   const result = view.result!;
   const ranking = [...view.players].sort((a, b) => b.books.length - a.books.length);
   return (
-    <div className="fish-result" data-testid="fish-result">
-      <h3>{result.winners.length === 1 ? `${nameOf(result.winners[0]!)} won!` : `${result.winners.map(nameOf).join(" & ")} share the win!`}</h3>
-      <ol>
-        {ranking.map((p) => (
-          <li key={`${p.seat}-${p.playerId}`}>
-            {nameOf(p.playerId)}: {p.books.length} {p.books.length === 1 ? "book" : "books"}
-            {p.left && <span className="muted"> (left)</span>}
-          </li>
-        ))}
-      </ol>
+    <div data-testid="fish-result">
+      <Herald big>
+        <span>{result.winners.length === 1 ? `${nameOf(result.winners[0]!)} won!` : `${result.winners.map(nameOf).join(" & ")} share the win!`}</span>
+        <span className="fish-ranking">
+          {ranking.map((p) => (
+            <span key={`${p.seat}-${p.playerId}`}>
+              {nameOf(p.playerId)}: {p.books.length} {p.books.length === 1 ? "book" : "books"}
+              {p.left ? " (left)" : ""}
+            </span>
+          ))}
+        </span>
+      </Herald>
     </div>
   );
 }
 
-function Seats({ view, me, nameOf, connected, send }: { view: FishView; me: string; nameOf(id: string): string; connected: boolean; send(op: FishOp): void }) {
-  const seated = view.you.seat !== null;
-  return (
-    <div className="fish-seats">
-      <h3>{view.phase === "lobby" ? "Take a seat" : "At the table for the next game"}</h3>
-      <div className="fish-seat-grid">
-        {view.seats.map((s, i) => (
-          <div key={i} className={`fish-seat ${s?.playerId === me ? "me" : ""}`} data-testid={`fish-seat-${i}`}>
-            {s ? (
-              <>
-                <strong>{nameOf(s.playerId)}</strong>
-                <span className="muted small">
-                  {s.gamesWon} {s.gamesWon === 1 ? "win" : "wins"}
-                  {s.sittingOut ? " · away" : ""}
-                </span>
-              </>
-            ) : seated ? (
-              <span className="muted small">Empty</span>
-            ) : (
-              <button className="btn small" disabled={!connected} onClick={() => send({ type: "sit", seat: i })}>
-                Sit here
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-      {view.phase === "lobby" && <Controls view={view} connected={connected} busy={false} send={send} />}
-    </div>
-  );
+function Status({ view }: { view: FishView }) {
+  const seat = view.you.seat;
+  const s = seat === null ? null : view.seats[seat];
+  if (view.seats.filter(Boolean).length < 2) return <span className="muted">Waiting for players to sit down…</span>;
+  if (!s && view.phase === "playing") return <span className="muted">You're watching. Take an open seat to play the next game.</span>;
+  if (s && !view.you.inGame && view.phase === "playing") return <span className="muted">You're in the next game.</span>;
+  if (!s) return <span className="muted">Take an open seat to play.</span>;
+  return null;
 }
 
 function Controls({ view, connected, busy, send }: { view: FishView; connected: boolean; busy: boolean; send(op: FishOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
   const disabled = busy || !connected;
+  if (!s) return null;
   return (
-    <div className="fish-controls">
-      {view.canStart && s && (
+    <>
+      {view.canStart && (
         <button className="btn primary" disabled={disabled} onClick={() => send({ type: "start" })}>
           {view.game === 0 ? "Deal" : "Play again"}
         </button>
       )}
-      {s &&
-        (s.sittingOut ? (
-          <button className="btn" disabled={disabled} onClick={() => send({ type: "sitIn" })}>
-            I'm back
-          </button>
-        ) : (
-          view.phase === "playing" &&
-          view.you.inGame && (
-            <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
-              Step away
-            </button>
-          )
-        ))}
-      {s && (
-        <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "leave" })}>
-          {view.phase === "playing" && view.you.inGame ? "Leave game" : "Leave seat"}
+      {s.sittingOut ? (
+        <button className="btn" disabled={disabled} onClick={() => send({ type: "sitIn" })}>
+          I'm back
         </button>
+      ) : (
+        view.phase === "playing" &&
+        view.you.inGame && (
+          <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
+            Step away
+          </button>
+        )
       )}
-      {!s && view.phase === "playing" && <span className="muted">You're watching. Grab a seat to play the next game.</span>}
-      {s && !view.you.inGame && view.phase === "playing" && <span className="muted">You're in the next game.</span>}
-      {view.seats.filter(Boolean).length < 2 && <span className="muted">Waiting for players to sit down…</span>}
-    </div>
-  );
-}
-
-function Log({ log, nameOf }: { log: FishEvent[]; nameOf(id: string): string }) {
-  if (!log.length) return null;
-  return (
-    <details className="fish-log">
-      <summary>What happened</summary>
-      <ol>
-        {log.map((e, i) => (
-          <li key={i}>{describe(e, nameOf)}</li>
-        ))}
-      </ol>
-    </details>
+      <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "leave" })}>
+        {view.phase === "playing" && view.you.inGame ? "Leave game" : "Leave seat"}
+      </button>
+    </>
   );
 }

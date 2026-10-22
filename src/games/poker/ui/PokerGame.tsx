@@ -1,114 +1,115 @@
 import { type ReactNode, useEffect, useState } from "react";
 import type { Member } from "../../../shared/protocol";
-import type { GameUIProps } from "../../ui";
-import type { HandPlayerView, HandView, PokerSeat, PokerView } from "../engine";
-import type { PokerOp } from "../index";
-import { TurnTimer } from "../../kit/ui/TurnTimer";
+import { useNarrow } from "../../../ui";
+import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
+import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
+import { ActionTray, GameLog } from "../../kit/ui/GameParts";
+import { PlayerPlate } from "../../kit/ui/PlayerPlate";
+import { TurnTimer } from "../../kit/ui/TurnTimer";
+import type { GameUIProps } from "../../ui";
+import type { HandPlayerView, PokerSeat, PokerView } from "../engine";
+import type { PokerOp } from "../index";
 
 type Props = GameUIProps<PokerView, PokerOp>;
 type Send = Props["sendOp"];
 
 export function PokerGame({ view, me, members, connected, sendOp, serverNow }: Props) {
+  const narrow = useNarrow();
   const hand = view.hand;
-  const mySeat = view.you.seat;
-  const n = view.seats.length;
   const nameOf = (id: string) => members.get(id)?.name ?? "Player";
   const winningCards = new Set(hand?.result ? Object.values(hand.result.hands).flatMap((h) => h.cards) : []);
   const bestSeats = new Set(hand?.result?.pots.flatMap((p) => p.winners) ?? []);
   const showdownCards = new Set<string>();
   for (const seat of bestSeats) for (const c of hand?.result?.hands[seat]?.cards ?? []) showdownCards.add(c);
 
+  const seats: TableSeat[] = view.seats.map((seat, i) => {
+    const hp = seat && hand ? hand.players.find((p) => p.seat === i && p.playerId === seat.playerId) : undefined;
+    const isMe = !!seat && seat.playerId === me;
+    return {
+      key: i,
+      testId: `seat-${i}`,
+      className: ["seat", isMe && "me", !seat && "empty"].filter(Boolean).join(" "),
+      bet: hp && hp.bet > 0 ? <Bet amount={hp.bet} /> : undefined,
+      marker: seat && hand?.button === i ? <DealerButton /> : undefined,
+      node: (
+        <SeatView
+          index={i}
+          seat={seat}
+          hp={hp}
+          view={view}
+          isMe={isMe}
+          member={seat ? members.get(seat.playerId) : undefined}
+          connected={connected}
+          serverNow={serverNow}
+          winningCards={winningCards}
+          narrow={narrow}
+          onSit={() => sendOp({ type: "sit", seat: i })}
+        />
+      ),
+    };
+  });
+
   return (
     <div className="poker">
-      <div className="poker-table" data-testid="poker-table">
-        <div className="felt">
-          <div className="board" data-testid="board">
-            {[0, 1, 2, 3, 4].map((i) => {
-              const card = hand?.board[i];
-              return card ? <PlayingCard key={i} card={card} highlight={showdownCards.has(card)} /> : <CardSlot key={i} />;
-            })}
-          </div>
-          {hand && (
-            <div className="pot" data-testid="pot">
-              Pot <strong>{hand.pot}</strong>
+      <CardTable
+        seats={seats}
+        rotation={view.you.seat ?? 0}
+        testId="poker-table"
+        center={
+          <>
+            <div className="board" data-testid="board">
+              {[0, 1, 2, 3, 4].map((i) => {
+                const card = hand?.board[i];
+                const size = narrow ? "sm" : "md";
+                return card ? <PlayingCard key={i} card={card} size={size} highlight={showdownCards.has(card)} /> : <CardSlot key={i} size={size} />;
+              })}
             </div>
-          )}
-          <CenterMessage view={view} nameOf={nameOf} serverNow={serverNow} />
-        </div>
-
-        {view.seats.map((seat, i) => {
-          const pos = seatPosition(i, mySeat ?? 0, n);
-          const hp = seat && hand ? hand.players.find((p) => p.seat === i && p.playerId === seat.playerId) : undefined;
-          return (
-            <div key={i}>
-              <SeatSpot
-                index={i}
-                seat={seat}
-                hp={hp}
-                view={view}
-                isMe={!!seat && seat.playerId === me}
-                member={seat ? members.get(seat.playerId) : undefined}
-                pos={pos}
-                connected={connected}
-                serverNow={serverNow}
-                winningCards={winningCards}
-                onSit={() => sendOp({ type: "sit", seat: i })}
-              />
-              {hp && hp.bet > 0 && (
-                <div className="bet-chip" style={{ left: `${pos.bx}%`, top: `${pos.by}%` }}>
-                  {hp.bet}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
+            {hand && <Pot amount={hand.pot} />}
+            <CenterMessage view={view} nameOf={nameOf} serverNow={serverNow} />
+          </>
+        }
+      />
       <ActionBar view={view} connected={connected} sendOp={sendOp} nameOf={nameOf} />
-      {hand && <HandLog hand={hand} nameOf={nameOf} />}
+      {hand && (
+        <GameLog title={`Hand #${hand.id} log`}>
+          {hand.log.map((e, i) => (
+            <li key={i}>
+              {(i === 0 || hand.log[i - 1]!.street !== e.street) && <span className="label log-street">{e.street}</span>}
+              <strong>{nameOf(e.playerId)}</strong> {e.action}
+            </li>
+          ))}
+        </GameLog>
+      )}
     </div>
   );
 }
 
-/** Seats around an ellipse, rotated so you sit at the bottom. */
-function seatPosition(i: number, rotation: number, n: number) {
-  const rel = (i - rotation + n) % n;
-  const a = Math.PI / 2 + (rel * 2 * Math.PI) / n;
-  return {
-    x: 50 + 44 * Math.cos(a),
-    y: 50 + 41 * Math.sin(a),
-    bx: 50 + 27 * Math.cos(a),
-    by: 50 + 23 * Math.sin(a),
-  };
-}
-
-function SeatSpot(props: {
+function SeatView(props: {
   index: number;
   seat: PokerSeat | null;
   hp: HandPlayerView | undefined;
   view: PokerView;
   isMe: boolean;
   member: Member | undefined;
-  pos: { x: number; y: number };
   connected: boolean;
   serverNow: number;
   winningCards: Set<string>;
+  narrow: boolean;
   onSit(): void;
 }) {
-  const { index, seat, hp, view, isMe, member, pos, connected, serverNow } = props;
+  const { index, seat, hp, view, isMe, member, connected, serverNow } = props;
   const hand = view.hand;
-  const style = { left: `${pos.x}%`, top: `${pos.y}%` };
 
   if (!seat) {
     return (
-      <div className="seat empty" style={style} data-testid={`seat-${index}`}>
+      <div className="seat-open">
         {view.you.seat === null ? (
           <button className="btn small" disabled={!connected} onClick={props.onSit}>
             Sit here
           </button>
         ) : (
-          <span className="muted small">Empty</span>
+          <span className="label">Open seat</span>
         )}
       </div>
     );
@@ -122,38 +123,38 @@ function SeatSpot(props: {
   else if (hp?.folded) status = "Folded";
   else if (!hp && seat.stack === 0) status = "Out of chips";
   else if (!hp && seat.sittingOut) status = "Sitting out";
-  if (won) status = `Wins ${won}`;
-
-  const classes = ["seat", isMe && "me", isTurn && "turn", hp?.folded && "folded", won && "winner", !hp && hand && "idle"]
-    .filter(Boolean)
-    .join(" ");
-
+  if (won) status = `Wins ${won.toLocaleString("en-US")}`;
+  const cardSize = isMe && !props.narrow ? "md" : "sm";
 
   return (
-    <div className={classes} style={style} data-testid={`seat-${index}`}>
+    <div className="seat-body">
       <div className="seat-cards">
         {hp &&
           (hp.cards
-            ? hp.cards.map((c) => <PlayingCard key={c} card={c} dim={hp.folded} highlight={!!won && props.winningCards.has(c)} />)
+            ? hp.cards.map((c) => <PlayingCard key={c} card={c} size={cardSize} dim={hp.folded} highlight={!!won && props.winningCards.has(c)} />)
             : !hp.folded && (
                 <>
-                  <CardBack />
-                  <CardBack />
+                  <CardBack size={cardSize} />
+                  <CardBack size={cardSize} />
                 </>
               ))}
       </div>
-      <div className="seat-plate">
-        <div className="seat-name">
-          {member?.online === false && <span className="offline-dot" title="Disconnected" />}
-          {member?.name ?? "Player"}
-          {isMe && <span className="tag">you</span>}
+      <PlayerPlate
+        playerId={seat.playerId}
+        name={member?.name ?? "Player"}
+        you={isMe}
+        online={member?.online !== false}
+        active={isTurn}
+        dim={hp?.folded || (!hp && !!hand)}
+        winner={!!won}
+      >
+        <div className="plate-line">
+          <Chips amount={seat.stack} />
         </div>
-        <div className="seat-stack">{seat.stack.toLocaleString()}</div>
-        {status && <div className={`seat-status ${won ? "won" : ""}`}>{status}</div>}
-        {made && hand?.status === "complete" && <div className="seat-made">{made}</div>}
+        {status && <div className={`plate-line status ${won ? "good" : ""}`}>{status}</div>}
+        {made && hand?.status === "complete" && <div className="plate-line status">{made}</div>}
         {isTurn && <TurnTimer deadline={hand.actionDeadline} totalMs={view.config.turnSeconds * 1000} serverNow={serverNow} />}
-      </div>
-      {hand?.button === index && <div className="dealer-btn">D</div>}
+      </PlayerPlate>
     </div>
   );
 }
@@ -167,7 +168,7 @@ function CenterMessage({ view, nameOf, serverNow }: { view: PokerView; nameOf(id
     return <div className="center-msg">{seated < 2 ? "Waiting for players to sit down…" : "Ready when you are. Deal when everyone's seated."}</div>;
   }
   if (hand.status !== "complete" || !hand.result) {
-    return <div className="center-msg muted">Hand #{hand.id}</div>;
+    return <div className="center-msg label">Hand #{hand.id}</div>;
   }
   const playerAt = (seat: number) => hand.players.find((p) => p.seat === seat)!.playerId;
   return (
@@ -177,12 +178,12 @@ function CenterMessage({ view, nameOf, serverNow }: { view: PokerView; nameOf(id
         const made = hand.result!.hands[pot.winners[0]!]?.name;
         return (
           <div key={i}>
-            <strong>{names}</strong> {pot.winners.length > 1 ? "split" : "wins"} {pot.amount}
+            <strong className="display">{names}</strong> {pot.winners.length > 1 ? "split" : "wins"} {pot.amount.toLocaleString("en-US")}
             {made ? ` with ${made}` : ""}
           </div>
         );
       })}
-      {nextIn !== null && <div className="muted small">Next hand in {nextIn}s</div>}
+      {nextIn !== null && <div className="label">Next hand in {nextIn}s</div>}
     </div>
   );
 }
@@ -241,7 +242,7 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
           <div className="raise">
             <div className="presets">
               {presets.map(([label, v]) => (
-                <button key={label} className="btn ghost small" disabled={disabled} onClick={() => setRaiseTo(v)}>
+                <button key={label} className={`btn small dark ${raiseTo === v ? "on" : ""}`} disabled={disabled} onClick={() => setRaiseTo(v)}>
                   {label}
                 </button>
               ))}
@@ -275,64 +276,46 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     );
   } else if (handLive && hand.toAct !== null) {
     const waitingFor = view.seats[hand.toAct]?.playerId;
-    main = <div className="muted">{waitingFor ? `Waiting for ${nameOf(waitingFor)}…` : "…"}</div>;
+    main = <span className="muted">{waitingFor ? `Waiting for ${nameOf(waitingFor)}…` : "…"}</span>;
   } else if (handLive) {
-    main = <div className="muted">Dealing…</div>;
+    main = <span className="muted">Dealing…</span>;
   } else if (mySeat === null) {
-    main = <div className="muted">Pick an empty seat to join the game.</div>;
+    main = <span className="muted">Pick an open seat to join the game.</span>;
   }
 
   return (
-    <div className="action-bar">
-      <div className="action-main">{main}</div>
-      <div className="seat-controls">
-        {canDeal && (
-          <button className="btn primary" disabled={disabled} onClick={() => run({ type: "start" })}>
-            Deal
-          </button>
-        )}
-        {me && me.stack === 0 && !inHand && (
-          <button className="btn" disabled={disabled} onClick={() => run({ type: "rebuy" })}>
-            Rebuy {view.config.startingStack}
-          </button>
-        )}
-        {me &&
-          (me.sittingOut ? (
-            <button className="btn" disabled={disabled} onClick={() => run({ type: "sitIn" })}>
-              I'm back
+    <ActionTray
+      aside={
+        <>
+          {canDeal && (
+            <button className="btn primary" disabled={disabled} onClick={() => run({ type: "start" })}>
+              Deal
             </button>
-          ) : (
-            <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "sitOut" })}>
-              Sit out next hand
+          )}
+          {me && me.stack === 0 && !inHand && (
+            <button className="btn" disabled={disabled} onClick={() => run({ type: "rebuy" })}>
+              Rebuy {view.config.startingStack}
             </button>
-          ))}
-        {me && (
-          <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "leave" })}>
-            {inHand ? "Fold & leave seat" : "Leave seat"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function HandLog({ hand, nameOf }: { hand: HandView; nameOf(id: string): string }) {
-  let street = "";
-  return (
-    <details className="hand-log">
-      <summary>Hand #{hand.id} log</summary>
-      <ol>
-        {hand.log.map((e, i) => {
-          const header = e.street !== street ? e.street : null;
-          street = e.street;
-          return (
-            <li key={i}>
-              {header && <span className="log-street">{header}</span>}
-              <span className="log-name">{nameOf(e.playerId)}</span> {e.action}
-            </li>
-          );
-        })}
-      </ol>
-    </details>
+          )}
+          {me &&
+            (me.sittingOut ? (
+              <button className="btn" disabled={disabled} onClick={() => run({ type: "sitIn" })}>
+                I'm back
+              </button>
+            ) : (
+              <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "sitOut" })}>
+                Sit out next hand
+              </button>
+            ))}
+          {me && (
+            <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "leave" })}>
+              {inHand ? "Fold & leave seat" : "Leave seat"}
+            </button>
+          )}
+        </>
+      }
+    >
+      {main}
+    </ActionTray>
   );
 }

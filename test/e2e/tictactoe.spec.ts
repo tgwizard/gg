@@ -25,7 +25,7 @@ test("two players play a round of tic-tac-toe", async ({ browser }) => {
 
   for (const p of [alice.page, bob.page]) {
     await expect(p.getByTestId("ttt-status")).toContainText("Alice wins!");
-    await expect(p.getByTestId("ttt-seat-0")).toContainText("1 wins");
+    await expect(p.getByTestId("ttt-seat-0")).toContainText("1 win");
     await expect(chat(p)).toContainText("Round 1: Alice wins as X.");
   }
   // Next round starts on its own, with O opening.

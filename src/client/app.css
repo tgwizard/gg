@@ -1,0 +1,169 @@
+/* Platform layout: home, room shell, sidebar. Components come from src/ui. */
+
+/* ---------- home ---------- */
+.home { min-height: 100%; display: flex; flex-direction: column; }
+.home-hero {
+  background: var(--night);
+  border-bottom: var(--border-w) solid var(--night-ink);
+  position: relative;
+  padding: 40px 24px 48px;
+}
+/* A dithered fringe under the night band. */
+.home-hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 8px;
+  --shadow: var(--night);
+  background: var(--dither);
+}
+.home-hero-inner { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+.home-hero-text { display: flex; flex-direction: column; gap: 14px; }
+.home .logo { font-size: 8rem; line-height: 0.8; color: var(--gilt); text-shadow: 4px 4px 0 var(--night-ink); }
+.logo-dot { color: var(--ember-hi); }
+.tagline { font-size: 1.15rem; max-width: 28ch; color: var(--on-night); }
+.home-hero .label { color: var(--on-night-2); }
+
+.hero-table { position: relative; width: 380px; height: 210px; flex-shrink: 0; }
+.hero-cards { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; padding-bottom: 6px; }
+.hero-crown { position: absolute; left: 50%; top: 6px; translate: -50% 0; color: var(--gilt); --px-2: var(--ember-hi); filter: drop-shadow(3px 3px 0 var(--night-ink)); }
+
+.home-main { flex: 1; width: 100%; max-width: 1040px; margin: 0 auto; padding: 48px 24px 32px; display: flex; flex-direction: column; gap: 36px; }
+.home-forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+.home-forms .panel { padding: 24px 20px 20px; }
+.home-forms form { height: 100%; justify-content: space-between; }
+.home-error { display: flex; align-items: center; gap: 8px; }
+.home-games { display: flex; flex-direction: column; gap: 16px; }
+.home-footer { padding: 20px 24px 28px; text-align: center; color: var(--fg-muted); font-size: 12px; }
+
+/* ---------- game cards ---------- */
+.game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px 28px; }
+.game-card {
+  font: inherit;
+  color: var(--fg);
+  text-align: left;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px;
+}
+button.game-card { cursor: pointer; transition: translate 60ms steps(1); }
+button.game-card:hover { --box-bg: #fff; }
+button.game-card:active { translate: 2px 2px; }
+.game-card.selected { --box-bg: #fff6dc; outline: 2px solid var(--gilt-lo); outline-offset: 3px; }
+.game-card-emblem { flex-shrink: 0; padding: 6px; background: var(--surface-2); border: 2px solid var(--hairline); line-height: 0; }
+.game-card-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.game-card-text strong { font-size: 1.75rem; }
+.game-card-tagline { font-size: 12px; color: var(--fg-2); }
+.game-card-check { position: absolute; top: 10px; right: 10px; color: var(--moss); }
+
+/* ---------- center pages ---------- */
+.center-page { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.notice { width: 100%; max-width: 420px; padding: 28px 24px 24px; gap: 14px; }
+.notice-icon { color: var(--gilt-lo); --px-2: var(--ember); }
+.notice .btn { align-self: flex-start; }
+.joining { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.joining .banner { border: 2px solid var(--ink); }
+
+/* ---------- room ---------- */
+.room { height: 100%; display: flex; flex-direction: column; }
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  background: var(--night);
+  border-bottom: var(--border-w) solid var(--night-ink);
+  flex-wrap: wrap;
+  --bg: var(--night);
+}
+.brand { font-size: 2.6rem; line-height: 0.8; color: var(--gilt); text-decoration: none; text-shadow: 2px 2px 0 var(--night-ink); }
+.brand:hover { color: var(--gilt-hi); }
+.room-id { display: inline-flex; align-items: center; gap: 8px; }
+.room-id .code { user-select: all; color: var(--on-night); background: var(--night-2); border-color: var(--night-3); }
+.topbar .pill { border-color: var(--night-3); color: var(--on-night-2); }
+.name-button { --btn-fg: var(--on-night); font-weight: 700; }
+.name-button .muted { color: var(--on-night-2); }
+.topbar form.row input { width: 160px; padding: 6px 8px; }
+.topbar form.row .btn { padding: 7px 10px; }
+
+.room-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+.stage {
+  overflow: auto;
+  padding: 20px 24px 32px;
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-height: 0;
+  padding: 24px 22px 22px 18px;
+  border-left: var(--border-w) solid var(--ink);
+  background: var(--paper-lo);
+  --bg: var(--paper-lo);
+}
+
+.members ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 22vh; overflow: auto; }
+.members li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; }
+.members li.away { opacity: 0.55; }
+.member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag.turn { color: var(--ink); background: var(--gilt-hi); border-color: var(--ink); animation: blink 1.4s steps(2, jump-none) infinite; }
+
+.chat { flex: 1; min-height: 0; }
+.chat-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; margin: 0 -8px; }
+.msg { display: grid; grid-template-columns: 5.5ch 1fr; gap: 2px 8px; padding: 4px 8px; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.msg:nth-child(even) { background: var(--surface-2); }
+.msg-time { color: var(--fg-muted); font-size: 11px; padding-top: 2px; font-variant-numeric: tabular-nums; }
+.msg .name { margin-right: 8px; }
+.msg-body { min-width: 0; }
+.msg-system .msg-text { color: var(--fg-muted); font-style: italic; }
+.msg-game .msg-text { color: var(--gilt-lo); font-weight: 600; }
+.msg-game .msg-text::before { content: "◆ "; }
+.msg.pending { opacity: 0.5; }
+.chat-input { display: flex; gap: 8px; }
+
+/* ---------- stage: picker & active game ---------- */
+.picker { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.picker-head { display: flex; flex-direction: column; gap: 6px; }
+.setup { padding: 26px 20px 20px; }
+
+.active-game { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; margin: 0 auto; }
+.game-header { display: flex; align-items: center; gap: 12px; }
+.game-header h2 { font-size: 2rem; }
+
+@media (max-width: 860px) {
+  .room { height: auto; min-height: 100%; }
+  .room-main { grid-template-columns: 1fr; }
+  .sidebar { border-left: none; border-top: var(--border-w) solid var(--ink); }
+  .chat-list { max-height: 50vh; }
+  .stage { padding: 14px 10px 24px; }
+}
+@media (max-width: 640px) {
+  .home .logo { font-size: 6rem; }
+  .hero-table { width: 100%; height: 190px; }
+  .home-hero { padding: 28px 16px 36px; }
+  .home-main { padding: 36px 16px 24px; }
+  .topbar { gap: 8px 10px; padding: 8px 12px; }
+  .brand { font-size: 2.2rem; }
+  .room-id .label { display: none; }
+}
+
+/* ---------- /ui style guide ---------- */
+.guide { min-height: 100%; }
+.guide-head { background: var(--night); padding: 28px 24px; display: flex; flex-direction: column; gap: 8px; }
+.guide-head h1 { font-size: 3.5rem; color: var(--gilt); }
+.guide-main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; display: flex; flex-direction: column; gap: 40px; }
+.guide-section { gap: 16px; }
+.guide-night { background: var(--night); padding: 14px; }
+.guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+.guide-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.guide-swatch { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.guide-swatch span { width: 28px; height: 28px; border: 2px solid var(--ink); flex-shrink: 0; }
+.guide-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+.guide-icon { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10px; padding: 8px; background: var(--surface-2); }
+.guide-cards { gap: 10px; align-items: flex-end; }
+.guide-plates { gap: 24px; align-items: flex-start; padding-top: 20px; }

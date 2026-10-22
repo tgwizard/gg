@@ -1,0 +1,48 @@
+/* The card table: a pixel-art surface with seats around the rail. */
+.card-table {
+  --seat-room-x: 72px;
+  --seat-room-y: 56px;
+  position: relative;
+  /* Fit the viewport height so the action tray stays on screen. */
+  width: min(100%, max(560px, calc((100dvh - 400px) * 2.1)));
+  margin: 0 auto;
+  padding: var(--seat-room-y) var(--seat-room-x);
+}
+.table-surface { position: relative; aspect-ratio: 2 / 1; }
+.pixel-art { position: absolute; inset: 0; }
+.pixel-art svg { display: block; width: 100%; height: 100%; }
+
+.table-center {
+  position: absolute;
+  inset: 22% 20%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--on-night);
+  z-index: 1;
+}
+
+.table-seat { position: absolute; translate: -50% -50%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
+.table-bet { position: absolute; translate: -50% -50%; z-index: 2; }
+.table-marker { position: absolute; translate: -50% -50%; z-index: 2; }
+
+/* An empty seat: a dashed spot on the rail. */
+.seat-open {
+  display: grid;
+  place-items: center;
+  width: 110px;
+  height: 54px;
+  border: 2px dashed rgb(239 232 214 / 0.4);
+  background: rgb(7 8 15 / 0.45);
+}
+.seat-open .label { color: var(--on-night-2); }
+
+@media (max-width: 640px) {
+  .card-table { --seat-room-x: 44px; --seat-room-y: 58px; width: 100%; }
+  .table-surface { aspect-ratio: 3 / 4.2; }
+  .table-center { inset: 24% 14%; }
+  .seat-open { width: 84px; height: 44px; }
+}

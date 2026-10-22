@@ -7,7 +7,7 @@ export function PokerSetup({ busy, disabled, onStart }: GameSetupProps<PokerConf
   const field = (key: keyof PokerConfig, label: string, hint?: string) => (
     <label className="field">
       <span>
-        {label} {hint && <span className="muted small">{hint}</span>}
+        {label} {hint && <span className="hint">{hint}</span>}
       </span>
       <input
         type="number"

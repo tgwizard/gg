@@ -3,9 +3,8 @@ import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { formatDateTime, formatTime } from "../format";
 import { noAutofill } from "../noAutofill";
-import { colorFor } from "./Members";
+import { nameStyle, Panel } from "../../ui";
 import { useToast } from "./Toasts";
-
 
 export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): Promise<void> }) {
   const [text, setText] = useState("");
@@ -32,8 +31,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
   }
 
   return (
-    <section className="panel chat">
-      <h3>Chat</h3>
+    <Panel className="chat" title="Chat" icon="chat">
       <div
         className="chat-list"
         ref={listRef}
@@ -46,26 +44,32 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
         {snapshot.chat.map((m) =>
           m.kind === "user" ? (
             <div key={m.seq} className="msg" data-testid="chat-message">
-              <span className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</span>
-              <span className="msg-name" style={{ color: colorFor(m.playerId ?? "") }}>
-                {m.name}
+              <time className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</time>
+              <span className="msg-body">
+                <span className="name" style={nameStyle(m.playerId ?? "")}>
+                  {m.name}
+                </span>
+                <span className="msg-text">{m.text}</span>
               </span>
-              <span className="msg-text">{m.text}</span>
             </div>
           ) : (
             <div key={m.seq} className={`msg msg-${m.kind}`} data-testid="chat-message">
-              <span className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</span>
-              <span className="msg-text">{m.text}</span>
+              <time className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</time>
+              <span className="msg-body">
+                <span className="msg-text">{m.text}</span>
+              </span>
             </div>
           ),
         )}
         {snapshot.pendingChat.map((p) => (
           <div key={p.cid} className="msg pending" title="Sending…" data-testid="chat-pending">
-            <span className="msg-time" title={formatDateTime(p.ts)}>{formatTime(p.ts)}</span>
-            <span className="msg-name" style={{ color: colorFor(snapshot.you?.id ?? "") }}>
-              {snapshot.you?.name}
+            <time className="msg-time" title={formatDateTime(p.ts)}>{formatTime(p.ts)}</time>
+            <span className="msg-body">
+              <span className="name" style={nameStyle(snapshot.you?.id ?? "")}>
+                {snapshot.you?.name}
+              </span>
+              <span className="msg-text">{p.text}</span>
             </span>
-            <span className="msg-text">{p.text}</span>
           </div>
         ))}
       </div>
@@ -78,10 +82,10 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
           maxLength={MAX_CHAT_LENGTH}
           {...noAutofill}
         />
-        <button className="btn" disabled={!text.trim()}>
+        <button className="btn primary" disabled={!text.trim()}>
           Send
         </button>
       </form>
-    </section>
+    </Panel>
   );
 }

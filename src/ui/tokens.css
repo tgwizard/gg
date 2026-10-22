@@ -1,0 +1,83 @@
+/*
+ * gg design tokens. Pixel-art on parchment and ink, with a little gilt.
+ *
+ * Palette tokens (--paper, --ink, --night, --gilt…) are fixed colors. Components use the
+ * semantic tokens (--fg, --surface, --border…), which `.on-night` remaps for dark surfaces.
+ */
+:root {
+  /* palette */
+  --paper: #f3ede0;
+  --paper-hi: #fbf8f1;
+  --paper-lo: #e9e1cf;
+  --line: #d3c8b0;
+  --ink: #17192b;
+  --ink-2: #45475e;
+  --ink-3: #7d7a88;
+  --night: #161a2e;
+  --night-2: #20253f;
+  --night-3: #323858;
+  --night-ink: #07080f;
+  --on-night: #efe8d6;
+  --on-night-2: #a8a6ba;
+  --gilt: #e6b345;
+  --gilt-hi: #f7d684;
+  --gilt-lo: #a26f1d;
+  --ember: #c2412d;
+  --ember-hi: #e46a52;
+  --ember-lo: #7d2416;
+  --moss: #2f8a57;
+  --moss-hi: #5cc489;
+  --arcane: #6c5ad0;
+  --arcane-hi: #a597f2;
+  --water: #2f7fa8;
+  --water-lo: #1c5677;
+  --felt: #1f6049;
+
+  /* type */
+  --font-body: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Jacquard 24", "JetBrains Mono Variable", serif;
+  --font-pixel: "Jersey 10", "JetBrains Mono Variable", monospace;
+  --font-label: "Silkscreen", "JetBrains Mono Variable", monospace;
+
+  /* geometry: everything snaps to 2px "pixels" */
+  --px: 2px;
+  --border-w: 2px;
+  --shadow-offset: 6px;
+  --gap: 16px;
+
+  /* semantic (paper) */
+  --bg: var(--paper);
+  --fg: var(--ink);
+  --fg-2: var(--ink-2);
+  --fg-muted: var(--ink-3);
+  --surface: var(--paper-hi);
+  --surface-2: var(--paper-lo);
+  --border: var(--ink);
+  --hairline: var(--line);
+  --shadow: var(--ink);
+  --accent: var(--gilt);
+  --accent-fg: var(--ink);
+  --focus: var(--arcane);
+  --good: var(--moss);
+  --bad: var(--ember);
+  --name-l: 34%;
+  --name-s: 62%;
+}
+
+.on-night {
+  --bg: var(--night);
+  --fg: var(--on-night);
+  --fg-2: #d3ccba;
+  --fg-muted: var(--on-night-2);
+  --surface: var(--night-2);
+  --surface-2: var(--night);
+  --border: var(--night-ink);
+  --hairline: var(--night-3);
+  --shadow: var(--night-ink);
+  --focus: var(--arcane-hi);
+  --good: var(--moss-hi);
+  --bad: var(--ember-hi);
+  --name-l: 72%;
+  --name-s: 70%;
+  color: var(--fg);
+}

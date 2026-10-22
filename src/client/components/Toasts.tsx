@@ -1,3 +1,4 @@
+import { PixelIcon } from "../../ui";
 import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
 
 type Toast = { id: number; text: string };
@@ -15,8 +16,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className="toast" data-testid="toast">
-            {t.text}
+          <div key={t.id} className="toast box tight on-night" data-testid="toast">
+            <PixelIcon name="warning" />
+            <span>{t.text}</span>
           </div>
         ))}
       </div>

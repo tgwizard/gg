@@ -1,0 +1,251 @@
+/* ---------- boxes ---------- */
+
+/* Dithered checkerboard, the "pixel shadow". */
+:root { --dither: repeating-conic-gradient(var(--shadow) 0 25%, transparent 0 50%) 0 0 / 4px 4px; }
+
+/*
+ * A bordered surface with a dithered drop shadow. The background lives in ::before so the
+ * shadow (::after) can sit underneath it inside the box's own stacking context; don't set
+ * `background` on a .box, set --box-bg.
+ */
+.box {
+  position: relative;
+  z-index: 0;
+  border: var(--border-w) solid var(--border);
+}
+.box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--box-bg, var(--surface));
+}
+.box::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--border-w));
+  translate: var(--shadow-offset) var(--shadow-offset);
+  z-index: -2;
+  background: var(--dither);
+  pointer-events: none;
+}
+.box.flat::after { display: none; }
+.box.tight { --shadow-offset: 4px; }
+
+/* A panel: a box with a title set into its top border, like a fieldset legend. */
+.panel { padding: 20px 16px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.panel-title {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  translate: 0 -50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  background: var(--legend-bg, var(--bg));
+  white-space: nowrap;
+}
+.panel-title .label { color: var(--fg); font-size: 12px; }
+.panel-title .px-icon { color: var(--gilt-lo); }
+.on-night .panel-title .px-icon { color: var(--gilt); }
+.panel-actions { position: absolute; top: 0; right: 12px; translate: 0 -50%; display: flex; gap: 6px; background: var(--legend-bg, var(--bg)); padding: 0 6px; }
+
+/* ---------- buttons ---------- */
+
+.btn {
+  --btn-bg: var(--paper-hi);
+  --btn-fg: var(--ink);
+  --btn-shadow: var(--shadow);
+  --lift: 3px;
+  font: inherit;
+  font-weight: 650;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  border: var(--border-w) solid var(--border);
+  border-radius: 0;
+  padding: 10px 14px;
+  box-shadow: var(--lift) var(--lift) 0 var(--btn-shadow);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: translate 60ms steps(1), box-shadow 60ms steps(1);
+}
+.btn:hover:not(:disabled) { --btn-bg: #fff; }
+.btn:active:not(:disabled) { translate: var(--lift) var(--lift); box-shadow: 0 0 0 var(--btn-shadow); }
+.btn:disabled { cursor: not-allowed; opacity: 0.5; box-shadow: none; translate: var(--lift) var(--lift); }
+.btn.primary { --btn-bg: var(--gilt); }
+.btn.primary:hover:not(:disabled) { --btn-bg: var(--gilt-hi); }
+.btn.danger { --btn-bg: var(--ember); --btn-fg: var(--paper-hi); }
+.btn.danger:hover:not(:disabled) { --btn-bg: var(--ember-hi); }
+.btn.dark { --btn-bg: var(--night-2); --btn-fg: var(--on-night); }
+.btn.dark:hover:not(:disabled) { --btn-bg: var(--night-3); }
+.btn.ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--fg);
+  border-color: transparent;
+  box-shadow: none;
+  padding-inline: 8px;
+}
+.btn.ghost:hover:not(:disabled) { --btn-bg: transparent; text-decoration: underline; text-underline-offset: 4px; }
+.btn.ghost:active:not(:disabled), .btn.ghost:disabled { translate: none; }
+.btn.small { --lift: 2px; font-size: 12px; padding: 6px 10px; }
+.btn.big { --lift: 4px; font-size: 15px; padding: 14px 20px; }
+.btn .px-icon { flex-shrink: 0; }
+
+/* ---------- forms ---------- */
+
+input, select, textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper-hi);
+  border: var(--border-w) solid var(--border);
+  border-radius: 0;
+  padding: 9px 11px;
+  min-width: 0;
+  flex: 1;
+  box-shadow: inset 2px 2px 0 var(--paper-lo);
+}
+.on-night input { background: var(--night); color: var(--on-night); box-shadow: inset 2px 2px 0 var(--night-ink); }
+input::placeholder { color: var(--fg-muted); opacity: 1; }
+input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+input[type="range"] { box-shadow: none; border: none; padding: 0; background: transparent; accent-color: var(--gilt-lo); }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span:first-child { font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-2); }
+.field .hint { font-family: var(--font-body); text-transform: none; letter-spacing: 0; color: var(--fg-muted); }
+
+/* ---------- small things ---------- */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-label);
+  font-size: 9px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 5px 2px;
+  border: 1px solid currentColor;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tag.gilt { color: var(--ink); background: var(--gilt); border-color: var(--ink); }
+.on-night .tag.gilt { border-color: var(--gilt); }
+.tag.good { color: var(--good); }
+.tag.bad { color: var(--bad); }
+.tag.arcane { color: var(--paper-hi); background: var(--arcane); border-color: var(--arcane); }
+
+/* A square status light. */
+.light { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; background: var(--fg-muted); }
+.light.good { background: var(--good); box-shadow: 0 0 0 2px color-mix(in srgb, var(--good) 30%, transparent); }
+.light.warn { background: var(--gilt); animation: blink 1s steps(2, jump-none) infinite; }
+.light.bad { background: var(--bad); }
+@keyframes blink { 50% { opacity: 0.25; } }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-label);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 8px 4px;
+  border: 1px solid var(--hairline);
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+kbd, .code {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 3px 7px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+}
+
+.divider { display: flex; align-items: center; gap: 12px; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 0; border-top: 2px dotted var(--hairline); }
+
+/* Meter: a segmented bar that empties a block at a time. */
+.meter {
+  height: 10px;
+  border: var(--border-w) solid var(--border);
+  background: var(--surface-2);
+  padding: 1px;
+}
+.meter-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--meter-color, var(--gilt)) 0 6px, transparent 6px 8px);
+}
+.meter-fill.low { --meter-color: var(--ember-hi); animation: blink 0.5s steps(2, jump-none) infinite; }
+
+/* Spinner: three blocks taking turns. */
+.spinner { display: inline-flex; gap: 6px; }
+.spinner i { width: 10px; height: 10px; background: var(--gilt); animation: spin-block 0.9s steps(1) infinite; }
+.spinner i:nth-child(2) { animation-delay: 0.3s; }
+.spinner i:nth-child(3) { animation-delay: 0.6s; }
+@keyframes spin-block { 0% { background: var(--gilt); } 33% { background: var(--hairline); } }
+
+/* Collapsible log. */
+details.log > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-2);
+}
+details.log > summary::-webkit-details-marker { display: none; }
+details.log > summary::before { content: "+"; font-family: var(--font-body); font-weight: 700; width: 1ch; }
+details.log[open] > summary::before { content: "−"; }
+details.log ol { list-style: none; margin: 10px 0 0; padding: 0; font-size: 12px; color: var(--fg-2); }
+details.log li { padding: 3px 8px; }
+details.log li:nth-child(odd) { background: var(--surface-2); }
+
+/* ---------- banners & toasts ---------- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  flex-wrap: wrap;
+  color: var(--ink);
+  background: var(--gilt-hi);
+  border-bottom: var(--border-w) solid var(--ink);
+}
+.banner.bad { background: var(--ember); color: var(--paper-hi); }
+.banner .muted { color: inherit; opacity: 0.75; }
+
+.toasts {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 50;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+}
+.toast { padding: 10px 14px 10px 12px; font-size: 13px; display: flex; gap: 10px; align-items: center; animation: toast-in 160ms steps(4) both; }
+.toast .px-icon { color: var(--ember-hi); }
+@keyframes toast-in { from { translate: 0 12px; opacity: 0; } }

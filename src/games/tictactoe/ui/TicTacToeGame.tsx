@@ -1,3 +1,6 @@
+import { PixelIcon } from "../../../ui";
+import { Herald } from "../../kit/ui/GameParts";
+import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
 import type { Mark, TttOp, TttView } from "../index";
@@ -30,37 +33,39 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
       <div className="ttt-players">
         {([0, 1] as Mark[]).map((m) => {
           const seat = view.seats[m];
+          const turn = view.status === "playing" && view.turn === m;
           return (
-            <div key={m} className={`ttt-player ${view.status === "playing" && view.turn === m ? "turn" : ""}`} data-testid={`ttt-seat-${m}`}>
-              <span className="ttt-mark">{MARKS[m]}</span>
+            <div key={m} className="ttt-player" data-testid={`ttt-seat-${m}`}>
+              <PixelIcon name={m === 0 ? "x" : "o"} scale={5} className={`ttt-mark mark-${m}`} />
               {seat ? (
-                <>
-                  <span className="ttt-name">
-                    {nameOf(seat.playerId)}
-                    {m === mySeat && <span className="tag">you</span>}
-                  </span>
-                  <span className="ttt-wins">{seat.wins} wins</span>
-                  {view.status === "playing" && view.turn === m && (
-                    <TurnTimer deadline={view.turnDeadline} totalMs={view.config.turnSeconds * 1000} serverNow={serverNow} />
-                  )}
-                </>
+                <PlayerPlate
+                  playerId={seat.playerId}
+                  name={nameOf(seat.playerId)}
+                  you={m === mySeat}
+                  online={members.get(seat.playerId)?.online !== false}
+                  active={turn}
+                  winner={view.status === "over" && view.result?.winner === m}
+                >
+                  <div className="plate-line status">
+                    {seat.wins} {seat.wins === 1 ? "win" : "wins"}
+                  </div>
+                  {turn && <TurnTimer deadline={view.turnDeadline} totalMs={view.config.turnSeconds * 1000} serverNow={serverNow} />}
+                </PlayerPlate>
               ) : mySeat === null ? (
                 <button className="btn small" disabled={!connected} onClick={() => sendOp({ type: "sit", seat: m })}>
                   Play as {MARKS[m]}
                 </button>
               ) : (
-                <span className="muted">Waiting…</span>
+                <span className="label">Waiting…</span>
               )}
             </div>
           );
         })}
       </div>
 
-      <p className="ttt-status" data-testid="ttt-status">
-        {status}
-      </p>
+      <Herald testId="ttt-status">{status}</Herald>
 
-      <div className="ttt-board" role="grid" aria-label="Board">
+      <div className="ttt-board box" role="grid" aria-label="Board">
         {view.board.map((cell, i) => (
           <button
             key={i}
@@ -70,14 +75,19 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
             aria-label={cell === null ? `Empty square ${i + 1}` : `${MARKS[cell]} in square ${i + 1}`}
             data-testid={`ttt-cell-${i}`}
           >
-            {cell === null ? "" : MARKS[cell]}
+            {cell !== null && (
+              <>
+                <PixelIcon name={cell === 0 ? "x" : "o"} scale={8} />
+                <span className="visually-hidden">{MARKS[cell]}</span>
+              </>
+            )}
           </button>
         ))}
       </div>
 
       <div className="ttt-footer">
-        <span className="muted small">
-          Round {view.round} · {view.draws} draws
+        <span className="label">
+          Round {view.round} · {view.draws} {view.draws === 1 ? "draw" : "draws"}
         </span>
         {mySeat !== null && (
           <button className="btn ghost small" disabled={!connected} onClick={() => sendOp({ type: "leave" })}>

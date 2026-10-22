@@ -14,7 +14,7 @@ export function TicTacToeSetup({ busy, disabled, onStart }: GameSetupProps<TttCo
     >
       <label className="field">
         <span>
-          Turn timer <span className="muted small">seconds, 0 = off</span>
+          Turn timer <span className="hint">seconds, 0 = off</span>
         </span>
         <input type="number" min={0} value={turnSeconds} onChange={(e) => setTurnSeconds(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
       </label>

@@ -1,5 +1,6 @@
 /** Client-side contract for a game's UI. Kept separate from the server definition. */
 import type { ComponentType } from "react";
+import type { IconName } from "../ui/icons";
 import type { GameSnapshot, Member } from "../shared/protocol";
 import type { GameMeta } from "./types";
 
@@ -23,6 +24,8 @@ export interface GameSetupProps<Config = unknown> {
 
 export interface GameUI {
   meta: GameMeta;
+  /** A pixel emblem for pickers and headers. */
+  icon: IconName;
   Game: ComponentType<GameUIProps<any, any>>;
   Setup?: ComponentType<GameSetupProps<any>>;
 }

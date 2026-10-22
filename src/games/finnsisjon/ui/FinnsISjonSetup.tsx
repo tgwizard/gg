@@ -18,7 +18,7 @@ export function FinnsISjonSetup({ busy, disabled, onStart }: GameSetupProps<Fish
       </p>
       <label className="field">
         <span>
-          Turn timer <span className="muted small">seconds, 0 = off. Run out and your turns are played for you.</span>
+          Turn timer <span className="hint">seconds, 0 = off. Run out and your turns are played for you.</span>
         </span>
         <input type="number" min={0} value={turnSeconds} onChange={(e) => setTurnSeconds(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
       </label>

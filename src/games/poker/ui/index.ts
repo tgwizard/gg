@@ -4,4 +4,4 @@ import { PokerGame } from "./PokerGame";
 import { PokerSetup } from "./PokerSetup";
 import "./poker.css";
 
-export const pokerUI: GameUI = { meta: pokerMeta, Game: PokerGame, Setup: PokerSetup };
+export const pokerUI: GameUI = { meta: pokerMeta, icon: "emblem-poker", Game: PokerGame, Setup: PokerSetup };

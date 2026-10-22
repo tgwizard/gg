@@ -3,6 +3,8 @@ import { gameUIs } from "../../games/ui-registry";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
 import { useServerNow } from "../useNow";
+import { Panel, PixelIcon } from "../../ui";
+import { GameCard } from "./GameCard";
 import { useToast } from "./Toasts";
 
 export function GameStage({ client, snapshot }: { client: RoomClient; snapshot: RoomSnapshot }) {
@@ -30,29 +32,17 @@ function GamePicker({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
 
   return (
     <div className="picker">
-      <h2>Pick a game</h2>
-      <p className="muted">Everyone in the room plays (or watches) together.</p>
-      <div className="picker-grid">
+      <div className="picker-head">
+        <h2 className="display">Pick a game</h2>
+        <p className="muted">Everyone in the room plays, or watches, together.</p>
+      </div>
+      <div className="game-grid">
         {Object.values(gameUIs).map((g) => (
-          <button
-            key={g.meta.id}
-            className={`game-card ${selected === g.meta.id ? "selected" : ""}`}
-            onClick={() => setSelected(g.meta.id)}
-          >
-            <strong>{g.meta.name}</strong>
-            <span>{g.meta.tagline}</span>
-            <span className="muted small">
-              {g.meta.minPlayers}–{g.meta.maxPlayers} players
-            </span>
-          </button>
+          <GameCard key={g.meta.id} game={g} selected={selected === g.meta.id} onClick={() => setSelected(g.meta.id)} />
         ))}
-        <div className="game-card soon">
-          <strong>More soon</strong>
-          <span className="muted">Games are modules. Add your own.</span>
-        </div>
       </div>
       {ui && (
-        <div className="setup">
+        <Panel className="setup" title={`Set up ${ui.meta.name}`} icon="gem">
           {ui.Setup ? (
             <ui.Setup busy={busy} disabled={!connected} onStart={start} />
           ) : (
@@ -60,7 +50,7 @@ function GamePicker({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
               Start {ui.meta.name}
             </button>
           )}
-        </div>
+        </Panel>
       )}
     </div>
   );
@@ -90,11 +80,12 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
   return (
     <div className="active-game">
       <div className="game-header">
-        <h2>{ui.meta.name}</h2>
+        <PixelIcon name={ui.icon} scale={2} />
+        <h2 className="display">{ui.meta.name}</h2>
         <div className="spacer" />
         {confirmEnd ? (
           <span className="row">
-            <span className="muted">End for everyone?</span>
+            <span className="muted small">End for everyone?</span>
             <button
               className="btn danger small"
               onClick={() => {
@@ -109,7 +100,8 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
             </button>
           </span>
         ) : (
-          <button className="btn ghost small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
+          <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
+            <PixelIcon name="door" />
             End game
           </button>
         )}
