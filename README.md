@@ -1,6 +1,7 @@
 # gg
 
 Games with friends. Create a room, share the link, pick a game, chat. No accounts.
+Live at <https://gg.tgwizard.com>.
 
 Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSockets,
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
@@ -48,8 +49,8 @@ Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
 npm run deploy         # vite build && wrangler deploy
 ```
 
-Then add a custom domain (e.g. `gg.tgwizard.com`) to the `gg` worker in the
-Cloudflare dashboard.
+This needs `npx wrangler login` once. The custom domain `gg.tgwizard.com` is set in
+`wrangler.jsonc`; Cloudflare manages its DNS record and certificate.
 
 ## License
 
