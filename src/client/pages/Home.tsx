@@ -19,6 +19,12 @@ export function HomePage() {
     setError(null);
     try {
       const res = await fetch("/api/rooms", { method: "POST" });
+      if (res.status === 429) {
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        setError(body.message ?? "Slow down a little, then try again.");
+        setBusy(false);
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { id } = (await res.json()) as { id: string };
       navigate(`/r/${id}`);

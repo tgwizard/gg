@@ -147,11 +147,50 @@ Bots are designed to be just another kind of room member:
 
 Nothing in the protocol needs to change for this. Bots are server-side actors.
 
+## Limits
+
+Strict enough to stop scripts, loose enough that people never notice them. A
+frustrated Cmd+R loop on a bad connection must never trip anything (there's an
+e2e test for exactly that). All values are in `src/worker/limits.ts` and
+`wrangler.jsonc`.
+
+| limit | where | value | normal use for comparison |
+| --- | --- | --- | --- |
+| room creation | worker, per IP (rate-limit binding) | 10/min | one room at a time |
+| connection attempts | worker, per IP (rate-limit binding) | 120/min | refreshing every second is 60/min; reconnects back off exponentially |
+| chat + renames | DO, per connection (token bucket) | burst 15, then 1/s | chat queued while offline is flushed at once |
+| moves and everything else | DO, per connection | burst 30, then 5/s | far above click speed |
+| sustained flooding | DO | 50 refused messages → disconnect for 30s | only scripts get here |
+| connections per player | DO | newest 6 kept | refreshing on a bad connection can leave dead sockets behind |
+| connections per room | DO | 100 | |
+
+How limits look to the user:
+
+- **Refused connections** are accepted and then immediately sent an `error`
+  (`rate_limited` / `room_full`, a human message and `retryAfterMs`) and closed with
+  code 4429. A plain HTTP 429 on a WebSocket upgrade is indistinguishable from a
+  network error in the browser, so it couldn't be explained. The client shows the
+  message in its banner, hides "Retry now", and waits the requested time (plus
+  jitter) before reconnecting.
+- **Refused messages** get a normal `ack` with `rate_limited`. Chat puts the text
+  back in the input with a toast, and moves show a toast.
+- **Room creation** returns 429 JSON with a message, shown on the home page.
+
+The per-IP keys use `CF-Connecting-IP`, which Cloudflare's edge sets (clients can't
+spoof it in production). Locally, tests set it to simulate players on different
+networks.
+
+## Room expiry
+
+Rooms are deleted (`storage.deleteAll()`, after which the link shows "Room not
+found") when nobody is connected and they've been idle **30 days**, or **24 hours**
+if nobody ever joined. Activity is recorded on joins and messages (written at most
+once a minute). The check runs on the DO alarm, which is scheduled for the
+expiry time whenever the room empties, so an idle room costs nothing until that
+one wake-up.
+
 ## Known limitations / next steps
 
-- No rate limiting on room creation or chat yet (add a per-IP limiter on
-  `POST /api/rooms` and a per-socket token bucket in the DO before going public).
-- Chat retention is the last ~1000 messages per room. Rooms never expire (add an
-  alarm that deletes storage after N days idle).
+- Chat retention is the last ~1000 messages per room.
 - Multiple tabs with the same identity are the same player (by design). Both can act.
 - TODO: CI (GitHub Actions running `npm run test:all`). For now, tests run locally.

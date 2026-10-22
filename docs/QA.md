@@ -13,8 +13,8 @@ npm run test:all        # typecheck + unit + integration + e2e
 | layer | where | what it covers |
 | --- | --- | --- |
 | unit | `src/**/*.test.ts` | hand evaluator, poker rules (blinds, min-raise, side pots, splits, timers, redaction), chip-conservation fuzzing |
-| integration | `test/integration` | the real Worker + Room DO in workerd over WebSockets: joining, identity, chat catch-up, idempotency, stale ops, secret redaction on the wire, eviction, alarms |
-| e2e | `test/e2e/*.spec.ts` | real browsers, multiple players: rooms, chat, refresh, offline, dropped and half-open sockets, a full poker hand, turn timer |
+| integration | `test/integration` | the real Worker + Room DO in workerd over WebSockets: joining, identity, chat catch-up, idempotency, stale ops, secret redaction on the wire, eviction, alarms, rate limits, room expiry |
+| e2e | `test/e2e/*.spec.ts` | real browsers, multiple players: rooms, chat, refresh, offline, dropped and half-open sockets, a full poker hand, turn timer, how limits look |
 
 Visual snapshot of the main screens (desktop and mobile), for eyeballing layout changes:
 
@@ -61,6 +61,12 @@ these through the browser and reports back.
 ### Secrets
 - [ ] DevTools → Network → WS → Messages on player A: no card codes from B's hand ever appear before showdown, and no `deck`.
 - [ ] Spectator sees only card backs until showdown. At showdown, only hands that reached it are shown.
+
+### Limits & expiry
+- [ ] Mash Cmd+R ~15 times on a room: you land connected with no banner or toast, and you're one member, not several.
+- [ ] Paste 20 chat messages as fast as possible: a "going a bit fast" toast appears, and the refused text is back in the input.
+- [ ] Create 11 rooms within a minute: the 11th shows a friendly "try again in a minute" message.
+- [ ] (Automated only) a connection told to back off shows the server's reason, hides "Retry now", and reconnects after the requested delay. Expiry runs in integration tests, by back-dating the room's stored timestamps.
 
 ### Lifecycle & layout
 - [ ] *End game* asks for confirmation and returns everyone to the picker. A new game can start.

@@ -2,11 +2,13 @@ import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
 import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { colorFor } from "./Members";
+import { useToast } from "./Toasts";
 
 const time = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): void }) {
+export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): Promise<void> }) {
   const [text, setText] = useState("");
+  const toast = useToast();
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
@@ -18,7 +20,12 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!text.trim()) return;
-    onSend(text);
+    const sent = text;
+    onSend(sent).catch((e: Error) => {
+      // Refused (e.g. too fast): say so, and give the text back unless they've started typing again.
+      toast(e.message);
+      setText((current) => current || sent);
+    });
     setText("");
     stickToBottom.current = true;
   }

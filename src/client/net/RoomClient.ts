@@ -9,6 +9,8 @@
  *     reconnect, un-acked messages are resent; the server dedupes by cid. Game ops
  *     are resent with `ifVersion` so they only apply if nothing changed meanwhile.
  *   - Chat typed while offline is queued and shown as pending.
+ *   - Server limits are explained, not hidden: a refused connection carries a
+ *     message and a retry-after, which wins over the normal backoff.
  *
  * State is exposed as an immutable snapshot for React's useSyncExternalStore.
  */
@@ -21,6 +23,8 @@ import {
   PING,
   PONG,
   PROTOCOL_VERSION,
+  RATE_LIMITED,
+  ROOM_FULL,
   type ServerMessage,
   sanitizeChat,
 } from "../../shared/protocol";
@@ -47,6 +51,8 @@ export interface RoomSnapshot {
   game: GameSnapshot | null;
   /** serverTime - Date.now(), for rendering server deadlines. */
   clockOffset: number;
+  /** Why we're not connected, when the server told us (e.g. rate limited). */
+  notice: string | null;
 }
 
 export class RequestError extends Error {
@@ -91,8 +97,12 @@ export class RoomClient {
     pendingChat: [],
     game: null,
     clockOffset: 0,
+    notice: null,
   };
   private listeners = new Set<() => void>();
+  private toastListeners = new Set<(text: string) => void>();
+  /** Set by a server error just before it closes the socket on us. */
+  private retryAfterMs: number | null = null;
   private outbox = new Map<string, Outgoing>();
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private connectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -148,6 +158,18 @@ export class RoomClient {
     return () => this.listeners.delete(listener);
   };
 
+  /** Transient messages for the user (e.g. "slow down"). */
+  onToast(listener: (text: string) => void) {
+    this.toastListeners.add(listener);
+    return () => {
+      this.toastListeners.delete(listener);
+    };
+  }
+
+  private toast(text: string) {
+    for (const l of this.toastListeners) l(text);
+  }
+
   private update(patch: Partial<RoomSnapshot>) {
     this.snapshot = { ...this.snapshot, ...patch };
     for (const l of this.listeners) l();
@@ -155,13 +177,13 @@ export class RoomClient {
 
   // --- public actions ------------------------------------------------------
 
-  sendChat(raw: string) {
+  /** Queued while offline and delivered on reconnect. Rejects if the server refuses it. */
+  sendChat(raw: string): Promise<void> {
     const text = sanitizeChat(raw);
-    if (!text) return;
+    if (!text) return Promise.resolve();
     const cid = crypto.randomUUID();
     this.update({ pendingChat: [...this.snapshot.pendingChat, { cid, text, ts: Date.now() }] });
-    // Chat is queued while offline and delivered on reconnect.
-    void this.enqueue({ type: "chat", cid, text }, "chat", null).catch(() => {});
+    return this.enqueue({ type: "chat", cid, text }, "chat", null);
   }
 
   setName(name: string) {
@@ -294,7 +316,12 @@ export class RoomClient {
     if (this.stopped) return;
     const attempt = this.snapshot.attempt + 1;
     const base = attempt === 1 ? 250 : Math.min(MAX_BACKOFF_MS, 500 * 2 ** (attempt - 1));
-    const delay = Math.round(base * (0.6 + Math.random() * 0.4));
+    let delay = Math.round(base * (0.6 + Math.random() * 0.4));
+    if (this.retryAfterMs !== null) {
+      // The server asked us to wait; jitter so a whole room doesn't come back at once.
+      delay = Math.max(delay, Math.round(this.retryAfterMs * (1 + Math.random() * 0.2)));
+      this.retryAfterMs = null;
+    }
     this.update({
       status: navigator.onLine === false ? "offline" : "reconnecting",
       attempt,
@@ -355,6 +382,7 @@ export class RoomClient {
           chat: msg.chatReset ? msg.chat : mergeChat(this.snapshot.chat, msg.chat),
           game: msg.game,
           clockOffset: msg.serverTime - Date.now(),
+          notice: null,
         });
         // Resend anything unacknowledged, in order.
         for (const out of this.outbox.values()) this.transmit(out);
@@ -373,6 +401,14 @@ export class RoomClient {
       case "error":
         if (msg.code === "room_not_found") return this.terminate("not_found");
         if (msg.code === "outdated") return this.terminate("outdated");
+        if (msg.code === RATE_LIMITED || msg.code === ROOM_FULL) {
+          if (msg.retryAfterMs !== undefined) {
+            // The socket is about to be closed; explain why and wait as asked.
+            this.retryAfterMs = msg.retryAfterMs;
+            return this.update({ notice: msg.message });
+          }
+          return this.toast(msg.message);
+        }
         console.warn("server error", msg);
     }
   }

@@ -4,9 +4,16 @@ import { PROTOCOL_VERSION, type ServerMessage } from "../../src/shared/protocol"
 
 const BASE = "http://gg.test";
 
+/** Each test client gets its own IP unless told otherwise, so per-IP limits don't leak between tests. */
+export const randomIp = () => `10.${rand()}.${rand()}.${rand()}`;
+const rand = () => Math.floor(Math.random() * 256);
+
+export function postRoom(ip = randomIp()) {
+  return exports.default.fetch(`${BASE}/api/rooms`, { method: "POST", headers: { "CF-Connecting-IP": ip } });
+}
+
 export async function createRoom(): Promise<string> {
-  const res = await exports.default.fetch(`${BASE}/api/rooms`, { method: "POST" });
-  const body = (await res.json()) as { id: string };
+  const body = (await (await postRoom()).json()) as { id: string };
   return body.id;
 }
 
@@ -36,8 +43,10 @@ export class TestClient {
     });
   }
 
-  static async connect(roomId: string): Promise<TestClient> {
-    const res = await exports.default.fetch(`${BASE}/api/rooms/${roomId}/ws`, { headers: { Upgrade: "websocket" } });
+  static async connect(roomId: string, ip = randomIp()): Promise<TestClient> {
+    const res = await exports.default.fetch(`${BASE}/api/rooms/${roomId}/ws`, {
+      headers: { Upgrade: "websocket", "CF-Connecting-IP": ip },
+    });
     const ws = res.webSocket;
     if (!ws) throw new Error(`no websocket (status ${res.status})`);
     ws.accept();

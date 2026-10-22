@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { saveName, getSecret, useName } from "../identity";
 import { useRoom } from "../net/useRoom";
 import { navigate } from "../router";
@@ -7,7 +7,7 @@ import { ConnectionBanner, ConnectionPill } from "../components/Connection";
 import { GameStage } from "../components/GameStage";
 import { Members } from "../components/Members";
 import { NameForm } from "../components/NameForm";
-import { ToastProvider } from "../components/Toasts";
+import { ToastProvider, useToast } from "../components/Toasts";
 
 export function RoomPage({ roomId }: { roomId: string }) {
   const name = useName();
@@ -33,6 +33,8 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
   const secret = useMemo(getSecret, []);
   const { client, snapshot } = useRoom(roomId, secret, name);
   const [editingName, setEditingName] = useState(false);
+  const toast = useToast();
+  useEffect(() => client.onToast(toast), [client, toast]);
 
   if (snapshot.status === "not_found") {
     return (

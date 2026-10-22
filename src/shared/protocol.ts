@@ -16,11 +16,17 @@ export const MAX_CHAT_LENGTH = 500;
 export const PING = "ping";
 export const PONG = "pong";
 
-/** WebSocket close codes with special meaning to the client (no auto-reconnect). */
+/** WebSocket close codes with special meaning to the client. */
 export const CloseCode = {
   RoomNotFound: 4404,
   Outdated: 4426,
+  /** Too many connections or messages; reconnect after the error's retryAfterMs. */
+  RateLimited: 4429,
 } as const;
+
+/** Error codes for limits; the message is meant to be shown to the user as-is. */
+export const RATE_LIMITED = "rate_limited";
+export const ROOM_FULL = "room_full";
 
 export type MemberKind = "human" | "bot";
 
@@ -114,7 +120,7 @@ export type ServerMessage =
   | { type: "game"; game: GameSnapshot | null }
   | { type: "ack"; cid: string; ok: true }
   | { type: "ack"; cid: string; ok: false; error: AckError }
-  | { type: "error"; code: string; message: string };
+  | { type: "error"; code: string; message: string; retryAfterMs?: number };
 
 export function sanitizeName(raw: string): string {
   const name = raw.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);

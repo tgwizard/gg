@@ -1,8 +1,14 @@
 import { type Browser, expect, type Page } from "@playwright/test";
 
-/** Each player gets their own browser context: separate localStorage, so a separate identity. */
-export async function newPlayer(browser: Browser) {
-  const context = await browser.newContext();
+const octet = () => Math.floor(Math.random() * 256);
+
+/**
+ * Each player gets their own browser context: separate localStorage, so a separate
+ * identity, and their own IP (as the local worker sees it) so per-IP limits behave
+ * like real players on different networks.
+ */
+export async function newPlayer(browser: Browser, ip = `10.${octet()}.${octet()}.${octet()}`) {
+  const context = await browser.newContext({ extraHTTPHeaders: { "CF-Connecting-IP": ip } });
   const page = await context.newPage();
   return { context, page };
 }
