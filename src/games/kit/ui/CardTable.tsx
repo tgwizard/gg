@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { PixelArt, useTheme } from "../../../ui";
-import { drawPond, drawTable, type Felt, onTable } from "./tableArt";
+import { onTable } from "./layout";
 import "./table.css";
 
 export interface TableSeat {
@@ -18,21 +17,19 @@ export interface TableSeat {
 export type SeatSide = "top" | "bottom" | "left" | "right";
 
 /**
- * The base for card games: a pixel-art table with seats spaced evenly around it, the
+ * The base for card games: a table with seats spaced evenly around it, the
  * `rotation` seat at the bottom (that's you), and `center` content on the felt.
  * Seats get a `side-*` class so games can lay them out toward the middle.
  */
 export function CardTable({
   seats,
   rotation = 0,
-  felt = "emerald",
   center,
   testId,
   className,
 }: {
   seats: TableSeat[];
   rotation?: number;
-  felt?: Felt;
   center?: ReactNode;
   testId?: string;
   className?: string;
@@ -41,7 +38,7 @@ export function CardTable({
   return (
     <div className={`card-table ${className ?? ""}`} data-testid={testId}>
       <div className="table-surface">
-        <TableSurface felt={felt} />
+        <TableSurface />
         <div className="table-center">{center}</div>
         {seats.map((seat, i) => {
           const theta = Math.PI / 2 + (((i - rotation + n) % n) * 2 * Math.PI) / n;
@@ -80,20 +77,16 @@ function sideOf(theta: number): SeatSide {
   return Math.cos(theta) < 0 ? "left" : "right";
 }
 
-/** The table itself: pixel art, or CSS for smooth themes (styled per theme in themes.css). */
-export function TableSurface({ felt = "emerald" }: { felt?: Felt }) {
-  const { art } = useTheme();
-  if (art === "pixel") return <PixelArt className="table-art" draw={(c, r) => drawTable(c, r, felt)} drawKey={felt} pixel={3} />;
+/** The table itself: a wooden rail around the felt. */
+export function TableSurface() {
   return (
-    <div className={`table-smooth felt-${felt}`} aria-hidden>
-      <div className="table-smooth-felt" />
+    <div className="table-wood" aria-hidden>
+      <div className="table-felt" />
     </div>
   );
 }
 
 /** A pond (Finns i sjön's lake). */
 export function PondSurface() {
-  const { art } = useTheme();
-  if (art === "pixel") return <PixelArt className="pond-art" draw={drawPond} drawKey="pond" pixel={3} />;
-  return <div className="pond-smooth" aria-hidden />;
+  return <div className="pond" aria-hidden />;
 }

@@ -1,29 +1,25 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import type { IconName } from "./icons";
-import { PixelIcon } from "./PixelIcon";
 
-/** A bordered box with a dithered shadow and its title set into the top border. */
+/** A bordered box with its title set into the top border. */
 export function Panel({
   title,
-  icon,
   actions,
-  night,
+  brand,
   className,
   children,
   ...rest
 }: {
   title?: ReactNode;
-  icon?: IconName;
   actions?: ReactNode;
-  night?: boolean;
+  /** On the forest-green brand surface. */
+  brand?: boolean;
   className?: string;
   children?: ReactNode;
 } & Omit<HTMLAttributes<HTMLElement>, "title">) {
   return (
-    <section className={`box panel ${night ? "on-night" : ""} ${className ?? ""}`} {...rest}>
+    <section className={`box panel ${brand ? "on-brand" : ""} ${className ?? ""}`} {...rest}>
       {title && (
         <div className="panel-title">
-          {icon && <PixelIcon name={icon} />}
           <h3 className="label">{title}</h3>
         </div>
       )}

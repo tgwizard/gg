@@ -36,8 +36,9 @@ Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
    `apply`, `view`, `players`, `waitingOn`, `legalOps`, optional timers and
    invariants). Use `src/games/kit` for seats and timers. Register it in
    `src/games/registry.ts`.
-2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`). Register it in
-   `src/games/ui-registry.ts`.
+2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`, and `icon`
+   artwork in `public/icons/`). Build it from `src/games/kit/ui` (table, cards, plates)
+   and `src/ui` (buttons, panels; see `/ui`). Register it in `src/games/ui-registry.ts`.
 3. `npm test`: the conformance suite fuzzes every registered game automatically.
    Add rule tests for the engine, and redaction tests if it has hidden information.
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { hash2, PixelIcon } from "../../../ui";
+import { hash2 } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
 import { CardTable, PondSurface, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
@@ -200,7 +200,6 @@ function Books({ ranks }: { ranks: string[] }) {
   if (!ranks.length) return <div className="plate-line status">no books yet</div>;
   return (
     <div className="fish-books" title={`${ranks.length} ${ranks.length === 1 ? "book" : "books"}`}>
-      <PixelIcon name="book" className="fish-books-icon" />
       {ranks.map((r) => (
         <span key={r} className="fish-book num">
           {rankLabel(r)}

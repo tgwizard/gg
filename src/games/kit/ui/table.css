@@ -1,4 +1,4 @@
-/* The card table: a pixel-art surface with seats around the rail. */
+/* The card table: wood around felt, with seats around the rail. */
 .card-table {
   --seat-room-x: 72px;
   --seat-room-y: 56px;
@@ -9,8 +9,20 @@
   padding: var(--seat-room-y) var(--seat-room-x);
 }
 .table-surface { position: relative; aspect-ratio: 2 / 1; }
-.pixel-art { position: absolute; inset: 0; }
-.pixel-art svg { display: block; width: 100%; height: 100%; }
+
+.table-wood {
+  position: absolute;
+  inset: 0 0 6px;
+  padding: 22px;
+  border-radius: var(--pill);
+  background: var(--wood);
+  border: 1px solid var(--wood-edge);
+  box-shadow: var(--table-shadow);
+}
+.table-felt { position: relative; width: 100%; height: 100%; border-radius: var(--pill); background: var(--felt); box-shadow: inset 0 6px 18px rgb(0 0 0 / 0.35); }
+.table-felt::after { content: ""; position: absolute; inset: 12%; border-radius: var(--pill); border: 2px solid var(--felt-ring); }
+
+.pond { position: absolute; inset: 0; border-radius: 50%; background: var(--pond); border: 3px solid var(--pond-edge); box-shadow: inset 0 4px 12px rgb(0 0 0 / 0.25); }
 
 .table-center {
   position: absolute;
@@ -21,7 +33,7 @@
   justify-content: center;
   gap: 10px;
   text-align: center;
-  color: var(--on-night);
+  color: var(--on-brand);
   z-index: 1;
 }
 
@@ -30,6 +42,7 @@
 .table-marker { position: absolute; translate: -50% -50%; z-index: 2; }
 /* Beside the seat rather than under its cards. */
 .table-marker.side-bottom, .table-marker.side-top { translate: calc(-50% + 78px) -50%; }
+.table-marker.side-left, .table-marker.side-right { translate: -50% calc(-50% - 52px); }
 
 /* An empty seat: a dashed spot on the rail. */
 .seat-open {
@@ -37,29 +50,18 @@
   place-items: center;
   width: 110px;
   height: 54px;
-  border: 2px dashed rgb(239 232 214 / 0.4);
-  background: rgb(7 8 15 / 0.45);
+  border-radius: var(--radius);
+  border: 2px dashed rgb(247 239 224 / 0.4);
+  background: rgb(20 34 26 / 0.55);
 }
-.seat-open .label { color: var(--on-night-2); }
+.seat-open .label { color: var(--on-brand-2); }
 
 @media (max-width: 640px) {
   .card-table { --seat-room-x: 44px; --seat-room-y: 58px; width: 100%; }
   .table-surface { aspect-ratio: 3 / 4.2; }
+  .table-wood { padding: 14px; }
   .table-center { inset: 24% 14%; }
   .seat-open { width: 84px; height: 44px; }
+  /* Your seat is the one at the bottom; the tag would crowd out your name. */
+  .table-seat .plate .tag.accent { display: none; }
 }
-
-/* Smooth themes draw the table with CSS; themes.css sets the materials. */
-.table-smooth {
-  position: absolute;
-  inset: 0 0 6px;
-  padding: var(--rail-w, 16px);
-  border-radius: 999px;
-  background: var(--rail-bg, #6b4226);
-  border: var(--rail-border, none);
-  box-shadow: var(--table-shadow, 0 10px 30px rgb(0 0 0 / 0.3));
-}
-.table-smooth-felt { position: relative; width: 100%; height: 100%; border-radius: 999px; background: var(--felt-bg, #1f6049); box-shadow: var(--felt-inset, none); }
-.table-smooth-felt::after { content: ""; position: absolute; inset: var(--ring-inset, 12%); border-radius: 999px; border: var(--felt-ring, 2px dashed rgb(255 255 255 / 0.18)); }
-.pond-smooth { position: absolute; inset: 0; border-radius: 50%; background: var(--pond-bg, #2f7fa8); border: var(--pond-border, none); box-shadow: var(--pond-shadow, none); }
-.pond-art { position: absolute; inset: 0; }

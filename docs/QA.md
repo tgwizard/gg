@@ -92,4 +92,6 @@ these through the browser and reports back.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.
 - [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table.
 - [ ] Long names (24 chars) and 9 seated players.
+- [ ] Light and dark mode (toggle in the top bar and on the home page): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
+- [ ] `/ui` style guide: nothing broken after design changes, in both modes.
 - [ ] Bump `PROTOCOL_VERSION` with a tab open: the tab shows "gg has been updated, reload".

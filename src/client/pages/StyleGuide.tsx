@@ -1,37 +1,37 @@
 /**
  * /ui: every component in one place, for tuning the look without setting up a game.
  */
-import { useState } from "react";
+import type { ReactNode } from "react";
 import { CardTable, type TableSeat } from "../../games/kit/ui/CardTable";
 import { CardBack, CardFan, CardSlot, PlayingCard } from "../../games/kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../games/kit/ui/Chips";
 import { ActionTray, GameLog, Herald } from "../../games/kit/ui/GameParts";
 import { PlayerPlate } from "../../games/kit/ui/PlayerPlate";
-import type { Felt } from "../../games/kit/ui/tableArt";
 import { gameUIs } from "../../games/ui-registry";
-import { ICONS, type IconName, Meter, Panel, PixelIcon, Spinner } from "../../ui";
+import { Meter, Panel, Spinner } from "../../ui";
 import { GameCard } from "../components/GameCard";
+import { ModeToggle } from "../components/ModeToggle";
 
-const SWATCHES = ["paper", "paper-hi", "paper-lo", "line", "ink", "ink-2", "ink-3", "night", "night-2", "night-3", "gilt", "gilt-hi", "gilt-lo", "ember", "moss", "arcane", "water"];
+const SWATCHES = ["bg", "surface", "surface-2", "line-strong", "text", "text-2", "text-muted", "brand", "brand-2", "on-brand", "accent", "gold", "danger", "good", "blue"];
 
 export function StyleGuidePage() {
-  const [felt, setFelt] = useState<Felt>("emerald");
   return (
     <div className="guide">
-      <header className="guide-head on-night">
+      <header className="guide-head on-brand">
         <h1 className="display">gg · ui</h1>
-        <p className="muted">Pixel art on parchment and ink, with a little gilt. Components live in src/ui and src/games/kit/ui.</p>
+        <p>A cozy family board game: warm linen, forest green, terracotta, gold and wood. Components live in src/ui and src/games/kit/ui.</p>
+        <ModeToggle />
       </header>
 
       <main className="guide-main">
         <Section title="Type">
           <h1 className="display">Texas Hold'em</h1>
           <h2 className="display">Alice wins 1,240</h2>
-          <p className="label">Silkscreen label · In this room · 3 online</p>
+          <p className="label">Label · In this room · 3 online</p>
           <p className="num" style={{ fontSize: 28 }}>
             A K Q J 10 · 1,240 · 21:07
           </p>
-          <p>JetBrains Mono for everything else. Make a room, share the link, play.</p>
+          <p>Nunito for everything else. Make a room, share the link, play.</p>
         </Section>
 
         <Section title="Palette">
@@ -45,35 +45,39 @@ export function StyleGuidePage() {
           </div>
         </Section>
 
+        <Section title="Artwork">
+          <div className="guide-art">
+            <img className="square" src="/icons/gg-512.jpg" alt="gg" />
+            {Object.values(gameUIs).map((g) => (
+              <img key={g.meta.id} src={g.icon} alt={g.meta.name} />
+            ))}
+          </div>
+        </Section>
+
         <Section title="Buttons">
           <div className="row wrap">
             <button className="btn primary">Primary</button>
             <button className="btn">Default</button>
             <button className="btn danger">Danger</button>
-            <button className="btn dark">Dark</button>
             <button className="btn ghost">Ghost</button>
             <button className="btn" disabled>
               Disabled
             </button>
-            <button className="btn primary big">
-              Big <PixelIcon name="arrow" />
-            </button>
-            <button className="btn small">
-              <PixelIcon name="link" /> Small
-            </button>
+            <button className="btn primary big">Big</button>
+            <button className="btn small">Small</button>
           </div>
-          <div className="row wrap on-night guide-night">
+          <div className="row wrap on-brand guide-brand">
             <button className="btn primary">Primary</button>
-            <button className="btn">Default</button>
-            <button className="btn dark">Dark</button>
+            <button className="btn subtle">Subtle</button>
+            <button className="btn subtle on">Subtle, on</button>
             <button className="btn ghost">Ghost</button>
-            <input placeholder="Input on night" />
+            <input placeholder="Input on brand" />
           </div>
         </Section>
 
         <Section title="Panels & fields">
           <div className="guide-grid">
-            <Panel title="A panel" icon="gem">
+            <Panel title="A panel">
               <label className="field">
                 <span>
                   Your name <span className="hint">up to 24 characters</span>
@@ -82,8 +86,8 @@ export function StyleGuidePage() {
               </label>
               <button className="btn primary">Save</button>
             </Panel>
-            <Panel title="Night panel" icon="sparkle" night actions={<span className="label">3 online</span>}>
-              <p>Panels take a title, an icon, and actions set into the border.</p>
+            <Panel title="Brand panel" brand actions={<span className="label">3 online</span>}>
+              <p>Panels take a title and actions set into the border.</p>
               <Meter value={0.6} />
               <Meter value={0.2} low />
             </Panel>
@@ -93,10 +97,9 @@ export function StyleGuidePage() {
         <Section title="Small things">
           <div className="row wrap">
             <span className="tag">tag</span>
-            <span className="tag gilt">you</span>
-            <span className="tag arcane">bot</span>
-            <span className="tag good">good</span>
-            <span className="tag bad">bad</span>
+            <span className="tag accent">you</span>
+            <span className="tag gold">to act</span>
+            <span className="tag brand">bot</span>
             <span className="pill">
               <span className="light good" /> Connected
             </span>
@@ -111,19 +114,8 @@ export function StyleGuidePage() {
           </div>
           <div className="banner">Connection lost. Retrying in 3s…</div>
           <div className="banner bad">You're offline.</div>
-          <div className="toast box tight on-night" style={{ alignSelf: "flex-start" }}>
-            <PixelIcon name="warning" /> You're sending messages too fast.
-          </div>
-        </Section>
-
-        <Section title="Icons">
-          <div className="guide-icons">
-            {(Object.keys(ICONS) as IconName[]).map((name) => (
-              <div key={name} className="guide-icon">
-                <PixelIcon name={name} scale={name.startsWith("emblem") ? 3 : 3} />
-                <code>{name}</code>
-              </div>
-            ))}
+          <div className="toast box on-brand" style={{ alignSelf: "flex-start" }}>
+            You're sending messages too fast.
           </div>
         </Section>
 
@@ -135,7 +127,7 @@ export function StyleGuidePage() {
           </div>
         </Section>
 
-        <Section title="Cards" night>
+        <Section title="Cards & chips" brand>
           <div className="row wrap guide-cards">
             <PlayingCard card="As" size="lg" />
             <PlayingCard card="Kh" size="lg" highlight />
@@ -172,7 +164,7 @@ export function StyleGuidePage() {
               <div className="plate-line">
                 <Chips amount={1500} />
               </div>
-              <Meter value={0.7} segments={10} />
+              <Meter value={0.7} />
             </PlayerPlate>
             <PlayerPlate playerId="c" name="Carol" online={false} dim>
               <div className="plate-line status">Folded</div>
@@ -187,15 +179,7 @@ export function StyleGuidePage() {
         </Section>
 
         <Section title="Table">
-          <div className="row">
-            {(["emerald", "azure", "crimson"] as Felt[]).map((f) => (
-              <button key={f} className={`btn small ${felt === f ? "primary" : ""}`} onClick={() => setFelt(f)}>
-                {f}
-              </button>
-            ))}
-          </div>
           <CardTable
-            felt={felt}
             seats={demoSeats()}
             center={
               <>
@@ -252,13 +236,15 @@ function demoSeats(): TableSeat[] {
     marker: i === 1 ? <DealerButton /> : undefined,
     node: p ? (
       <div className="seat-body">
-        <div className="seat-cards">{p.me ? [<PlayingCard key="1" card="Ac" />, <PlayingCard key="2" card="Ad" />] : [<CardBack key="1" size="sm" />, <CardBack key="2" size="sm" />]}</div>
+        <div className="seat-cards">
+          {p.me ? [<PlayingCard key="1" card="Ac" />, <PlayingCard key="2" card="Ad" />] : [<CardBack key="1" size="sm" />, <CardBack key="2" size="sm" />]}
+        </div>
         <PlayerPlate playerId={p.id} name={p.name} you={p.me} active={p.active} dim={p.dim}>
           <div className="plate-line">
             <Chips amount={p.stack} />
           </div>
           {p.status && <div className="plate-line status">{p.status}</div>}
-          {p.active && <Meter value={0.55} segments={10} />}
+          {p.active && <Meter value={0.55} />}
         </PlayerPlate>
       </div>
     ) : (
@@ -269,9 +255,9 @@ function demoSeats(): TableSeat[] {
   }));
 }
 
-function Section({ title, night, children }: { title: string; night?: boolean; children: React.ReactNode }) {
+function Section({ title, brand, children }: { title: string; brand?: boolean; children: ReactNode }) {
   return (
-    <Panel title={title} night={night} className="guide-section">
+    <Panel title={title} brand={brand} className="guide-section">
       {children}
     </Panel>
   );

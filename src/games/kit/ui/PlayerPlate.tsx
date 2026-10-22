@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { nameStyle, PixelIcon } from "../../../ui";
+import { nameStyle } from "../../../ui";
 import "./kit.css";
 
 /**
@@ -26,7 +26,7 @@ export function PlayerPlate(props: {
   children?: ReactNode;
 }) {
   const classes = [
-    "plate box tight on-night",
+    "plate box on-brand",
     props.active && "active",
     props.dim && "dim",
     props.winner && "winner",
@@ -38,13 +38,13 @@ export function PlayerPlate(props: {
     .join(" ");
   const body = (
     <>
-      {props.winner && <PixelIcon name="crown" scale={3} className="plate-crown" title="Winner" />}
       <div className="plate-name">
         <span className={`light ${props.online === false ? "bad" : "good"}`} title={props.online === false ? "Disconnected" : "Online"} />
         <span className="name" style={nameStyle(props.playerId)}>
           {props.name}
         </span>
-        {props.you && <span className="tag gilt">you</span>}
+        {props.you && <span className="tag accent">you</span>}
+        {props.winner && <span className="tag gold">winner</span>}
         {props.tags}
       </div>
       {props.children}

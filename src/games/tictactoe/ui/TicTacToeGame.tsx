@@ -1,4 +1,3 @@
-import { PixelIcon } from "../../../ui";
 import { Herald } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -36,7 +35,9 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
           const turn = view.status === "playing" && view.turn === m;
           return (
             <div key={m} className="ttt-player" data-testid={`ttt-seat-${m}`}>
-              <PixelIcon name={m === 0 ? "x" : "o"} scale={5} className={`ttt-mark mark-${m}`} />
+              <span className={`ttt-mark display mark-${m}`} aria-hidden>
+                {MARKS[m]}
+              </span>
               {seat ? (
                 <PlayerPlate
                   playerId={seat.playerId}
@@ -75,12 +76,7 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
             aria-label={cell === null ? `Empty square ${i + 1}` : `${MARKS[cell]} in square ${i + 1}`}
             data-testid={`ttt-cell-${i}`}
           >
-            {cell !== null && (
-              <>
-                <PixelIcon name={cell === 0 ? "x" : "o"} scale={8} />
-                <span className="visually-hidden">{MARKS[cell]}</span>
-              </>
-            )}
+            {cell === null ? "" : MARKS[cell]}
           </button>
         ))}
       </div>

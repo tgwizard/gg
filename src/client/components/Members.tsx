@@ -8,7 +8,6 @@ export function Members({ snapshot }: { snapshot: RoomSnapshot }) {
     <Panel
       className="members"
       title="In this room"
-      icon="person"
       actions={<span className="label">{members.filter((m) => m.online).length} online</span>}
     >
       <ul>
@@ -18,9 +17,9 @@ export function Members({ snapshot }: { snapshot: RoomSnapshot }) {
             <span className="name member-name" style={nameStyle(m.id)}>
               {m.name}
             </span>
-            {m.id === snapshot.you?.id && <span className="tag gilt">you</span>}
-            {m.kind === "bot" && <span className="tag arcane">bot</span>}
-            {waiting.has(m.id) && <span className="tag turn">to act</span>}
+            {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
+            {m.kind === "bot" && <span className="tag brand">bot</span>}
+            {waiting.has(m.id) && <span className="tag gold">to act</span>}
           </li>
         ))}
       </ul>

@@ -3,7 +3,7 @@ import { gameUIs } from "../../games/ui-registry";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
 import { useServerNow } from "../useNow";
-import { Panel, PixelIcon } from "../../ui";
+import { Panel } from "../../ui";
 import { GameCard } from "./GameCard";
 import { useToast } from "./Toasts";
 
@@ -42,7 +42,7 @@ function GamePicker({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
         ))}
       </div>
       {ui && (
-        <Panel className="setup" title={`Set up ${ui.meta.name}`} icon="gem">
+        <Panel className="setup" title={`Set up ${ui.meta.name}`}>
           {ui.Setup ? (
             <ui.Setup busy={busy} disabled={!connected} onStart={start} />
           ) : (
@@ -80,7 +80,7 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
   return (
     <div className="active-game">
       <div className="game-header">
-        <PixelIcon name={ui.icon} scale={2} />
+        <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
         <h2 className="display">{ui.meta.name}</h2>
         <div className="spacer" />
         {confirmEnd ? (
@@ -101,7 +101,6 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
           </span>
         ) : (
           <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
-            <PixelIcon name="door" />
             End game
           </button>
         )}

@@ -3,4 +3,4 @@ import { ticTacToeMeta } from "../meta";
 import { TicTacToeGame } from "./TicTacToeGame";
 import { TicTacToeSetup } from "./TicTacToeSetup";
 
-export const ticTacToeUI: GameUI = { meta: ticTacToeMeta, icon: "emblem-tictactoe", Game: TicTacToeGame, Setup: TicTacToeSetup };
+export const ticTacToeUI: GameUI = { meta: ticTacToeMeta, icon: "/icons/tictactoe.jpg", Game: TicTacToeGame, Setup: TicTacToeSetup };

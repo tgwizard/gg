@@ -1,14 +1,11 @@
-import { PixelIcon } from "../../../ui";
 import { type Card, rankLabel } from "../cards";
 import "./cards.css";
 
 export type CardSize = "sm" | "md" | "lg";
 
-const SUITS = { s: "spade", h: "heart", d: "diamond", c: "club" } as const;
 // U+FE0E asks for the text (not emoji) presentation of the suit symbols.
-const GLYPHS = { s: "\u2660\uFE0E", h: "\u2665\uFE0E", d: "\u2666\uFE0E", c: "\u2663\uFE0E" } as const;
+const SUITS: Record<string, string> = { s: "♠︎", h: "♥︎", d: "♦︎", c: "♣︎" };
 const SUIT_NAMES: Record<string, string> = { s: "spades", h: "hearts", d: "diamonds", c: "clubs" };
-const PIP_SCALE: Record<CardSize, number> = { sm: 2, md: 3, lg: 4 };
 
 export function PlayingCard({
   card,
@@ -27,17 +24,15 @@ export function PlayingCard({
   picked?: boolean;
 }) {
   const rank = rankLabel(card[0]!);
-  const suit = card[1] as keyof typeof SUITS;
+  const suit = card[1]!;
   const red = suit === "h" || suit === "d";
   const classes = ["pcard", size, red && "red", dim && "dim", highlight && "hl", picked && "picked"].filter(Boolean).join(" ");
   return (
     <div className={classes} aria-label={`${rank} of ${SUIT_NAMES[suit]}`} data-card={card}>
       <div className="pcard-face">
         <span className="pcard-rank">{rank}</span>
-        {size !== "sm" && <PixelIcon name={SUITS[suit]} scale={1} className="pcard-corner art-pixel" />}
-        <PixelIcon name={SUITS[suit]} scale={PIP_SCALE[size]} className="pcard-pip art-pixel" />
-        {size !== "sm" && <span className="pcard-corner art-smooth">{GLYPHS[suit]}</span>}
-        <span className="pcard-pip art-smooth">{GLYPHS[suit]}</span>
+        {size !== "sm" && <span className="pcard-corner">{SUITS[suit]}</span>}
+        <span className="pcard-pip">{SUITS[suit]}</span>
       </div>
     </div>
   );
@@ -67,7 +62,7 @@ export function CardFan({ count, max = 7, size = "sm" }: { count: number; max?: 
       {Array.from({ length: Math.min(count, max) }, (_, i) => (
         <CardBack key={i} size={size} />
       ))}
-      {count > 0 && <span className="card-fan-count num">{count}</span>}
+      {count > 0 && <span className="card-fan-count">{count}</span>}
     </div>
   );
 }

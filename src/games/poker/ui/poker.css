@@ -1,25 +1,24 @@
 .poker { display: flex; flex-direction: column; gap: 18px; }
 
 .poker .board { display: flex; gap: 6px; }
-.poker .center-msg { font-size: 13px; max-width: 100%; color: var(--on-night); text-shadow: 1px 1px 0 rgb(7 8 15 / 0.6); }
-.poker .center-msg.label { color: var(--on-night-2); }
+.poker .center-msg { font-size: 14px; max-width: 100%; color: var(--on-brand); text-shadow: 0 1px 2px rgb(0 0 0 / 0.4); }
+.poker .center-msg.label { color: var(--on-brand-2); }
 .poker .center-msg.result { display: flex; flex-direction: column; gap: 4px; }
-.poker .center-msg.result strong { font-size: 1.7rem; color: var(--gilt-hi); font-weight: 400; text-shadow: 2px 2px 0 var(--night-ink); }
-.poker .center-msg.result .label { color: var(--on-night-2); }
+.poker .center-msg.result strong { font-size: 1.6rem; color: var(--gold); }
+.poker .center-msg.result .label { color: var(--on-brand-2); }
 
 /* Cards peek out from behind the nameplate, toward the middle of the table. */
 .seat-body { display: flex; flex-direction: column; align-items: center; }
 .seat-cards { display: flex; gap: 3px; margin-bottom: -6px; z-index: 1; min-height: 6px; }
 .side-top .seat-body { flex-direction: column-reverse; }
 .side-top .seat-cards { margin: -6px 0 0; }
-.log-street { display: block; margin: 6px 0 2px; color: var(--fg); }
+.log-street { display: block; margin: 6px 0 2px; color: var(--text); }
 
 /* actions */
 .poker .actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; width: 100%; }
 .poker .raise { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 280px; }
 .poker .presets { display: flex; gap: 6px; }
-.poker .presets .btn.on { --btn-bg: var(--gilt-lo); }
-.poker .raise input[type="range"] { flex: 1; accent-color: var(--gilt); }
+.poker .raise input[type="range"] { flex: 1; accent-color: var(--gold); }
 .poker .raise-input { max-width: 90px; flex: none; }
 
 .poker-setup { display: flex; flex-direction: column; gap: 16px; }
@@ -29,5 +28,5 @@
 @media (max-width: 640px) {
   .poker .board { gap: 3px; }
   .poker .plate { width: 96px; padding: 4px 4px 6px; }
-  .poker .plate .chips .num { font-size: 16px; }
+  .poker .plate .chips .num { font-size: 15px; }
 }

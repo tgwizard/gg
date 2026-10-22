@@ -2,15 +2,24 @@
 
 .fish-spot { display: flex; flex-direction: column; align-items: center; }
 .fish-fan { margin-bottom: -8px; z-index: 1; min-height: 20px; display: flex; align-items: flex-end; }
-.fish-fan .label { color: var(--on-night-2); background: rgb(7 8 15 / 0.5); padding: 2px 6px; margin-bottom: 10px; }
+.fish-fan .label { color: var(--on-brand-2); background: rgb(20 34 26 / 0.6); padding: 3px 8px; border-radius: var(--pill); margin-bottom: 10px; }
 .side-top .fish-spot { flex-direction: column-reverse; }
 .side-top .fish-fan { margin: -8px 0 0; align-items: flex-start; }
 .side-top .fish-fan .label { margin: 10px 0 0; }
 
+/* Books: the ranks you've collected, as tiny cards. */
 .fish-books { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; align-items: center; }
-.fish-books-icon { color: var(--gilt); --px-2: var(--ember-hi); margin-right: 2px; }
-.fish-book { font-size: 14px; line-height: 1; padding: 2px 3px 0; color: var(--ink); background: var(--paper-hi); border: 1px solid var(--night-ink); min-width: 14px; text-align: center; }
-
+.fish-book {
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 4px 2px;
+  min-width: 18px;
+  text-align: center;
+  color: var(--card-ink);
+  background: var(--card-face);
+  border: 1px solid var(--card-edge);
+  border-radius: 4px;
+}
 
 /* the lake */
 .fish-lake { position: relative; width: min(100%, 320px); aspect-ratio: 16 / 9; }
@@ -21,29 +30,30 @@
   bottom: -14px;
   translate: -50% 0;
   white-space: nowrap;
-  color: var(--on-night);
-  background: var(--night);
-  border: 2px solid var(--night-ink);
-  padding: 4px 8px 3px;
+  color: var(--on-brand);
+  background: var(--brand);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--pill);
+  padding: 5px 12px 4px;
 }
-.fish-center-msg { display: flex; flex-direction: column; gap: 8px; color: var(--on-night); text-shadow: 1px 1px 0 rgb(7 8 15 / 0.6); }
-.fish-center-msg .display { font-size: 2.6rem; color: var(--gilt-hi); text-shadow: 3px 3px 0 var(--night-ink); }
+.fish-center-msg { display: flex; flex-direction: column; gap: 8px; color: var(--on-brand); }
+.fish-center-msg .display { font-size: 2.4rem; color: var(--gold); }
 
 /* what just happened */
-.fish-latest { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; font-weight: 600; }
-.fish-catch { display: inline-flex; align-items: center; gap: 8px; color: var(--fg-2); font-weight: 400; }
-.fish-ranking { display: flex; gap: 6px 18px; justify-content: center; flex-wrap: wrap; font-family: var(--font-body); font-size: 13px; }
+.fish-latest { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; font-weight: 700; }
+.fish-catch { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-weight: 400; }
+.fish-ranking { display: flex; gap: 6px 18px; justify-content: center; flex-wrap: wrap; font-family: var(--font-body); font-size: 14px; font-weight: 400; }
 
 /* your hand */
 .fish-me { display: flex; flex-direction: column; gap: 12px; width: 100%; }
 .fish-hand { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
-.fish-card { background: none; border: none; padding: 0; cursor: pointer; }
+.fish-card { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--radius-card); }
 .fish-card:disabled { cursor: default; }
 .fish-card:not(:disabled):hover .pcard:not(.picked) { translate: 0 -4px; }
 .fish-ask { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 40px; }
-.fish-hint { color: var(--on-night-2); }
+.fish-hint { color: var(--on-brand-2); }
 
 @media (max-width: 640px) {
-  .fish .plate { width: 96px; padding: 4px 4px 6px; }
+  .fish .plate { width: 96px; padding: 5px 5px 7px; }
   .fish-lake { width: 100%; }
 }

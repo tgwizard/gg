@@ -31,7 +31,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
   }
 
   return (
-    <Panel className="chat" title="Chat" icon="chat">
+    <Panel className="chat" title="Chat">
       <div
         className="chat-list"
         ref={listRef}

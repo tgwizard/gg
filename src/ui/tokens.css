@@ -1,84 +1,140 @@
 /*
- * gg design tokens. Pixel-art on parchment and ink, with a little gilt.
- *
- * Palette tokens (--paper, --ink, --night, --gilt…) are fixed colors. Components use the
- * semantic tokens (--fg, --surface, --border…), which `.on-night` remaps for dark surfaces.
+ * gg design tokens: a cozy family board game. Warm linen, forest green, terracotta, gold,
+ * wood and cream cards. Light by default; `data-mode="dark"` on <html> switches palettes.
+ * Components use these names only; `.on-brand` remaps them for the forest-green surfaces.
  */
 :root {
-  /* palette */
-  --paper: #f3ede0;
-  --paper-hi: #fbf8f1;
-  --paper-lo: #e9e1cf;
-  --line: #d3c8b0;
-  --ink: #17192b;
-  --ink-2: #45475e;
-  --ink-3: #7d7a88;
-  --night: #161a2e;
-  --night-2: #20253f;
-  --night-3: #323858;
-  --night-ink: #07080f;
-  --on-night: #efe8d6;
-  --on-night-2: #a8a6ba;
-  --gilt: #e6b345;
-  --gilt-hi: #f7d684;
-  --gilt-lo: #a26f1d;
-  --ember: #c2412d;
-  --ember-hi: #e46a52;
-  --ember-lo: #7d2416;
-  --moss: #2f8a57;
-  --moss-hi: #5cc489;
-  --arcane: #6c5ad0;
-  --arcane-hi: #a597f2;
-  --water: #2f7fa8;
-  --water-lo: #1c5677;
-  --felt: #1f6049;
+  --bg: #f4ede1;
+  --bg-texture:
+    repeating-linear-gradient(0deg, rgb(58 46 36 / 0.03) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(58 46 36 / 0.03) 0 1px, transparent 1px 3px);
+  --surface: #fffaf2;
+  --surface-2: #efe6d5;
+  --surface-hover: #ffffff;
+  --line: #e4d8c2;
+  --line-strong: #d2c09d;
+  --text: #3a2e24;
+  --text-2: #6a5a4a;
+  --text-muted: #94846f;
 
-  /* type */
-  --font-body: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: "Jacquard 24", "JetBrains Mono Variable", serif;
-  --font-pixel: "Jersey 10", "JetBrains Mono Variable", monospace;
-  --font-label: "Silkscreen", "JetBrains Mono Variable", monospace;
+  --brand: #2f4a3a;
+  --brand-2: #3b5a48;
+  --brand-3: #57786a;
+  --brand-line: #1f3328;
+  --on-brand: #f7efe0;
+  --on-brand-2: #c4d1c4;
 
-  /* geometry: everything snaps to 2px "pixels" */
-  --px: 2px;
-  --border-w: 2px;
-  --shadow-offset: 6px;
-  --gap: 16px;
+  --accent: #c8643b;
+  --accent-hover: #d97448;
+  --accent-text: #9a4526;
+  --on-accent: #fffaf2;
+  --gold: #f3c77a;
+  --gold-text: #9a6a20;
+  --danger: #b5432f;
+  --good: #5b8a4a;
+  --good-on-brand: #a7d394;
+  --blue: #4a86a8;
+  --focus: #c8643b;
 
-  /* semantic (paper) */
-  --bg: var(--paper);
-  --fg: var(--ink);
-  --fg-2: var(--ink-2);
-  --fg-muted: var(--ink-3);
-  --surface: var(--paper-hi);
-  --surface-2: var(--paper-lo);
-  --border: var(--ink);
-  --hairline: var(--line);
-  --shadow: var(--ink);
-  --accent: var(--gilt);
-  --accent-fg: var(--ink);
-  --btn-hover: #fff;
-  --focus: var(--arcane);
-  --good: var(--moss);
-  --bad: var(--ember);
-  --name-l: 34%;
-  --name-s: 62%;
+  --shadow-sm: 0 1px 2px rgb(58 46 36 / 0.08);
+  --shadow-md: 0 2px 0 rgb(58 46 36 / 0.05), 0 10px 28px rgb(58 46 36 / 0.1);
+  --shadow-btn: 0 3px 0 rgb(58 46 36 / 0.22);
+  --name-s: 45%;
+  --name-l: 36%;
+
+  /* the table */
+  --wood:
+    repeating-linear-gradient(100deg, rgb(255 255 255 / 0.06) 0 2px, transparent 2px 7px, rgb(0 0 0 / 0.08) 7px 9px, transparent 9px 15px),
+    linear-gradient(#a0703f, #6e4524);
+  --wood-edge: #4f3018;
+  --felt: radial-gradient(ellipse at 50% 40%, #557f5b, #3d6646 70%, #2e5037);
+  --felt-ring: rgb(255 255 255 / 0.12);
+  --table-shadow: 0 14px 30px rgb(58 46 36 / 0.3);
+  --pond: radial-gradient(ellipse at 40% 35%, #8cc1d9, #4a86a8 65%, #346a88);
+  --pond-edge: #e9d8b4;
+  --card-face: #fffaf0;
+  --card-edge: #c9b48f;
+  --card-ink: #3a2e24;
+  --card-red: #b5432f;
+  --card-back: radial-gradient(circle, #e9d8b4 0 1.5px, transparent 2px) 0 0 / 8px 8px, #2f4a3a;
+  --card-back-line: #e9d8b4;
+  --card-shadow: 0 2px 4px rgb(0 0 0 / 0.22);
+  --badge: #efe6d5;
+
+  /* type & shape */
+  --font-body: "Nunito Variable", system-ui, sans-serif;
+  --font-display: "Fraunces Variable", Georgia, serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-card: 7px;
+  --pill: 999px;
+
+  color-scheme: light;
 }
 
-.on-night {
-  --bg: var(--night);
-  --fg: var(--on-night);
-  --fg-2: #d3ccba;
-  --fg-muted: var(--on-night-2);
-  --surface: var(--night-2);
-  --surface-2: var(--night);
-  --border: var(--night-ink);
-  --hairline: var(--night-3);
-  --shadow: var(--night-ink);
-  --focus: var(--arcane-hi);
-  --good: var(--moss-hi);
-  --bad: var(--ember-hi);
+[data-mode="dark"] {
+  --bg: #1b1713;
+  --bg-texture:
+    repeating-linear-gradient(0deg, rgb(255 240 220 / 0.015) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(255 240 220 / 0.015) 0 1px, transparent 1px 3px);
+  --surface: #26201a;
+  --surface-2: #30281f;
+  --surface-hover: #2e271f;
+  --line: #3a3027;
+  --line-strong: #4b3e31;
+  --text: #efe5d3;
+  --text-2: #c7b8a2;
+  --text-muted: #8f806d;
+
+  --brand: #1e3127;
+  --brand-2: #2a4234;
+  --brand-3: #3e5b4b;
+  --brand-line: #111c16;
+  --on-brand: #f1e8d6;
+  --on-brand-2: #a3b5a3;
+
+  --accent: #d5714a;
+  --accent-hover: #e2835c;
+  --accent-text: #e9946f;
+  --on-accent: #1b1713;
+  --gold-text: #f3c77a;
+  --danger: #e07a62;
+  --good: #8fbf7d;
+  --blue: #7fb2d0;
+  --focus: #e2835c;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 0 rgb(0 0 0 / 0.2), 0 10px 28px rgb(0 0 0 / 0.35);
+  --shadow-btn: 0 3px 0 rgb(0 0 0 / 0.5);
   --name-l: 72%;
-  --name-s: 70%;
-  color: var(--fg);
+
+  --wood:
+    repeating-linear-gradient(100deg, rgb(255 255 255 / 0.04) 0 2px, transparent 2px 7px, rgb(0 0 0 / 0.1) 7px 9px, transparent 9px 15px),
+    linear-gradient(#7a5230, #4a2d16);
+  --wood-edge: #2a170a;
+  --felt: radial-gradient(ellipse at 50% 40%, #44694c, #2f5238 70%, #223c29);
+  --table-shadow: 0 14px 34px rgb(0 0 0 / 0.55);
+  --pond: radial-gradient(ellipse at 40% 35%, #6aa3bf, #3a7092 65%, #29566f);
+  --pond-edge: #c9b48f;
+  --card-face: #f3ead9;
+  --card-edge: #8f7a58;
+  --badge: #e9dfcc;
+
+  color-scheme: dark;
+}
+
+/* The forest-green surfaces: top bar, nameplates, your action tray. */
+.on-brand {
+  --surface: var(--brand-2);
+  --surface-2: rgb(0 0 0 / 0.16);
+  --surface-hover: var(--brand-3);
+  --text: var(--on-brand);
+  --text-2: var(--on-brand-2);
+  --text-muted: var(--on-brand-2);
+  --line: rgb(255 255 255 / 0.12);
+  --line-strong: rgb(255 255 255 / 0.2);
+  --good: var(--good-on-brand);
+  --name-l: 80%;
+  --name-s: 35%;
+  color: var(--text);
 }

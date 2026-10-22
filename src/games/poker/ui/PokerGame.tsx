@@ -242,7 +242,7 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
           <div className="raise">
             <div className="presets">
               {presets.map(([label, v]) => (
-                <button key={label} className={`btn small dark ${raiseTo === v ? "on" : ""}`} disabled={disabled} onClick={() => setRaiseTo(v)}>
+                <button key={label} className={`btn small subtle ${raiseTo === v ? "on" : ""}`} disabled={disabled} onClick={() => setRaiseTo(v)}>
                   {label}
                 </button>
               ))}

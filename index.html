@@ -3,9 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f1512" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>" />
+    <meta name="theme-color" content="#2f4a3a" />
+    <link rel="icon" type="image/png" href="/icons/favicon.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>gg</title>
+    <script>
+      // Pick light or dark before first paint (src/ui/mode.ts takes over after).
+      try {
+        var m = localStorage.getItem("gg.mode");
+        document.documentElement.dataset.mode = m === "light" || m === "dark" ? m : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

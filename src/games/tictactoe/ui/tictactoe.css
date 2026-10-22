@@ -1,29 +1,42 @@
 .ttt { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 8px 0 12px; }
 .ttt-players { display: flex; gap: 24px; justify-content: center; width: 100%; max-width: 460px; }
-.ttt-player { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 130px; }
+.ttt-player { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 130px; }
 .ttt-player .plate { width: 100%; max-width: 180px; }
-.ttt-mark { filter: drop-shadow(3px 3px 0 var(--ink)); }
-.ttt-mark.mark-0, .ttt-cell.mark-0 { color: var(--ember); }
-.ttt-mark.mark-1, .ttt-cell.mark-1 { color: var(--water); }
+.ttt-mark { font-size: 3rem; font-weight: 700; line-height: 1; }
+.mark-0 { color: var(--accent); }
+.mark-1 { color: var(--blue); }
 .ttt .herald { width: min(100%, 460px); }
 
 .ttt-board {
-  --box-bg: var(--ink);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
   width: min(100%, 336px);
   aspect-ratio: 1;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--wood);
+  border: 1px solid var(--wood-edge);
+  box-shadow: var(--table-shadow);
 }
 .ttt-cell {
   display: grid;
   place-items: center;
-  background: var(--paper-hi);
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+  font-size: 3.6rem;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--card-face);
   border: none;
+  border-radius: 10px;
   cursor: pointer;
+  transition: background-color 120ms ease;
 }
 .ttt-cell:disabled { cursor: default; }
-.ttt-cell:not(:disabled):hover { background: var(--selected-bg, #fff6dc); box-shadow: inset 0 0 0 3px var(--gilt); }
-.ttt-cell .px-icon { filter: drop-shadow(3px 3px 0 rgb(23 25 43 / 0.25)); }
-.ttt-cell.win { background: var(--gilt-hi); animation: blink 0.8s steps(2, jump-none) 3; }
+.ttt-cell:not(:disabled):hover { background: #fff3df; }
+.ttt-cell.mark-0 { color: var(--card-red); }
+.ttt-cell.mark-1 { color: #346a88; }
+.ttt-cell.win { background: var(--gold); }
 .ttt-footer { display: flex; gap: 16px; align-items: center; }

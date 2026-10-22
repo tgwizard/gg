@@ -8,13 +8,14 @@ import { GameStage } from "../components/GameStage";
 import { Members } from "../components/Members";
 import { NameForm } from "../components/NameForm";
 import { ToastProvider, useToast } from "../components/Toasts";
-import { type IconName, Panel, PixelIcon, Spinner } from "../../ui";
+import { Panel, Spinner } from "../../ui";
+import { ModeToggle } from "../components/ModeToggle";
 
 export function RoomPage({ roomId }: { roomId: string }) {
   const name = useName();
   if (!name) {
     return (
-      <Notice icon="sparkle" title="You're invited">
+      <Notice title="You're invited">
         <p>
           Someone's waiting for you in room <span className="code">{roomId}</span>. What should people call you?
         </p>
@@ -38,7 +39,7 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
 
   if (snapshot.status === "not_found") {
     return (
-      <Notice icon="warning" title="Room not found">
+      <Notice title="Room not found">
         <p className="muted">The link may be mistyped, the room may have expired, or it never existed.</p>
         <button className="btn primary" onClick={() => navigate("/")}>
           Create a new room
@@ -48,7 +49,7 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
   }
   if (snapshot.status === "outdated") {
     return (
-      <Notice icon="sparkle" title="gg has been updated">
+      <Notice title="gg has been updated">
         <p className="muted">Reload to get the latest version. You'll rejoin right where you were.</p>
         <button className="btn primary" onClick={() => location.reload()}>
           Reload
@@ -58,7 +59,7 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
   }
   if (snapshot.status === "replaced") {
     return (
-      <Notice icon="hourglass" title="Open in another tab">
+      <Notice title="Open in another tab">
         <p className="muted">You have this room open in several other tabs, so this one was paused.</p>
         <button className="btn primary" onClick={() => client.takeOver()}>
           Use this tab
@@ -81,7 +82,7 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
   const connected = snapshot.status === "connected";
   return (
     <div className="room">
-      <header className="topbar on-night">
+      <header className="topbar on-brand">
         <a
           className="brand display"
           href="/"
@@ -101,6 +102,7 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
         <InviteButton />
         <div className="spacer" />
         <ConnectionPill snapshot={snapshot} />
+        <ModeToggle />
         {editingName ? (
           <NameForm
             compact
@@ -113,10 +115,11 @@ function Room({ roomId, name }: { roomId: string; name: string }) {
             onCancel={() => setEditingName(false)}
           />
         ) : (
-          <button className="btn ghost name-button" onClick={() => setEditingName(true)} title="Change your name">
-            <PixelIcon name="person" />
+          <button className="name-button" onClick={() => setEditingName(true)} title="Change your name">
+            <span className="name-avatar" aria-hidden>
+              {name.trim().charAt(0).toUpperCase()}
+            </span>
             {name}
-            <PixelIcon name="pencil" className="muted" />
           </button>
         )}
       </header>
@@ -138,7 +141,7 @@ function InviteButton() {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className="btn dark small"
+      className="btn subtle small"
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(location.href);
@@ -149,17 +152,16 @@ function InviteButton() {
         }
       }}
     >
-      <PixelIcon name={copied ? "check" : "link"} />
-      {copied ? "Link copied" : "Copy invite link"}
+      {copied ? "Link copied ✓" : "Copy invite link"}
     </button>
   );
 }
 
-function Notice({ icon, title, children }: { icon: IconName; title: string; children: ReactNode }) {
+function Notice({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="center-page">
       <Panel className="notice">
-        <PixelIcon name={icon} scale={4} className="notice-icon" />
+        <img className="notice-logo" src="/icons/gg-512.jpg" alt="" width={56} height={56} />
         <h2 className="display">{title}</h2>
         {children}
       </Panel>

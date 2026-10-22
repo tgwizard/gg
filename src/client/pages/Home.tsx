@@ -3,7 +3,8 @@ import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
 import { CardBack, PlayingCard } from "../../games/kit/ui/Cards";
 import { TableSurface } from "../../games/kit/ui/CardTable";
-import { Panel, PixelIcon } from "../../ui";
+import { Panel } from "../../ui";
+import { ModeToggle } from "../components/ModeToggle";
 import { GameCard } from "../components/GameCard";
 import { saveName, useName } from "../identity";
 import { noAutofill } from "../noAutofill";
@@ -49,7 +50,10 @@ export function HomePage() {
 
   return (
     <div className="home">
-      <header className="home-hero on-night">
+      <header className="home-hero on-brand">
+        <div className="home-hero-toggle">
+          <ModeToggle />
+        </div>
         <div className="home-hero-inner">
           <div className="home-hero-text">
             <h1 className="display logo">
@@ -64,7 +68,7 @@ export function HomePage() {
 
       <main className="home-main">
         <div className="home-forms">
-          <Panel title="Start a room" icon="sparkle">
+          <Panel title="Start a room">
             <form onSubmit={create} className="stack">
               <label className="field">
                 <span>Your name</span>
@@ -72,11 +76,10 @@ export function HomePage() {
               </label>
               <button className="btn primary big" disabled={busy}>
                 {busy ? "Creating…" : "Create a room"}
-                <PixelIcon name="arrow" />
               </button>
             </form>
           </Panel>
-          <Panel title="Join a room" icon="link">
+          <Panel title="Join a room">
             <form onSubmit={join} className="stack">
               <label className="field">
                 <span>Room code or link</span>
@@ -97,7 +100,7 @@ export function HomePage() {
 
         {error && (
           <p className="error-text home-error" role="alert">
-            <PixelIcon name="warning" /> {error}
+            {error}
           </p>
         )}
 
@@ -128,7 +131,6 @@ function HeroTable() {
         <PlayingCard card="Ah" size="lg" highlight />
         <CardBack size="lg" />
       </div>
-      <PixelIcon name="crown" scale={4} className="hero-crown" />
     </div>
   );
 }

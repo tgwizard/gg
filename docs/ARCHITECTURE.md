@@ -96,6 +96,25 @@ all look like a short blip, never lost or duplicated actions.
 - **Upgrades.** `PROTOCOL_VERSION` mismatch → close code 4426 → the client shows
   "reload to update" instead of misbehaving.
 
+## Look and feel (`src/ui`)
+
+The design system shared by the platform and every game: a cozy family board game
+(warm linen, forest green, terracotta, gold, wood, cream cards), with Fraunces for
+display type and Nunito for everything else.
+
+- `tokens.css`: every color, shadow, font and radius, as named variables. Light
+  by default; `data-mode="dark"` on `<html>` swaps the palette, and `.on-brand`
+  remaps them for the forest-green surfaces (top bar, nameplates, action tray).
+  Components use only these names, so a palette change is one file.
+- `components.css` + `Panel`, `Meter`, `Spinner`: boxes, panels with titles set
+  into the border, buttons (`primary`, `subtle`, `ghost`, `danger`), fields, tags,
+  status lights, banners, toasts.
+- `mode.ts`: light/dark. Follows the system until you use the toggle; the choice is
+  remembered per browser. `index.html` applies it before first paint.
+- Artwork lives in `public/icons/` (generated illustrations for gg and each game;
+  a game's `GameUI.icon` points at its own).
+- `/ui` is a style guide with every component, in either mode.
+
 ## Games (`src/games`)
 
 A game is a server-side `GameDefinition` (`src/games/types.ts`) plus a client
@@ -131,8 +150,11 @@ can once none of its players are online).
   `nextDeadline`/`onDeadline` become `nextTimer` plus a switch over
   `takeDueTimer`.
 - `cards.ts`: a standard 52-card deck, shuffling, rank names.
-- `ui/TurnTimer.tsx`: the turn-clock bar. `ui/Cards.tsx`: face-up and face-down
-  playing cards.
+- `ui/`: the card-game base. `CardTable` (a wood-and-felt table with seats spaced
+  around it, you at the bottom, bets and a dealer button in front of seats, content
+  in the middle), `PlayerPlate` (nameplate), `Cards` (faces, backs, slots, fans),
+  `Chips`/`Pot`/`DealerButton`, `TurnTimer`, and `Herald`/`ActionTray`/`GameLog`
+  for the strip, tray and history under the table.
 - `testing.ts`: a seeded RNG for tests.
 
 **Conformance (`src/games/conformance.test.ts`).** Every registered game is

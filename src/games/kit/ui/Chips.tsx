@@ -1,11 +1,15 @@
-import { PixelIcon } from "../../../ui";
 import "./kit.css";
 
-/** A chip amount: a coin and a number. */
+/** A poker chip, drawn in CSS. */
+function Chip() {
+  return <span className="chip" aria-hidden />;
+}
+
+/** A chip amount: a chip and a number. */
 export function Chips({ amount, className }: { amount: number; className?: string }) {
   return (
     <span className={`chips ${className ?? ""}`}>
-      <PixelIcon name="coin" />
+      <Chip />
       <span className="num">{amount.toLocaleString("en-US")}</span>
     </span>
   );
@@ -20,7 +24,11 @@ export function Bet({ amount }: { amount: number }) {
 export function Pot({ amount, label = "Pot" }: { amount: number; label?: string }) {
   return (
     <div className="pot" data-testid="pot">
-      <PixelIcon name="chips" scale={3} />
+      <span className="chip-stack" aria-hidden>
+        <Chip />
+        <Chip />
+        <Chip />
+      </span>
       <span className="pot-text">
         <span className="label">{label}</span>
         <span className="num">{amount.toLocaleString("en-US")}</span>

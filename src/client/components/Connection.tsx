@@ -44,7 +44,7 @@ export function ConnectionBanner({ snapshot, onRetry }: { snapshot: RoomSnapshot
         <span className="muted">Messages you send will be delivered when you're back.</span>
       </span>
       {!limited && (
-        <button className="btn small dark" onClick={onRetry}>
+        <button className="btn small subtle" onClick={onRetry}>
           Retry now
         </button>
       )}
