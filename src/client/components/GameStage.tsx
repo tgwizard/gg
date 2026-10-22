@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { GameSetting } from "../../games/ui";
 import { gameUIs } from "../../games/ui-registry";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
@@ -83,6 +84,7 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
         <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
         <h2 className="display">{ui.meta.name}</h2>
         <div className="spacer" />
+        {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
         {confirmEnd ? (
           <span className="row">
             <span className="muted small">End for everyone?</span>
@@ -114,6 +116,52 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
         sendOp={sendOp}
         serverNow={serverNow}
       />
+    </div>
+  );
+}
+
+/** A small gear that shows the running game's settings (turn timer, blinds…). */
+function GameSettings({ settings }: { settings: GameSetting[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  return (
+    <div className="game-settings" ref={ref}>
+      <button className="icon-btn" onClick={() => setOpen(!open)} aria-expanded={open} aria-label="Game settings" title="Game settings">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="game-settings-pop box" role="dialog" aria-label="Game settings">
+          <h3 className="label">Table rules</h3>
+          <dl>
+            {settings.map((s) => (
+              <div key={s.label} className="setting">
+                <dt>{s.label}</dt>
+                <dd>
+                  <strong>{s.value}</strong>
+                  {s.hint && <span className="muted small">{s.hint}</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="muted small">Set when the game started. End the game to change them.</p>
+        </div>
+      )}
     </div>
   );
 }

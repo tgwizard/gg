@@ -39,19 +39,25 @@
 .fish-center-msg { display: flex; flex-direction: column; gap: 8px; color: var(--on-brand); }
 .fish-center-msg .display { font-size: 2.4rem; color: var(--gold); }
 
-/* what just happened */
-.fish-latest { display: inline-flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; font-weight: 700; }
+/* what just happened: a fixed height (two lines, one with a card in it) so the table doesn't jump as news comes in. */
+.fish-news { height: 78px; overflow: hidden; }
+.fish-news .herald-text { gap: 4px; }
+.fish-latest { display: inline-flex; align-items: center; justify-content: center; gap: 6px 10px; flex-wrap: wrap; font-weight: 700; min-height: 30px; }
 .fish-catch { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-weight: 400; }
 .fish-ranking { display: flex; gap: 6px 18px; justify-content: center; flex-wrap: wrap; font-family: var(--font-body); font-size: 14px; font-weight: 400; }
 
 /* your hand */
 .fish-me { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-.fish-hand { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 10px; }
+.fish-hand { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 12px; }
 .fish-card { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--radius-card); }
 .fish-card:disabled { cursor: default; }
 .fish-card:not(:disabled):hover .pcard:not(.picked) { translate: 0 -4px; }
-.fish-ask { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; min-height: 40px; }
-.fish-hint { color: var(--on-brand-2); }
+.fish-ask { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 42px; }
+.fish-hint { color: var(--on-brand-2); font-size: 14px; }
+/* The ring belongs on the card, which lifts when picked, not on the button that stays put. */
+.fish-card:focus-visible { outline: none; }
+.fish-card:focus-visible .pcard-face { box-shadow: 0 0 0 3px var(--focus), var(--card-shadow); }
+.fish-cards { display: inline-flex; gap: 4px; vertical-align: middle; }
 
 @media (max-width: 640px) {
   .fish .plate { width: 96px; padding: 5px 5px 7px; }

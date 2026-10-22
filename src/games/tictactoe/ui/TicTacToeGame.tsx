@@ -8,7 +8,7 @@ import "./tictactoe.css";
 
 const MARKS = ["X", "O"] as const;
 
-export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: GameUIProps<TttView, TttOp>) {
+export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow }: GameUIProps<TttView, TttOp>) {
   const nameOf = (id: string) => members.get(id)?.name ?? "Player";
   const mySeat = view.you.seat;
   const colorOf = usePlayerColors();
@@ -20,6 +20,10 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
   const myTurn = view.status === "playing" && view.turn === mySeat;
   const winLine = new Set(view.result?.line ?? []);
   const nextIn = view.nextRoundAt ? Math.max(0, Math.ceil((view.nextRoundAt - serverNow) / 1000)) : null;
+  const open = ([0, 1] as Mark[]).filter((m) => !view.seats[m]);
+  const opponentOf = (m: Mark) => view.seats[(1 - m) as Mark];
+  // Between rounds with a seat open, the board waits for players: grey it out and say what to do.
+  const prompt: "pick" | "wait" | null = open.length === 0 || view.status === "playing" ? null : mySeat === null ? "pick" : "wait";
 
   let status: string;
   if (view.status === "playing") {
@@ -31,8 +35,9 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
     if (nextIn !== null) status += ` Next round in ${nextIn}s.`;
     else if (!view.seats.every(Boolean)) status += " Waiting for an opponent.";
   } else {
-    status = "Waiting for two players.";
+    status = mySeat === null ? "Pick X or O to play." : `Waiting for someone to play as ${MARKS[open[0] ?? 0]}.`;
   }
+  if (mySeat === null && open.length === 0) status = `You're watching. ${status}`;
 
   return (
     <div className="ttt">
@@ -59,21 +64,21 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
                   </div>
                   {turn && <TurnTimer deadline={view.turnDeadline} totalMs={view.config.turnSeconds * 1000} serverNow={serverNow} />}
                 </PlayerPlate>
-              ) : mySeat === null ? (
-                <button className="btn small" disabled={!connected} onClick={() => sendOp({ type: "sit", seat: m })}>
-                  Play as {MARKS[m]}
-                </button>
               ) : (
-                <span className="label">Waiting…</span>
+                <div className="ttt-open-seat">
+                  <span className="label">Open seat</span>
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      <Herald testId="ttt-status">{status}</Herald>
+      {/* The prompt over the board says it better while it's up. */}
+      {!prompt && <Herald testId="ttt-status">{status}</Herald>}
 
-      <div className="ttt-board box" role="grid" aria-label="Board">
+      <div className="ttt-board-wrap">
+      <div className={`ttt-board box ${prompt ? "idle" : ""}`} role="grid" aria-label="Board">
         {view.board.map((cell, i) => (
           <button
             key={i}
@@ -88,11 +93,34 @@ export function TicTacToeGame({ view, members, connected, sendOp, serverNow }: G
           </button>
         ))}
       </div>
+      {prompt === "pick" && (
+        <div className="ttt-prompt box" role="dialog" aria-label="Pick a side">
+          <h3 className="display">{open.length === 2 ? "Pick a side" : `Take on ${nameOf(opponentOf(open[0]!)!.playerId)}`}</h3>
+          <p className="muted">{open.length === 2 ? "X moves first. Someone else takes the other side." : "The round starts as soon as you sit down."}</p>
+          <div className="ttt-prompt-actions">
+            {open.map((m) => (
+              <button key={m} className="btn primary big ttt-pick" style={playerStyle(colorOf(me))} disabled={!connected} onClick={() => sendOp({ type: "sit", seat: m })}>
+                <span className="ttt-pick-mark display">{MARKS[m]}</span>
+                Play as {MARKS[m]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {prompt === "wait" && (
+        <div className="ttt-prompt box" role="status">
+          <h3 className="display">Waiting for an opponent</h3>
+          <p className="muted">Share the room link (Copy invite link, at the top) so someone can play {MARKS[open[0]!]}.</p>
+        </div>
+      )}
+      </div>
 
       <div className="ttt-footer">
-        <span className="label">
-          Round {view.round} · {view.draws} {view.draws === 1 ? "draw" : "draws"}
-        </span>
+        {view.round > 0 && (
+          <span className="label">
+            Round {view.round} · {view.draws} {view.draws === 1 ? "draw" : "draws"}
+          </span>
+        )}
         {mySeat !== null && (
           <button className="btn ghost small" disabled={!connected} onClick={() => sendOp({ type: "leave" })}>
             {view.status === "playing" ? "Forfeit & leave" : "Leave seat"}

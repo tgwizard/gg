@@ -57,7 +57,7 @@
 .btn.primary { --btn-bg: var(--accent); --btn-fg: var(--on-accent); --btn-line: transparent; }
 .btn.primary:hover:not(:disabled) { --btn-bg: var(--accent-hover); }
 .btn.danger { --btn-bg: var(--danger); --btn-fg: #fffaf2; --btn-line: transparent; }
-.btn.danger:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.danger:hover:not(:disabled) { --btn-bg: color-mix(in oklab, var(--danger), white 12%); }
 /* For dark surfaces: see-through, with a light outline. */
 .btn.subtle { --btn-bg: rgb(255 255 255 / 0.06); --btn-fg: var(--on-brand); --btn-line: rgb(255 255 255 / 0.22); box-shadow: inset 0 0 0 1px var(--btn-line); }
 .btn.subtle:hover:not(:disabled) { --btn-bg: rgb(255 255 255 / 0.14); }

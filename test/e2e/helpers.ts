@@ -29,7 +29,8 @@ export async function joinRoom(page: Page, url: string, name: string) {
   await expectConnected(page);
 }
 
-export async function expectConnected(page: Page, timeout?: number) {
+// Generous by default: with the whole suite running in parallel, a page can take a while to load and connect.
+export async function expectConnected(page: Page, timeout = 15_000) {
   await expect(page.getByTestId("connection-status")).toHaveText("Connected", { timeout });
 }
 

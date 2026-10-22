@@ -18,18 +18,17 @@ export type SeatSide = "top" | "bottom" | "left" | "right";
 
 /**
  * The base for card games: a table with seats spaced evenly around it, the
- * `rotation` seat at the bottom (that's you), and `center` content on the felt.
+ * seat 0 at the bottom and the rest clockwise from there (the same for everyone, so
+ * "top right" means the same seat on every screen), and `center` content on the felt.
  * Seats get a `side-*` class so games can lay them out toward the middle.
  */
 export function CardTable({
   seats,
-  rotation = 0,
   center,
   testId,
   className,
 }: {
   seats: TableSeat[];
-  rotation?: number;
   center?: ReactNode;
   testId?: string;
   className?: string;
@@ -41,7 +40,7 @@ export function CardTable({
         <TableSurface />
         <div className="table-center">{center}</div>
         {seats.map((seat, i) => {
-          const theta = Math.PI / 2 + (((i - rotation + n) % n) * 2 * Math.PI) / n;
+          const theta = Math.PI / 2 + (i * 2 * Math.PI) / n;
           const at = (k: number) => {
             const p = onTable(theta, k);
             return { left: `${p.x}%`, top: `${p.y}%` };

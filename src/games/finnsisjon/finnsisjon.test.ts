@@ -65,7 +65,7 @@ describe("asking", () => {
     expect(hand(state, "a").sort()).toEqual(["2c", "7d", "7h", "7s"]);
     expect(hand(state, "b")).toEqual(["9c"]);
     expect(turnOf(state)).toBe("a");
-    expect(state.log.at(-1)).toEqual({ type: "ask", from: "a", to: "b", rank: "7", got: 2 });
+    expect(state.log.at(-1)).toEqual({ type: "ask", from: "a", to: "b", rank: "7", got: 2, cards: ["7s", "7d"] });
   });
 
   it("Finns i sjön: draws, and play passes unless you catch what you asked for", () => {
@@ -73,7 +73,7 @@ describe("asking", () => {
     rig(state, { a: ["7h"], b: ["9c"], c: ["Kc"] }, ["4c", "7c", "2d"], "a");
     ask(state, "a", "b", "7", ctx()); // draws 2d: unlucky
     expect(state.log.slice(-2)).toEqual([
-      { type: "ask", from: "a", to: "b", rank: "7", got: 0 },
+      { type: "ask", from: "a", to: "b", rank: "7", got: 0, cards: [] },
       { type: "fish", who: "a", rank: "7", lucky: false, card: null },
     ]);
     expect(turnOf(state)).toBe("b");
@@ -144,6 +144,17 @@ describe("away players and leaving", () => {
 });
 
 describe("secrets", () => {
+  it("shows which cards changed hands only to the two players involved", () => {
+    const { state, ctx } = setup(3);
+    rig(state, { a: ["7h"], b: ["7s", "7d", "9c"], c: ["Kc"] }, ["4c"], "a");
+    ask(state, "a", "b", "7", ctx());
+    const askOf = (viewer: string) => viewFor(state, viewer).log.find((e) => e.type === "ask");
+    expect(askOf("a")).toMatchObject({ got: 2, cards: ["7s", "7d"] });
+    expect(askOf("b")).toMatchObject({ got: 2, cards: ["7s", "7d"] });
+    expect(askOf("c")).toMatchObject({ got: 2, cards: null });
+    expect(JSON.stringify(viewFor(state, "c"))).not.toContain('"7s"');
+  });
+
   it("shows you only your own hand and draws", () => {
     const { state, ctx } = setup(3);
     rig(state, { a: ["7h"], b: ["9c", "9d"], c: ["Kc"] }, ["4c", "2d"], "a");

@@ -1,7 +1,8 @@
 import { type Card, rankLabel } from "../cards";
 import "./cards.css";
 
-export type CardSize = "sm" | "md" | "lg";
+/** xs is for cards inline in text; sm for other players' hands; md and lg for the table. */
+export type CardSize = "xs" | "sm" | "md" | "lg";
 
 // U+FE0E asks for the text (not emoji) presentation of the suit symbols.
 const SUITS: Record<string, string> = { s: "♠︎", h: "♥︎", d: "♦︎", c: "♣︎" };
@@ -31,7 +32,7 @@ export function PlayingCard({
     <div className={classes} aria-label={`${rank} of ${SUIT_NAMES[suit]}`} data-card={card}>
       <div className="pcard-face">
         <span className="pcard-rank">{rank}</span>
-        {size !== "sm" && <span className="pcard-corner">{SUITS[suit]}</span>}
+        {(size === "md" || size === "lg") && <span className="pcard-corner">{SUITS[suit]}</span>}
         <span className="pcard-pip">{SUITS[suit]}</span>
       </div>
     </div>

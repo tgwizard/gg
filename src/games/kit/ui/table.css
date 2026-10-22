@@ -4,7 +4,7 @@
   --seat-room-y: 56px;
   position: relative;
   /* Fit the viewport height so the action tray stays on screen. */
-  width: min(100%, max(560px, calc((100dvh - 400px) * 2.1)));
+  width: min(100%, max(520px, calc((100dvh - 460px) * 2.1)));
   margin: 0 auto;
   padding: var(--seat-room-y) var(--seat-room-x);
 }

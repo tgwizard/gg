@@ -4,7 +4,7 @@ import { useNarrow } from "../../../ui";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
-import { ActionTray, GameLog } from "../../kit/ui/GameParts";
+import { ActionTray, GameLog, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
@@ -54,7 +54,6 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
     <div className="poker">
       <CardTable
         seats={seats}
-        rotation={view.you.seat ?? 0}
         testId="poker-table"
         center={
           <>
@@ -71,16 +70,21 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
         }
       />
       <ActionBar view={view} connected={connected} sendOp={sendOp} nameOf={nameOf} />
-      {hand && (
-        <GameLog title={`Hand #${hand.id} log`}>
-          {hand.log.map((e, i) => (
-            <li key={i}>
-              {(i === 0 || hand.log[i - 1]!.street !== e.street) && <span className="label log-street">{e.street}</span>}
-              <strong>{nameOf(e.playerId)}</strong> {e.action}
-            </li>
-          ))}
-        </GameLog>
-      )}
+      <TableFooter
+        log={
+          hand && (
+            <GameLog title={`Hand #${hand.id} log`}>
+              {hand.log.map((e, i) => (
+                <li key={i}>
+                  {(i === 0 || hand.log[i - 1]!.street !== e.street) && <span className="label log-street">{e.street}</span>}
+                  <strong>{nameOf(e.playerId)}</strong> {e.action}
+                </li>
+              ))}
+            </GameLog>
+          )
+        }
+        actions={<SeatActions view={view} connected={connected} sendOp={sendOp} />}
+      />
     </div>
   );
 }
@@ -297,19 +301,9 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
               Rebuy {view.config.startingStack}
             </button>
           )}
-          {me &&
-            (me.sittingOut ? (
-              <button className="btn" disabled={disabled} onClick={() => run({ type: "sitIn" })}>
-                I'm back
-              </button>
-            ) : (
-              <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "sitOut" })}>
-                Sit out next hand
-              </button>
-            ))}
-          {me && (
-            <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "leave" })}>
-              {inHand ? "Fold & leave seat" : "Leave seat"}
+          {me?.sittingOut && (
+            <button className="btn" disabled={disabled} onClick={() => run({ type: "sitIn" })}>
+              I'm back
             </button>
           )}
         </>
@@ -317,5 +311,33 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     >
       {main}
     </ActionTray>
+  );
+}
+
+/** Quiet housekeeping under the table: sit out, leave. */
+function SeatActions({ view, connected, sendOp }: { view: PokerView; connected: boolean; sendOp: Send }) {
+  const [busy, setBusy] = useState(false);
+  const mySeat = view.you.seat;
+  const me = mySeat !== null ? view.seats[mySeat] : null;
+  if (!me) return null;
+  const hand = view.hand;
+  const inHand = !!hand && hand.status !== "complete" && hand.players.some((p) => p.seat === mySeat && p.playerId === me.playerId);
+  const run = async (op: PokerOp) => {
+    setBusy(true);
+    await sendOp(op);
+    setBusy(false);
+  };
+  const disabled = busy || !connected;
+  return (
+    <>
+      {!me.sittingOut && (
+        <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "sitOut" })}>
+          Sit out next hand
+        </button>
+      )}
+      <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "leave" })}>
+        {inHand ? "Fold & leave seat" : "Leave seat"}
+      </button>
+    </>
   );
 }

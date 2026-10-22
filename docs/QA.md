@@ -75,6 +75,8 @@ these through the browser and reports back.
 - [ ] (Automated only) a connection told to back off shows the server's reason, hides "Retry now", and reconnects after the requested delay. Expiry runs in integration tests, by back-dating the room's stored timestamps.
 
 ### Finns i sjön
+- [ ] When cards change hands, the asker and the giver see the exact cards in the strip under the table; others see only how many.
+- [ ] Seats stay where people sat (no rotating so you're at the bottom); step away / leave are small links under the tray, not in it.
 - [ ] 2–3 players get 7 cards, 4–6 get 5; the lake count matches.
 - [ ] Pick a card, then an opponent; *Ask X for Ys*. If they have some, they move to your hand and it's still your turn.
 - [ ] "Finns i sjön!": you draw (only you see the card under "You drew"); catching the asked rank shows it to everyone and gives you another turn.
@@ -85,11 +87,13 @@ these through the browser and reports back.
 - [ ] Phone layout: opponents, lake, news line and your hand all fit, and cards are tappable.
 
 ### Tic-tac-toe
+- [ ] Entering with no side picked: the board is greyed out with a "Pick a side" prompt (buttons in your color); seated alone, it says you're waiting for an opponent; watching a full game, the board is live and the status says you're watching.
 - [ ] Two players take X and O; the round starts at once; a win highlights the line, scores it and announces it in chat.
 - [ ] The next round starts on its own with the other player opening. Draws are counted.
 - [ ] Leaving mid-round forfeits it. Leaving and coming back keeps your win count.
 
 ### Lifecycle & layout
+- [ ] The gear next to *End game* shows the running game's settings (turn timer, and for poker chips and blinds).
 - [ ] *End game* asks for confirmation and returns everyone to the picker. A new game can start.
 - [ ] A spectator can't end a game while its players are online; the game's starter or a player can.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.

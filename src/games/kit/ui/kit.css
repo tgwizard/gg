@@ -97,3 +97,8 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
 .action-tray-aside { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 .game-log { padding: 0 4px; }
+
+.table-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.table-footer-log { flex: 1; min-width: 200px; }
+.table-footer-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.table-footer-actions .btn { font-size: 12.5px; font-weight: 700; padding: 4px 8px; }

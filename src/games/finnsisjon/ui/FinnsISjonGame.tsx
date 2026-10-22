@@ -3,7 +3,7 @@ import { hash2 } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
 import { CardTable, PondSurface, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
-import { ActionTray, GameLog, Herald } from "../../kit/ui/GameParts";
+import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
@@ -84,7 +84,6 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
     <div className="fish">
       <CardTable
         seats={seats}
-        rotation={view.you.seat ?? 0}
         center={
           playing ? (
             <Lake count={view.lakeCount} />
@@ -99,7 +98,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
 
       {view.phase === "over" && view.result ? <Result view={view} nameOf={nameOf} /> : playing && <Happenings view={view} me={me} nameOf={nameOf} mine={mine} />}
 
-      <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />}>
+      <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fish-tray">
         {mine && view.phase === "playing" ? (
           <div className="fish-me" data-testid="fish-me">
             <div className="fish-hand">
@@ -121,7 +120,6 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
             <div className="fish-ask" data-testid="fish-ask">
               {ask ? (
                 <>
-                  <span className="label fish-hint">{!rank ? "Pick a card to ask for its rank" : !target ? "Now pick who to ask" : "Ready?"}</span>
                   <button
                     className="btn primary"
                     disabled={!rank || !target || busy || !connected}
@@ -129,6 +127,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
                   >
                     {rank && target ? `Ask ${nameOf(target)} for ${rankName(rank, true)}` : "Ask"}
                   </button>
+                  {(!rank || !target) && <span className="fish-hint">{!rank ? "Pick a card: you'll ask for that rank." : "Now pick who to ask (click their seat)."}</span>}
                 </>
               ) : (
                 <span className="muted">Waiting for {nameOf(view.players.find((p) => p.seat === view.turn && !p.left)?.playerId ?? "")}…</span>
@@ -140,13 +139,18 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         )}
       </ActionTray>
 
-      {view.log.length > 0 && (
-        <GameLog title="What happened">
-          {view.log.map((e, i) => (
-            <li key={i}>{describe(e, nameOf)}</li>
-          ))}
-        </GameLog>
-      )}
+      <TableFooter
+        log={
+          view.log.length > 0 && (
+            <GameLog title="What happened">
+              {view.log.map((e, i) => (
+                <li key={i}>{describe(e, nameOf)}</li>
+              ))}
+            </GameLog>
+          )
+        }
+        actions={<SeatActions view={view} connected={connected} busy={busy} send={send} />}
+      />
     </div>
   );
 }
@@ -236,7 +240,7 @@ function describe(e: FishEvent, nameOf: (id: string) => string): string {
   switch (e.type) {
     case "ask":
       return e.got > 0
-        ? `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)} and got ${e.got}.`
+        ? `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)} and got ${e.cards ? e.cards.map(cardLabel).join(" ") : e.got === 1 ? "one" : e.got}.`
         : `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)}. Finns i sjön!`;
     case "fish":
       return e.lucky ? `Lucky catch for ${whom(e.who)}: the ${cardLabel(e.card!)}! Another turn.` : `${who(e.who)} fished from the lake.`;
@@ -249,12 +253,39 @@ function describe(e: FishEvent, nameOf: (id: string) => string): string {
   }
 }
 
+/** One event, with the cards drawn when you're allowed to see them. */
+function Story({ e, nameOf }: { e: FishEvent; nameOf(id: string): string }) {
+  const whom = (id: string) => (nameOf(id) === "You" ? "you" : nameOf(id));
+  const cards = (cs: Card[]) => (
+    <span className="fish-cards">
+      {cs.map((c) => (
+        <PlayingCard key={c} card={c} size="xs" />
+      ))}
+    </span>
+  );
+  if (e.type === "ask" && e.got > 0 && e.cards?.length) {
+    return (
+      <>
+        {nameOf(e.from)} asked {whom(e.to)} for {rankName(e.rank, true)} and got {cards(e.cards)}
+      </>
+    );
+  }
+  if (e.type === "fish" && e.lucky && e.card) {
+    return (
+      <>
+        Lucky catch for {whom(e.who)}: {cards([e.card])} Another turn!
+      </>
+    );
+  }
+  return <>{describe(e, nameOf)}</>;
+}
+
 /** The last couple of things that happened, big enough to follow at a glance. */
 function Happenings({ view, me, nameOf, mine }: { view: FishView; me: string; nameOf(id: string): string; mine: FishPlayerView | undefined }) {
   const recent = view.log.slice(-2);
   if (!recent.length) {
     return (
-      <Herald testId="fish-news">
+      <Herald testId="fish-news" className="fish-news">
         <span>Game {view.game} is dealt. Good luck!</span>
       </Herald>
     );
@@ -263,13 +294,13 @@ function Happenings({ view, me, nameOf, mine }: { view: FishView; me: string; na
   // Your own catch is private: show it to you.
   const yourCatch = (last.type === "fish" || last.type === "draw") && last.who === me && mine?.lastDrawn ? mine.lastDrawn : null;
   return (
-    <Herald testId="fish-news">
+    <Herald testId="fish-news" className="fish-news">
       {recent.length > 1 && <span className="muted">{describe(recent[0]!, nameOf)}</span>}
       <span className="fish-latest">
-        {describe(last, nameOf)}
+        <Story e={last} nameOf={nameOf} />
         {yourCatch && !(last.type === "fish" && last.lucky) && (
           <span className="fish-catch">
-            You drew <PlayingCard card={yourCatch} size="sm" />
+            You drew <PlayingCard card={yourCatch} size="xs" />
           </span>
         )}
       </span>
@@ -307,6 +338,7 @@ function Status({ view }: { view: FishView }) {
   return null;
 }
 
+/** The big buttons: deal, play again, come back. */
 function Controls({ view, connected, busy, send }: { view: FishView; connected: boolean; busy: boolean; send(op: FishOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
@@ -319,17 +351,27 @@ function Controls({ view, connected, busy, send }: { view: FishView; connected: 
           {view.game === 0 ? "Deal" : "Play again"}
         </button>
       )}
-      {s.sittingOut ? (
+      {s.sittingOut && (
         <button className="btn" disabled={disabled} onClick={() => send({ type: "sitIn" })}>
           I'm back
         </button>
-      ) : (
-        view.phase === "playing" &&
-        view.you.inGame && (
-          <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
-            Step away
-          </button>
-        )
+      )}
+    </>
+  );
+}
+
+/** Quiet housekeeping under the table: step away, leave. */
+function SeatActions({ view, connected, busy, send }: { view: FishView; connected: boolean; busy: boolean; send(op: FishOp): void }) {
+  const seat = view.you.seat;
+  const s = seat === null ? null : view.seats[seat];
+  const disabled = busy || !connected;
+  if (!s) return null;
+  return (
+    <>
+      {!s.sittingOut && view.phase === "playing" && view.you.inGame && (
+        <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
+          Step away
+        </button>
       )}
       <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "leave" })}>
         {view.phase === "playing" && view.you.inGame ? "Leave game" : "Leave seat"}

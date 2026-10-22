@@ -12,7 +12,7 @@
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
   gap: 6px;
-  width: min(100%, 336px);
+  width: 100%;
   aspect-ratio: 1;
   padding: 10px;
   border-radius: 18px;
@@ -40,3 +40,37 @@
 .ttt-cell.mark-1 { color: color-mix(in oklab, var(--pc, #346a88), black 8%); }
 .ttt-cell.win { background: var(--gold); }
 .ttt-footer { display: flex; gap: 16px; align-items: center; }
+
+/* An empty seat. */
+.ttt-open-seat {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 180px;
+  height: 60px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+
+/* Between rounds with a seat open: the board greys out and a prompt says what to do. */
+.ttt-board-wrap { position: relative; width: min(100%, 336px); }
+.ttt-board.idle { filter: grayscale(0.9); opacity: 0.45; pointer-events: none; }
+.ttt-prompt {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  width: min(340px, calc(100vw - 32px));
+  padding: 20px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.ttt-prompt h3 { font-size: 1.5rem; }
+.ttt-prompt p { font-size: 14px; }
+.ttt-prompt-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+/* The pick buttons are in your color: that's how your mark will look. */
+.btn.ttt-pick { --btn-bg: var(--pc); --btn-fg: var(--pc-ink); }
+.btn.ttt-pick:hover:not(:disabled) { --btn-bg: color-mix(in oklab, var(--pc), white 12%); }
+.ttt-pick-mark { font-size: 1.3rem; line-height: 0.8; }
