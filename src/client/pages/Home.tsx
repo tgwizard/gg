@@ -1,8 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
-import { CardBack, PlayingCard } from "../../games/kit/ui/Cards";
-import { TableSurface } from "../../games/kit/ui/CardTable";
 import { MAX_ROOM_NAME_LENGTH } from "../../shared/protocol";
 import { Avatar, Panel, playerStyle } from "../../ui";
 import { ColorPicker, NameField } from "../components/Profile";
@@ -67,7 +65,7 @@ export function HomePage() {
             <p className="tagline">Games with friends. Make a room, share the link, play.</p>
             <p className="label">No accounts · No installs · Private by link</p>
           </div>
-          <HeroTable />
+          <HeroGames />
         </div>
       </header>
 
@@ -176,16 +174,14 @@ function Bubble({ text }: { text: string }) {
   );
 }
 
-/** A little table with a winning hand on it. */
-function HeroTable() {
+/** The games in the box, as a little pile of round tokens. */
+function HeroGames() {
+  const games = Object.values(gameUIs);
   return (
-    <div className="hero-table" aria-hidden>
-      <TableSurface />
-      <div className="hero-cards">
-        <PlayingCard card="As" size="lg" highlight />
-        <PlayingCard card="Ah" size="lg" highlight />
-        <CardBack size="lg" />
-      </div>
+    <div className="hero-games" aria-hidden>
+      {games.map((g, i) => (
+        <img key={g.meta.id} className={`hero-token t${i % 4}`} src={g.icon} alt="" width={168} height={168} />
+      ))}
     </div>
   );
 }
