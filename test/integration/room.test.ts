@@ -214,6 +214,17 @@ describe("games", () => {
     expect(welcome.chat.at(-1)!.text).toMatch(/no longer available/);
   });
 
+  it("only lets players (or the starter) end a game while players are around", async () => {
+    const { room, alice, bob, game } = await headsUp();
+    const { client: carol } = await TestClient.join(room, secret("carol"), "Carol");
+    expect(await carol.request({ type: "endGame", instanceId: game.instanceId })).toMatchObject({ ok: false, error: { code: "not_a_player" } });
+    // Once the players have all left the room, anyone can clean up.
+    alice.close();
+    bob.close();
+    await sleep(30);
+    expect((await carol.request({ type: "endGame", instanceId: game.instanceId })).ok).toBe(true);
+  });
+
   it("ends games, and refuses ops for an ended game", async () => {
     const { alice, bob, game, op } = await headsUp();
     const cleared = bob.next("game", (g) => g.game === null);

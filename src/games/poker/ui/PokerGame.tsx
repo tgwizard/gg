@@ -1,8 +1,9 @@
 import { type ReactNode, useEffect, useState } from "react";
 import type { Member } from "../../../shared/protocol";
 import type { GameUIProps } from "../../ui";
-import type { HandPlayerView, HandView, PokerView, Seat } from "../engine";
+import type { HandPlayerView, HandView, PokerSeat, PokerView } from "../engine";
 import type { PokerOp } from "../index";
+import { TurnTimer } from "../../kit/ui/TurnTimer";
 import { CardBack, CardSlot, PlayingCard } from "./Cards";
 
 type Props = GameUIProps<PokerView, PokerOp>;
@@ -84,7 +85,7 @@ function seatPosition(i: number, rotation: number, n: number) {
 
 function SeatSpot(props: {
   index: number;
-  seat: Seat | null;
+  seat: PokerSeat | null;
   hp: HandPlayerView | undefined;
   view: PokerView;
   isMe: boolean;
@@ -127,10 +128,6 @@ function SeatSpot(props: {
     .filter(Boolean)
     .join(" ");
 
-  let timer: number | null = null;
-  if (isTurn && hand.actionDeadline && view.config.turnSeconds > 0) {
-    timer = Math.max(0, Math.min(1, (hand.actionDeadline - serverNow) / (view.config.turnSeconds * 1000)));
-  }
 
   return (
     <div className={classes} style={style} data-testid={`seat-${index}`}>
@@ -154,11 +151,7 @@ function SeatSpot(props: {
         <div className="seat-stack">{seat.stack.toLocaleString()}</div>
         {status && <div className={`seat-status ${won ? "won" : ""}`}>{status}</div>}
         {made && hand?.status === "complete" && <div className="seat-made">{made}</div>}
-        {timer !== null && (
-          <div className="timer">
-            <div className={`timer-fill ${timer < 0.25 ? "low" : ""}`} style={{ width: `${timer * 100}%` }} />
-          </div>
-        )}
+        {isTurn && <TurnTimer deadline={hand.actionDeadline} totalMs={view.config.turnSeconds * 1000} serverNow={serverNow} />}
       </div>
       {hand?.button === index && <div className="dealer-btn">D</div>}
     </div>

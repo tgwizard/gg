@@ -351,6 +351,11 @@ export class Room extends DurableObject<Env> {
 
   private onEndGame(playerId: string, instanceId: string): AckResult {
     if (!this.game || this.game.instanceId !== instanceId) return fail("no_such_game", "That game is no longer running.");
+    // Spectators can't end a game for the people playing it, unless those players are all gone.
+    const players = this.definition().players(this.game.state);
+    const online = this.onlineIds();
+    const allowed = playerId === this.game.startedBy || players.includes(playerId) || !players.some((id) => online.has(id));
+    if (!allowed) return fail("not_a_player", "Only the players (or whoever started the game) can end it.");
     const name = this.definition().meta.name;
     this.game = null;
     this.sql.exec(`DELETE FROM kv WHERE key = 'game'`);

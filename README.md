@@ -4,7 +4,7 @@ Games with friends. Create a room, share the link, pick a game, chat. No account
 
 Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSockets,
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
-The first game is no-limit Texas Hold'em.
+Games so far: no-limit Texas Hold'em and tic-tac-toe.
 
 - **Rooms** are UUID links. Whoever has the link can join.
 - **Names** are set once per browser and used in every room.
@@ -30,11 +30,16 @@ Other scripts: `npm run test:unit`, `npm run test:integration`, `npm run test:e2
 
 ## Adding a game
 
+Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
+
 1. `src/games/<id>/index.ts`: a `GameDefinition` (config + op schemas, `create`,
-   `apply`, `view`, `waitingOn`, optional timers). Register it in `src/games/registry.ts`.
+   `apply`, `view`, `players`, `waitingOn`, `legalOps`, optional timers and
+   invariants). Use `src/games/kit` for seats and timers. Register it in
+   `src/games/registry.ts`.
 2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`). Register it in
    `src/games/ui-registry.ts`.
-3. Unit-test the engine. Add redaction tests if the game has hidden information.
+3. `npm test`: the conformance suite fuzzes every registered game automatically.
+   Add rule tests for the engine, and redaction tests if it has hidden information.
 
 ## Deploying
 

@@ -1,0 +1,17 @@
+.ttt { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0; }
+.ttt-players { display: flex; gap: 12px; width: 100%; max-width: 420px; }
+.ttt-player { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); min-height: 96px; }
+.ttt-player.turn { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.ttt-player .turn-timer { width: 100%; }
+.ttt-mark { font-size: 1.4rem; font-weight: 800; }
+.ttt-name { font-weight: 600; }
+.ttt-wins { color: var(--muted); font-size: 0.85rem; }
+.ttt-status { margin: 0; min-height: 1.4em; }
+.ttt-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(100%, 320px); aspect-ratio: 1; }
+.ttt-cell { font: inherit; font-size: 2.6rem; font-weight: 800; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
+.ttt-cell:disabled { cursor: default; }
+.ttt-cell:not(:disabled):hover { border-color: var(--accent); }
+.ttt-cell.mark-0 { color: #7dd3fc; }
+.ttt-cell.mark-1 { color: #fca5a5; }
+.ttt-cell.win { background: #1d3a2a; border-color: var(--accent); }
+.ttt-footer { display: flex; gap: 12px; align-items: center; }

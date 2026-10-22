@@ -100,12 +100,38 @@ interface GameDefinition<State, Op, View, Config> {
   create(config, ctx): State;
   apply(state, actor, op, ctx): void;        // mutate a private copy or throw GameError
   view(state, viewer): View;                 // per-player redaction
-  waitingOn(state): string[];                // who must act
+  players(state): string[];                  // who's taking part (e.g. seated)
+  waitingOn(state): string[];                // whose move it is
+  legalOps(state, player): Op[];             // what they could do now (bots, fuzzing)
   nextDeadline?(state): number | null;       // timers, via the DO alarm
   onDeadline?(state, ctx): void;
+  checkInvariants?(state): void;             // e.g. chips are conserved
   describeForBot?(view): { situation; legalOps };  // future: bots
 }
 ```
+
+The room is game-agnostic: it never looks inside a game's state. Everything it
+needs (who's playing, whose turn it is, when to wake up) comes through the
+contract. Only the game's players, or whoever started it, can end a game (anyone
+can once none of its players are online).
+
+**Shared kit (`src/games/kit`)** for what most turn-based games need:
+
+- `seating.ts`: seats with per-player data (a stack, a score) that's kept when a
+  player stands up and restored when they return; sitting out; clockwise turn
+  order.
+- `timers.ts`: named deadlines in state (`turn`, `nextRound`, ...).
+  `nextDeadline`/`onDeadline` become `nextTimer` plus a switch over
+  `takeDueTimer`.
+- `ui/TurnTimer.tsx`: the turn-clock bar.
+- `testing.ts`: a seeded RNG for tests.
+
+**Conformance (`src/games/conformance.test.ts`).** Every registered game is
+fuzzed with random legal moves from random people (mostly whoever's turn it is)
+and timers firing. After each step it checks that legal ops are accepted, state
+and views are plain JSON, `waitingOn` ⊆ `players`, deadlines make progress (no
+alarm hot-loops), and the game's invariants hold. For poker that's about 3,000
+hands per run, with people joining, leaving and sitting out mid-hand.
 
 - **Server-authoritative.** Clients send ops, and the DO validates and applies them
   to a `structuredClone` of the state. If `apply` throws, nothing changes.
@@ -119,6 +145,12 @@ interface GameDefinition<State, Op, View, Config> {
   also catches up if several are overdue.
 - Games can post to room chat via `ctx.announce()`. Chat is shared by the room and
   the game.
+
+### Tic-tac-toe (`src/games/tictactoe`)
+
+The smallest complete game, and the template to copy: kit seats (scores survive
+standing up), a turn clock that forfeits the round, alternating openers, and a
+pause between rounds. It has no hidden information, so the view is the state.
 
 ### Texas Hold'em (`src/games/poker`)
 

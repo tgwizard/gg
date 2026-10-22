@@ -12,7 +12,7 @@ npm run test:all        # typecheck + unit + integration + e2e
 
 | layer | where | what it covers |
 | --- | --- | --- |
-| unit | `src/**/*.test.ts` | hand evaluator, poker rules (blinds, min-raise, side pots, splits, timers, redaction), chip-conservation fuzzing |
+| unit | `src/**/*.test.ts` | game kit, hand evaluator, poker and tic-tac-toe rules, redaction, and the conformance fuzzer every game must pass |
 | integration | `test/integration` | the real Worker + Room DO in workerd over WebSockets: joining, identity, chat catch-up, idempotency, stale ops, secret redaction on the wire, eviction, alarms, rate limits, room expiry |
 | e2e | `test/e2e/*.spec.ts` | real browsers, multiple players: rooms, chat, refresh, offline, dropped and half-open sockets, a full poker hand, turn timer, how limits look |
 
@@ -68,8 +68,14 @@ these through the browser and reports back.
 - [ ] Create 11 rooms within a minute: the 11th shows a friendly "try again in a minute" message.
 - [ ] (Automated only) a connection told to back off shows the server's reason, hides "Retry now", and reconnects after the requested delay. Expiry runs in integration tests, by back-dating the room's stored timestamps.
 
+### Tic-tac-toe
+- [ ] Two players take X and O; the round starts at once; a win highlights the line, scores it and announces it in chat.
+- [ ] The next round starts on its own with the other player opening. Draws are counted.
+- [ ] Leaving mid-round forfeits it. Leaving and coming back keeps your win count.
+
 ### Lifecycle & layout
 - [ ] *End game* asks for confirmation and returns everyone to the picker. A new game can start.
+- [ ] A spectator can't end a game while its players are online; the game's starter or a player can.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.
 - [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table.
 - [ ] Long names (24 chars) and 9 seated players.

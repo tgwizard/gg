@@ -5,6 +5,20 @@
  * and throw GameError on illegal moves. Secrets (deck, hole cards) live in the
  * state; `viewFor` is the only thing that ever leaves the server.
  */
+import {
+  clockwiseDistance,
+  emptySeating,
+  nextClockwise,
+  requireSeat,
+  type Seat,
+  type Seating,
+  seatOf,
+  seatsWhere,
+  setSittingOut as setSeatSittingOut,
+  sitDown,
+  standUp,
+} from "../kit/seating";
+import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
 import { GameError, type GameContext } from "../types";
 import { type Card, newDeck, shuffle } from "./cards";
 import { bestHand, compareScores, type HandValue } from "./evaluator";
@@ -22,11 +36,7 @@ export interface PokerConfig {
   turnSeconds: number;
 }
 
-export interface Seat {
-  playerId: string;
-  stack: number;
-  sittingOut: boolean;
-}
+export type PokerSeat = Seat & { stack: number };
 
 export type Street = "preflop" | "flop" | "turn" | "river";
 
@@ -90,23 +100,23 @@ export interface Hand {
   currentBet: number;
   /** Size of the last full bet/raise this street: the minimum raise increment. */
   minRaise: number;
-  actionDeadline: number | null;
-  runoutAt: number | null;
   result: HandResult | null;
   log: LogEntry[];
 }
 
-export interface PokerState {
+/** turn: the player to act's clock; runout: next street of an all-in runout; nextHand: deal again. */
+export type PokerTimer = "turn" | "runout" | "nextHand";
+
+export interface PokerState extends Seating<PokerSeat> {
   config: PokerConfig;
-  seats: (Seat | null)[];
   button: number | null;
   handCount: number;
   hand: Hand | null;
   /** Someone pressed "deal"; hands keep coming automatically after that. */
   started: boolean;
-  nextHandAt: number | null;
-  /** Stacks of players who stood up, restored when they sit down again. */
-  away: Record<string, number>;
+  timers: Timers<PokerTimer>;
+  /** Every chip ever handed out (buy-ins, rebuys): what's on the table must add up to this. */
+  chipsIssued: number;
 }
 
 export type PokerAction =
@@ -129,59 +139,38 @@ export interface LegalActions {
 export function createState(config: PokerConfig): PokerState {
   return {
     config,
-    seats: Array.from({ length: SEAT_COUNT }, () => null),
+    ...emptySeating<PokerSeat>(SEAT_COUNT),
     button: null,
     handCount: 0,
     hand: null,
     started: false,
-    nextHandAt: null,
-    away: {},
+    timers: {},
+    chipsIssued: 0,
   };
 }
 
 // --- helpers ---------------------------------------------------------------
 
-export function seatOf(state: PokerState, playerId: string): number {
-  return state.seats.findIndex((s) => s?.playerId === playerId);
-}
+export { seatOf };
 
 export function handInProgress(state: PokerState): boolean {
   return !!state.hand && state.hand.status !== "complete";
 }
 
-function inCurrentHand(state: PokerState, seat: number): HandPlayer | undefined {
+export function inCurrentHand(state: PokerState, seat: number): HandPlayer | undefined {
   if (!handInProgress(state)) return undefined;
   return state.hand!.players.find((p) => p.seat === seat);
 }
 
 function eligibleSeats(state: PokerState): number[] {
-  const out: number[] = [];
-  state.seats.forEach((s, i) => {
-    if (s && s.stack > 0 && !s.sittingOut) out.push(i);
-  });
-  return out;
-}
-
-/** First item (sorted by seat) strictly after `from` going clockwise that matches. */
-function nextAfter<T extends { seat: number }>(
-  items: T[],
-  from: number,
-  pred: (item: T) => boolean = () => true,
-): T | undefined {
-  const sorted = [...items].sort((a, b) => a.seat - b.seat);
-  const start = sorted.findIndex((i) => i.seat > from);
-  for (let k = 0; k < sorted.length; k++) {
-    const item = sorted[((start < 0 ? 0 : start) + k) % sorted.length]!;
-    if (pred(item)) return item;
-  }
-  return undefined;
+  return seatsWhere(state, (s) => s.stack > 0 && !s.sittingOut);
 }
 
 function seatList(seats: number[]) {
   return seats.map((seat) => ({ seat }));
 }
 
-function stackOf(state: PokerState, seat: number): Seat {
+function stackOf(state: PokerState, seat: number): PokerSeat {
   const s = state.seats[seat];
   if (!s) throw new Error(`no player in seat ${seat}`);
   return s;
@@ -210,47 +199,44 @@ function setToAct(state: PokerState, seat: number, ctx: GameContext) {
   const hand = state.hand!;
   hand.toAct = seat;
   const secs = state.config.turnSeconds;
-  hand.actionDeadline = secs > 0 ? ctx.now + secs * 1000 : null;
+  setTimer(state.timers, "turn", secs > 0 ? ctx.now + secs * 1000 : null);
 }
 
 // --- seating ---------------------------------------------------------------
 
 export function sit(state: PokerState, playerId: string, seat: number, ctx: GameContext) {
-  if (seatOf(state, playerId) >= 0) throw new GameError("already_seated", "You already have a seat.");
-  if (seat < 0 || seat >= SEAT_COUNT) throw new GameError("bad_seat", "No such seat.");
-  if (state.seats[seat]) throw new GameError("seat_taken", "That seat is taken.");
-  // Standing up and sitting back down must not top you up: you get your old stack back.
-  const stack = state.away[playerId] ?? state.config.startingStack;
-  delete state.away[playerId];
-  state.seats[seat] = { playerId, stack, sittingOut: false };
+  // Returning players get their old stack back (standing up must not top you up).
+  sitDown(state, playerId, seat, () => {
+    state.chipsIssued += state.config.startingStack;
+    return { stack: state.config.startingStack };
+  });
   maybeScheduleNextHand(state, ctx);
 }
 
 export function leave(state: PokerState, playerId: string, ctx: GameContext) {
-  const seat = seatOf(state, playerId);
-  if (seat < 0) throw new GameError("not_seated", "You're not seated.");
-  const p = inCurrentHand(state, seat);
+  const p = inCurrentHand(state, requireSeat(state, playerId));
   if (p && !p.folded) foldOutOfTurn(state, p, ctx);
   // Chips already committed stay in the pot; the hand keeps a record of the player.
-  state.away[playerId] = state.seats[seat]!.stack;
-  state.seats[seat] = null;
+  standUp(state, playerId);
 }
 
 export function setSittingOut(state: PokerState, playerId: string, sittingOut: boolean, ctx: GameContext) {
-  const seat = seatOf(state, playerId);
-  if (seat < 0) throw new GameError("not_seated", "You're not seated.");
-  stackOf(state, seat).sittingOut = sittingOut;
+  setSeatSittingOut(state, playerId, sittingOut);
   if (!sittingOut) maybeScheduleNextHand(state, ctx);
 }
 
 export function rebuy(state: PokerState, playerId: string, ctx: GameContext) {
-  const seat = seatOf(state, playerId);
-  if (seat < 0) throw new GameError("not_seated", "You're not seated.");
+  const seat = requireSeat(state, playerId);
   if (inCurrentHand(state, seat)) throw new GameError("in_hand", "Wait for the hand to finish.");
   const s = stackOf(state, seat);
   if (s.stack > 0) throw new GameError("has_chips", "You can only rebuy when you're out of chips.");
   s.stack = state.config.startingStack;
+  state.chipsIssued += state.config.startingStack;
   maybeScheduleNextHand(state, ctx);
+}
+
+export function canStart(state: PokerState): boolean {
+  return !handInProgress(state) && eligibleSeats(state).length >= 2;
 }
 
 export function start(state: PokerState, ctx: GameContext) {
@@ -263,25 +249,25 @@ export function start(state: PokerState, ctx: GameContext) {
 
 /** After a seat change, resume dealing if the game was running and now has enough players. */
 function maybeScheduleNextHand(state: PokerState, ctx: GameContext) {
-  if (state.started && !handInProgress(state) && state.nextHandAt === null && eligibleSeats(state).length >= 2) {
-    state.nextHandAt = ctx.now + RESUME_DELAY_MS;
+  if (state.started && !handInProgress(state) && state.timers.nextHand === undefined && eligibleSeats(state).length >= 2) {
+    setTimer(state.timers, "nextHand", ctx.now + RESUME_DELAY_MS);
   }
 }
 
 // --- hand lifecycle --------------------------------------------------------
 
 export function startHand(state: PokerState, ctx: GameContext): boolean {
-  state.nextHandAt = null;
+  setTimer(state.timers, "nextHand", null);
   const eligible = eligibleSeats(state);
   if (eligible.length < 2) return false;
 
   const button =
     state.button === null
       ? eligible[ctx.randomInt(eligible.length)]!
-      : nextAfter(seatList(eligible), state.button)!.seat;
+      : nextClockwise(seatList(eligible), state.button)!.seat;
   const headsUp = eligible.length === 2;
-  const sb = headsUp ? button : nextAfter(seatList(eligible), button)!.seat;
-  const bb = nextAfter(seatList(eligible), sb)!.seat;
+  const sb = headsUp ? button : nextClockwise(seatList(eligible), button)!.seat;
+  const bb = nextClockwise(seatList(eligible), sb)!.seat;
 
   const players: HandPlayer[] = eligible.map((seat) => ({
     seat,
@@ -315,8 +301,6 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
     toAct: null,
     currentBet: state.config.bigBlind,
     minRaise: state.config.bigBlind,
-    actionDeadline: null,
-    runoutAt: null,
     result: null,
     log: [],
   };
@@ -411,7 +395,7 @@ function advance(state: PokerState, from: number, ctx: GameContext) {
   const live = hand.players.filter((p) => !p.folded);
   if (live.length === 1) return finishUncontested(state, live[0]!, ctx);
 
-  const next = nextAfter(hand.players, from, (p) => needsAction(hand, p));
+  const next = nextClockwise(hand.players, from, (p) => needsAction(hand, p));
   if (next) return setToAct(state, next.seat, ctx);
   endStreet(state, ctx);
 }
@@ -419,7 +403,7 @@ function advance(state: PokerState, from: number, ctx: GameContext) {
 function endStreet(state: PokerState, ctx: GameContext) {
   const hand = state.hand!;
   hand.toAct = null;
-  hand.actionDeadline = null;
+  setTimer(state.timers, "turn", null);
   for (const p of hand.players) {
     p.bet = 0;
     p.acted = false;
@@ -435,12 +419,12 @@ function endStreet(state: PokerState, ctx: GameContext) {
     // Nobody left to bet against: reveal and deal out the rest, a street at a time.
     hand.status = "runout";
     for (const p of live) p.shown = true;
-    hand.runoutAt = ctx.now + RUNOUT_DELAY_MS;
+    setTimer(state.timers, "runout", ctx.now + RUNOUT_DELAY_MS);
     return;
   }
 
   dealStreet(hand);
-  const first = nextAfter(hand.players, hand.button, (p) => needsAction(hand, p));
+  const first = nextClockwise(hand.players, hand.button, (p) => needsAction(hand, p));
   if (first) setToAct(state, first.seat, ctx);
   else endStreet(state, ctx);
 }
@@ -505,9 +489,9 @@ function completeHand(state: PokerState, ctx: GameContext) {
   const hand = state.hand!;
   hand.status = "complete";
   hand.toAct = null;
-  hand.actionDeadline = null;
-  hand.runoutAt = null;
-  state.nextHandAt = state.started ? ctx.now + NEXT_HAND_DELAY_MS : null;
+  setTimer(state.timers, "turn", null);
+  setTimer(state.timers, "runout", null);
+  setTimer(state.timers, "nextHand", state.started ? ctx.now + NEXT_HAND_DELAY_MS : null);
   for (const p of hand.players) {
     const s = state.seats[p.seat];
     if (s && s.playerId === p.playerId && s.stack === 0) ctx.announce(`${ctx.nameOf(p.playerId)} is out of chips.`);
@@ -543,7 +527,7 @@ function showdown(state: PokerState, ctx: GameContext) {
   const pots = buildPots(hand.players);
   const payouts: Record<number, number> = {};
   // Odd chips go to the first winner clockwise from the button.
-  const clockwise = (seat: number) => (seat - hand.button + SEAT_COUNT - 1) % SEAT_COUNT;
+  const clockwise = (seat: number) => clockwiseDistance(hand.button, seat, SEAT_COUNT);
   pots.forEach((pot, i) => {
     let best: HandValue | null = null;
     let winners: number[] = [];
@@ -581,15 +565,13 @@ function showdown(state: PokerState, ctx: GameContext) {
 // --- timers ----------------------------------------------------------------
 
 export function nextDeadline(state: PokerState): number | null {
-  const hand = state.hand;
-  if (hand?.status === "betting") return hand.actionDeadline;
-  if (hand?.status === "runout") return hand.runoutAt;
-  return state.nextHandAt;
+  return nextTimer(state.timers);
 }
 
 export function onDeadline(state: PokerState, ctx: GameContext) {
   const hand = state.hand;
-  if (hand?.status === "betting" && hand.toAct !== null && hand.actionDeadline !== null && hand.actionDeadline <= ctx.now) {
+  const due = takeDueTimer(state.timers, ctx.now);
+  if (due === "turn" && hand?.status === "betting" && hand.toAct !== null) {
     // Out of time: check if free, otherwise fold, and sit the player out until they're back.
     const seat = hand.toAct;
     const legal = legalActions(state, seat)!;
@@ -601,15 +583,13 @@ export function onDeadline(state: PokerState, ctx: GameContext) {
     p.lastAction = `${p.lastAction} (timeout)`;
     return;
   }
-  if (hand?.status === "runout" && hand.runoutAt !== null && hand.runoutAt <= ctx.now) {
+  if (due === "runout" && hand?.status === "runout") {
     dealStreet(hand);
     if (hand.street === "river") showdown(state, ctx);
-    else hand.runoutAt = ctx.now + RUNOUT_DELAY_MS;
+    else setTimer(state.timers, "runout", ctx.now + RUNOUT_DELAY_MS);
     return;
   }
-  if (state.nextHandAt !== null && state.nextHandAt <= ctx.now) {
-    startHand(state, ctx);
-  }
+  if (due === "nextHand") startHand(state, ctx);
 }
 
 // --- views -----------------------------------------------------------------
@@ -646,7 +626,7 @@ export interface HandView {
 
 export interface PokerView {
   config: PokerConfig;
-  seats: (Seat | null)[];
+  seats: (PokerSeat | null)[];
   started: boolean;
   nextHandAt: number | null;
   hand: HandView | null;
@@ -664,7 +644,7 @@ export function viewFor(state: PokerState, viewer: string): PokerView {
     config: state.config,
     seats: state.seats.map((s) => (s ? { playerId: s.playerId, stack: s.stack, sittingOut: s.sittingOut } : null)),
     started: state.started,
-    nextHandAt: state.nextHandAt,
+    nextHandAt: state.timers.nextHand ?? null,
     hand: hand && {
       id: hand.id,
       button: hand.button,
@@ -675,7 +655,7 @@ export function viewFor(state: PokerState, viewer: string): PokerView {
       status: hand.status,
       toAct: hand.toAct,
       currentBet: hand.currentBet,
-      actionDeadline: hand.actionDeadline,
+      actionDeadline: hand.status === "betting" ? (state.timers.turn ?? null) : null,
       pot: hand.players.reduce((n, p) => n + p.committed, 0),
       players: hand.players.map((p) => ({
         seat: p.seat,

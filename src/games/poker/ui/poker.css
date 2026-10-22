@@ -88,9 +88,6 @@
 .seat-status.won { color: var(--accent); font-weight: 700; }
 .seat-made { font-size: 0.7rem; color: var(--text); }
 .offline-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bad); display: inline-block; flex-shrink: 0; }
-.timer { height: 4px; background: #0006; border-radius: 2px; margin-top: 5px; overflow: hidden; }
-.timer-fill { height: 100%; background: var(--gold); transition: width 0.25s linear; }
-.timer-fill.low { background: var(--bad); }
 .dealer-btn {
   position: absolute;
   right: -6px;

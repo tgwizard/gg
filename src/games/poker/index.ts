@@ -1,8 +1,13 @@
 import { z } from "zod";
+import { seatedPlayers } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import {
   act,
+  canStart,
   createState,
+  handInProgress,
+  inCurrentHand,
+  legalActions,
   leave,
   nextDeadline,
   onDeadline,
@@ -11,6 +16,7 @@ import {
   type PokerView,
   rebuy,
   SEAT_COUNT,
+  seatOf,
   setSittingOut,
   sit,
   start,
@@ -66,12 +72,44 @@ export const poker: GameDefinition<PokerState, PokerOp, PokerView, PokerConfig> 
     }
   },
   view: viewFor,
+  players: seatedPlayers,
   waitingOn(state) {
     const hand = state.hand;
     if (hand?.status !== "betting" || hand.toAct === null) return [];
     const seat = state.seats[hand.toAct];
     return seat ? [seat.playerId] : [];
   },
+  legalOps(state, player) {
+    const seat = seatOf(state, player);
+    if (seat < 0) return state.seats.flatMap((s, i) => (s ? [] : [{ type: "sit" as const, seat: i }]));
+    const me = state.seats[seat]!;
+    const ops: PokerOp[] = [{ type: "leave" }, me.sittingOut ? { type: "sitIn" } : { type: "sitOut" }];
+    if (me.stack === 0 && !inCurrentHand(state, seat)) ops.push({ type: "rebuy" });
+    if (canStart(state)) ops.push({ type: "start" });
+    const legal = legalActions(state, seat);
+    if (legal) {
+      ops.push({ type: "fold" }, legal.canCheck ? { type: "check" } : { type: "call" });
+      if (legal.canRaise) {
+        const { minRaiseTo: min, maxRaiseTo: max } = legal;
+        for (const to of new Set([min, Math.floor((min + max) / 2), max])) ops.push({ type: "raise", to });
+      }
+    }
+    return ops;
+  },
   nextDeadline,
   onDeadline,
+  checkInvariants(state) {
+    const stacks = state.seats.reduce((n, s) => n + (s?.stack ?? 0), 0);
+    const away = Object.values(state.away).reduce((n, a) => n + a.stack, 0);
+    const pot = handInProgress(state) ? state.hand!.players.reduce((n, p) => n + p.committed, 0) : 0;
+    if (stacks + away + pot !== state.chipsIssued) {
+      throw new Error(`chips don't add up: ${stacks} seated + ${away} away + ${pot} in the pot != ${state.chipsIssued} issued`);
+    }
+    for (const s of state.seats) if (s && (s.stack < 0 || !Number.isInteger(s.stack))) throw new Error(`bad stack ${s.stack}`);
+    const hand = state.hand;
+    if (hand?.status === "betting" && hand.toAct !== null) {
+      const p = hand.players.find((x) => x.seat === hand.toAct);
+      if (!p || p.folded || p.allIn || state.seats[hand.toAct]?.playerId !== p.playerId) throw new Error(`seat ${hand.toAct} can't act`);
+    }
+  },
 };
