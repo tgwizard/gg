@@ -23,7 +23,7 @@
   cursor: pointer;
 }
 .ttt-cell:disabled { cursor: default; }
-.ttt-cell:not(:disabled):hover { background: #fff6dc; box-shadow: inset 0 0 0 3px var(--gilt); }
+.ttt-cell:not(:disabled):hover { background: var(--selected-bg, #fff6dc); box-shadow: inset 0 0 0 3px var(--gilt); }
 .ttt-cell .px-icon { filter: drop-shadow(3px 3px 0 rgb(23 25 43 / 0.25)); }
 .ttt-cell.win { background: var(--gilt-hi); animation: blink 0.8s steps(2, jump-none) 3; }
 .ttt-footer { display: flex; gap: 16px; align-items: center; }

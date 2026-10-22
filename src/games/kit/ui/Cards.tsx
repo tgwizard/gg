@@ -5,6 +5,8 @@ import "./cards.css";
 export type CardSize = "sm" | "md" | "lg";
 
 const SUITS = { s: "spade", h: "heart", d: "diamond", c: "club" } as const;
+// U+FE0E asks for the text (not emoji) presentation of the suit symbols.
+const GLYPHS = { s: "\u2660\uFE0E", h: "\u2665\uFE0E", d: "\u2666\uFE0E", c: "\u2663\uFE0E" } as const;
 const SUIT_NAMES: Record<string, string> = { s: "spades", h: "hearts", d: "diamonds", c: "clubs" };
 const PIP_SCALE: Record<CardSize, number> = { sm: 2, md: 3, lg: 4 };
 
@@ -32,8 +34,10 @@ export function PlayingCard({
     <div className={classes} aria-label={`${rank} of ${SUIT_NAMES[suit]}`} data-card={card}>
       <div className="pcard-face">
         <span className="pcard-rank">{rank}</span>
-        {size !== "sm" && <PixelIcon name={SUITS[suit]} scale={1} className="pcard-corner" />}
-        <PixelIcon name={SUITS[suit]} scale={PIP_SCALE[size]} className="pcard-pip" />
+        {size !== "sm" && <PixelIcon name={SUITS[suit]} scale={1} className="pcard-corner art-pixel" />}
+        <PixelIcon name={SUITS[suit]} scale={PIP_SCALE[size]} className="pcard-pip art-pixel" />
+        {size !== "sm" && <span className="pcard-corner art-smooth">{GLYPHS[suit]}</span>}
+        <span className="pcard-pip art-smooth">{GLYPHS[suit]}</span>
       </div>
     </div>
   );

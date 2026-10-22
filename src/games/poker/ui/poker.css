@@ -2,7 +2,7 @@
 
 .poker .board { display: flex; gap: 6px; }
 .poker .center-msg { font-size: 13px; max-width: 100%; color: var(--on-night); text-shadow: 1px 1px 0 rgb(7 8 15 / 0.6); }
-.poker .center-msg.label { color: rgb(239 232 214 / 0.6); }
+.poker .center-msg.label { color: var(--on-night-2); }
 .poker .center-msg.result { display: flex; flex-direction: column; gap: 4px; }
 .poker .center-msg.result strong { font-size: 1.7rem; color: var(--gilt-hi); font-weight: 400; text-shadow: 2px 2px 0 var(--night-ink); }
 .poker .center-msg.result .label { color: var(--on-night-2); }

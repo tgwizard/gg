@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { hash2, PixelArt, PixelIcon } from "../../../ui";
+import { hash2, PixelIcon } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
-import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
+import { CardTable, PondSurface, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
 import { ActionTray, GameLog, Herald } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
-import { drawPond } from "../../kit/ui/tableArt";
 import type { GameUIProps } from "../../ui";
 import { AUTO_PLAY_DELAY_MS, type FishEvent, type FishPlayerView, type FishView } from "../engine";
 import type { FishOp } from "../index";
@@ -216,7 +215,7 @@ function Lake({ count }: { count: number }) {
   const shown = Math.min(count, 14);
   return (
     <div className="fish-lake" data-testid="fish-lake">
-      <PixelArt className="fish-pond" draw={drawPond} drawKey="pond" pixel={3} />
+      <PondSurface />
       {Array.from({ length: shown }, (_, i) => {
         // A fixed pseudo-random scatter, the same on every render.
         const x = 18 + hash2(i, 1) * 64;

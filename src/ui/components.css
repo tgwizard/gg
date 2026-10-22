@@ -11,7 +11,8 @@
 .box {
   position: relative;
   z-index: 0;
-  border: var(--border-w) solid var(--border);
+  border: var(--border-w) var(--border-style, solid) var(--box-border, var(--border));
+  border-radius: var(--radius, 0);
 }
 .box::before {
   content: "";
@@ -19,14 +20,18 @@
   inset: 0;
   z-index: -1;
   background: var(--box-bg, var(--surface));
+  border-radius: calc(var(--radius, 0px) - var(--border-w));
+  box-shadow: var(--box-glow, none);
 }
 .box::after {
   content: "";
   position: absolute;
   inset: calc(-1 * var(--border-w));
-  translate: var(--shadow-offset) var(--shadow-offset);
+  translate: var(--shadow-dx, var(--shadow-offset)) var(--shadow-offset);
   z-index: -2;
-  background: var(--dither);
+  background: var(--box-shadow-fill, var(--dither));
+  border-radius: var(--radius, 0);
+  display: var(--box-hard-shadow, block);
   pointer-events: none;
 }
 .box.flat::after { display: none; }
@@ -68,23 +73,26 @@
   gap: 8px;
   color: var(--btn-fg);
   background: var(--btn-bg);
-  border: var(--border-w) solid var(--border);
-  border-radius: 0;
+  border: var(--border-w) solid var(--btn-border, var(--border));
+  border-radius: var(--btn-radius, 0);
   padding: 10px 14px;
-  box-shadow: var(--lift) var(--lift) 0 var(--btn-shadow);
+  font-family: var(--font-button, inherit);
+  letter-spacing: var(--btn-tracking, 0);
+  text-transform: var(--btn-case, none);
+  box-shadow: var(--btn-box-shadow, var(--lift) var(--lift) 0 var(--btn-shadow));
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
   transition: translate 60ms steps(1), box-shadow 60ms steps(1);
 }
-.btn:hover:not(:disabled) { --btn-bg: #fff; }
-.btn:active:not(:disabled) { translate: var(--lift) var(--lift); box-shadow: 0 0 0 var(--btn-shadow); }
-.btn:disabled { cursor: not-allowed; opacity: 0.5; box-shadow: none; translate: var(--lift) var(--lift); }
-.btn.primary { --btn-bg: var(--gilt); }
+.btn:hover:not(:disabled) { --btn-bg: var(--btn-hover, #fff); }
+.btn:active:not(:disabled) { translate: var(--btn-press, var(--lift) var(--lift)); box-shadow: var(--btn-pressed-shadow, 0 0 0 var(--btn-shadow)); }
+.btn:disabled { cursor: not-allowed; opacity: 0.5; box-shadow: none; translate: var(--btn-press, var(--lift) var(--lift)); }
+.btn.primary { --btn-bg: var(--gilt); --btn-fg: var(--accent-fg); }
 .btn.primary:hover:not(:disabled) { --btn-bg: var(--gilt-hi); }
-.btn.danger { --btn-bg: var(--ember); --btn-fg: var(--paper-hi); }
+.btn.danger { --btn-bg: var(--ember); --btn-fg: var(--danger-fg, var(--paper-hi)); }
 .btn.danger:hover:not(:disabled) { --btn-bg: var(--ember-hi); }
-.btn.dark { --btn-bg: var(--night-2); --btn-fg: var(--on-night); }
+.btn.dark { --btn-bg: var(--night-2); --btn-fg: var(--on-night); --btn-border: var(--night-ink); }
 .btn.dark:hover:not(:disabled) { --btn-bg: var(--night-3); }
 .btn.ghost {
   --btn-bg: transparent;
@@ -105,20 +113,20 @@ input, select, textarea {
   font: inherit;
   color: var(--ink);
   background: var(--paper-hi);
-  border: var(--border-w) solid var(--border);
-  border-radius: 0;
+  border: var(--input-border-w, var(--border-w)) solid var(--input-border, var(--border));
+  border-radius: var(--btn-radius, 0);
   padding: 9px 11px;
   min-width: 0;
   flex: 1;
-  box-shadow: inset 2px 2px 0 var(--paper-lo);
+  box-shadow: var(--input-shadow, inset 2px 2px 0 var(--paper-lo));
 }
-.on-night input { background: var(--night); color: var(--on-night); box-shadow: inset 2px 2px 0 var(--night-ink); }
+.on-night input { background: var(--night); color: var(--on-night); box-shadow: var(--input-shadow, inset 2px 2px 0 var(--night-ink)); }
 input::placeholder { color: var(--fg-muted); opacity: 1; }
 input:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
 input[type="range"] { box-shadow: none; border: none; padding: 0; background: transparent; accent-color: var(--gilt-lo); }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field > span:first-child { font-family: var(--font-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-2); }
+.field > span:first-child { font-family: var(--font-label); font-size: var(--label-size, 11px); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-2); }
 .field .hint { font-family: var(--font-body); text-transform: none; letter-spacing: 0; color: var(--fg-muted); }
 
 /* ---------- small things ---------- */
@@ -134,18 +142,19 @@ input[type="range"] { box-shadow: none; border: none; padding: 0; background: tr
   letter-spacing: 0.06em;
   padding: 3px 5px 2px;
   border: 1px solid currentColor;
+  border-radius: var(--tag-radius, 0);
   color: var(--fg-muted);
   white-space: nowrap;
   vertical-align: middle;
 }
-.tag.gilt { color: var(--ink); background: var(--gilt); border-color: var(--ink); }
+.tag.gilt { color: var(--accent-fg); background: var(--gilt); border-color: var(--gilt); }
 .on-night .tag.gilt { border-color: var(--gilt); }
 .tag.good { color: var(--good); }
 .tag.bad { color: var(--bad); }
 .tag.arcane { color: var(--paper-hi); background: var(--arcane); border-color: var(--arcane); }
 
 /* A square status light. */
-.light { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; background: var(--fg-muted); }
+.light { display: inline-block; width: 8px; height: 8px; flex-shrink: 0; background: var(--fg-muted); border-radius: var(--light-radius, 0); }
 .light.good { background: var(--good); box-shadow: 0 0 0 2px color-mix(in srgb, var(--good) 30%, transparent); }
 .light.warn { background: var(--gilt); animation: blink 1s steps(2, jump-none) infinite; }
 .light.bad { background: var(--bad); }
@@ -161,6 +170,7 @@ input[type="range"] { box-shadow: none; border: none; padding: 0; background: tr
   letter-spacing: 0.06em;
   padding: 5px 8px 4px;
   border: 1px solid var(--hairline);
+  border-radius: var(--tag-radius, 0);
   color: var(--fg-2);
   white-space: nowrap;
 }
@@ -181,12 +191,15 @@ kbd, .code {
 .meter {
   height: 10px;
   border: var(--border-w) solid var(--border);
+  border-radius: var(--meter-radius, 0);
   background: var(--surface-2);
   padding: 1px;
+  overflow: hidden;
 }
 .meter-fill {
   height: 100%;
-  background: repeating-linear-gradient(90deg, var(--meter-color, var(--gilt)) 0 6px, transparent 6px 8px);
+  background: var(--meter-fill, repeating-linear-gradient(90deg, var(--meter-color, var(--gilt)) 0 6px, transparent 6px 8px));
+  background-color: var(--meter-fill-color, transparent);
 }
 .meter-fill.low { --meter-color: var(--ember-hi); animation: blink 0.5s steps(2, jump-none) infinite; }
 

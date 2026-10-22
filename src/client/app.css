@@ -50,9 +50,9 @@
   padding: 14px;
 }
 button.game-card { cursor: pointer; transition: translate 60ms steps(1); }
-button.game-card:hover { --box-bg: #fff; }
+button.game-card:hover { --box-bg: var(--btn-hover); }
 button.game-card:active { translate: 2px 2px; }
-.game-card.selected { --box-bg: #fff6dc; outline: 2px solid var(--gilt-lo); outline-offset: 3px; }
+.game-card.selected { --box-bg: var(--selected-bg, #fff6dc); outline: 2px solid var(--gilt-lo); outline-offset: 3px; }
 .game-card-emblem { flex-shrink: 0; padding: 6px; background: var(--surface-2); border: 2px solid var(--hairline); line-height: 0; }
 .game-card-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .game-card-text strong { font-size: 1.75rem; }
@@ -111,7 +111,7 @@ button.game-card:active { translate: 2px 2px; }
 .members li { display: flex; align-items: center; gap: 8px; padding: 3px 4px; }
 .members li.away { opacity: 0.55; }
 .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tag.turn { color: var(--ink); background: var(--gilt-hi); border-color: var(--ink); animation: blink 1.4s steps(2, jump-none) infinite; }
+.tag.turn { color: var(--accent-fg); background: var(--gilt-hi); border-color: var(--gilt-hi); animation: blink 1.4s steps(2, jump-none) infinite; }
 
 .chat { flex: 1; min-height: 0; }
 .chat-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; margin: 0 -8px; }
@@ -167,3 +167,7 @@ button.game-card:active { translate: 2px 2px; }
 .guide-icon { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10px; padding: 8px; background: var(--surface-2); }
 .guide-cards { gap: 10px; align-items: flex-end; }
 .guide-plates { gap: 24px; align-items: flex-start; padding-top: 20px; }
+
+/* ---------- style switcher (try-out) ---------- */
+.theme-switcher { position: fixed; left: 12px; bottom: 12px; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 6px 8px; --box-bg: var(--night-2); }
+.theme-switcher select { flex: none; padding: 4px 6px; font-size: 12px; background: var(--night); color: var(--on-night); border-width: 1px; box-shadow: none; }

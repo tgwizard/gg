@@ -23,7 +23,7 @@ button.plate.selectable:hover { border-color: var(--arcane-hi); }
 @keyframes plate-glow { 50% { outline-color: transparent; } }
 .plate.selected { border-color: var(--arcane-hi); outline: 2px solid var(--arcane-hi); outline-offset: 2px; }
 .plate.dim { opacity: 0.55; }
-.plate.winner { --box-bg: #3a2e14; border-color: var(--gilt); }
+.plate.winner { --box-bg: var(--winner-bg, #3a2e14); border-color: var(--gilt); }
 .plate-crown { position: absolute; top: -20px; left: 50%; translate: -50% 0; color: var(--gilt); --px-2: var(--ember-hi); filter: drop-shadow(2px 2px 0 var(--night-ink)); }
 .plate-line { display: flex; justify-content: center; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg-2); }
 .plate-line.status { font-family: var(--font-label); font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }

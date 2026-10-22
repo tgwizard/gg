@@ -1,0 +1,358 @@
+/*
+ * Alternative themes. Each redefines the palette, type and shape tokens from tokens.css,
+ * plus the materials smooth themes use for tables and card backs. "pixel" is the default
+ * in tokens.css and needs nothing here.
+ */
+
+/* ===================== family board game ===================== */
+[data-theme="family"] {
+  --paper: #fff6e0;
+  --paper-hi: #ffffff;
+  --paper-lo: #ffedc2;
+  --line: #f0d69a;
+  --ink: #2d2545;
+  --ink-2: #5a5272;
+  --ink-3: #8e86a5;
+  --night: #2f55c4;
+  --night-2: #3d65d6;
+  --night-3: #6587e6;
+  --night-ink: #1d3787;
+  --on-night: #ffffff;
+  --on-night-2: #cdd9ff;
+  --gilt: #ffc531;
+  --gilt-hi: #ffe07a;
+  --gilt-lo: #e09b00;
+  --ember: #ef4b4b;
+  --ember-hi: #ff7a7a;
+  --ember-lo: #a82626;
+  --moss: #23a363;
+  --moss-hi: #6fe0a3;
+  --arcane: #8b5cf6;
+  --arcane-hi: #c4adff;
+  --water: #2aa0e0;
+
+  --font-body: "Nunito Variable", system-ui, sans-serif;
+  --font-display: "Fredoka Variable", "Nunito Variable", sans-serif;
+  --font-pixel: "Fredoka Variable", sans-serif;
+  --font-label: "Nunito Variable", sans-serif;
+  --font-button: "Fredoka Variable", sans-serif;
+  --font-card: "Fredoka Variable", sans-serif;
+  --display-weight: 650;
+  --label-weight: 800;
+  --body-size: 15px;
+
+  --border-w: 3px;
+  --radius: 18px;
+  --btn-radius: 12px;
+  --tag-radius: 999px;
+  --light-radius: 50%;
+  --meter-radius: 999px;
+  --card-radius: 8px;
+  --card-border-w: 2px;
+  --shadow-dx: 0px;
+  --box-shadow-fill: rgb(45 37 69 / 0.16);
+  --btn-box-shadow: 0 4px 0 var(--btn-shadow);
+  --btn-press: 0 4px;
+  --input-shadow: none;
+  --meter-fill: none;
+  --meter-fill-color: var(--meter-color, var(--gilt));
+  --winner-bg: #e09b00;
+  --selected-bg: #fff3c4;
+
+  --card-back: repeating-linear-gradient(45deg, #ef4b4b 0 6px, #f46a6a 6px 12px);
+  --card-back-line: #ffffff;
+  --rail-bg: linear-gradient(#d39556, #9b6232);
+  --rail-w: 16px;
+  --rail-border: 3px solid #6e4320;
+  --table-shadow: 0 10px 0 rgb(45 37 69 / 0.18);
+  --felt-bg: radial-gradient(ellipse at 50% 40%, #4fc684, #2e9a5e 70%, #227a49);
+  --felt-inset: inset 0 5px 0 rgb(0 0 0 / 0.15);
+  --felt-ring: 3px dashed rgb(255 255 255 / 0.35);
+  --pond-bg: radial-gradient(ellipse at 40% 35%, #9fdcff, #2aa0e0 60%, #1977b0);
+  --pond-border: 4px solid #ffffff;
+}
+[data-theme="family"] .label { letter-spacing: 0.04em; }
+[data-theme="family"] .pcard-rank { font-weight: 700; }
+[data-theme="family"] .home .logo { text-shadow: 0 6px 0 var(--night-ink); }
+
+/* ===================== minimal ===================== */
+[data-theme="minimal"] {
+  --paper: #f6f6f4;
+  --paper-hi: #ffffff;
+  --paper-lo: #f1f1ee;
+  --line: #e5e5e1;
+  --ink: #16161a;
+  --ink-2: #4d4d55;
+  --ink-3: #8e8e96;
+  --night: #ffffff;
+  --night-2: #ffffff;
+  --night-3: #e5e5e1;
+  --night-ink: #e2e2de;
+  --on-night: #16161a;
+  --on-night-2: #85858d;
+  --gilt: #16161a;
+  --gilt-hi: #2f6bff;
+  --gilt-lo: #16161a;
+  --ember: #e5484d;
+  --ember-hi: #e5484d;
+  --ember-lo: #b42318;
+  --moss: #30a46c;
+  --moss-hi: #30a46c;
+  --arcane: #6e56cf;
+  --arcane-hi: #6e56cf;
+  --water: #3e8ed0;
+  --accent-fg: #ffffff;
+  --btn-hover: #fafafa;
+
+  --font-body: "Inter Variable", system-ui, sans-serif;
+  --font-display: "Inter Variable", system-ui, sans-serif;
+  --font-pixel: "Inter Variable", system-ui, sans-serif;
+  --font-label: "Inter Variable", system-ui, sans-serif;
+  --font-card: "Inter Variable", system-ui, sans-serif;
+  --display-weight: 650;
+  --label-weight: 600;
+  --label-size: 10.5px;
+
+  --border-w: 1px;
+  --box-border: #e2e2de;
+  --radius: 12px;
+  --btn-radius: 8px;
+  --tag-radius: 6px;
+  --light-radius: 50%;
+  --meter-radius: 999px;
+  --card-radius: 6px;
+  --box-hard-shadow: none;
+  --box-glow: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 20px rgb(0 0 0 / 0.05);
+  --btn-border: #dcdcd8;
+  --btn-box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  --btn-press: 0 1px;
+  --input-border: #dcdcd8;
+  --input-shadow: none;
+  --meter-fill: none;
+  --meter-fill-color: var(--meter-color, #16161a);
+  --winner-bg: #fff8e1;
+  --selected-bg: #f3f6ff;
+
+  --card-border: #d9d9d4;
+  --card-back: linear-gradient(135deg, #2a2a30, #16161a);
+  --card-back-line: rgb(255 255 255 / 0.18);
+  --rail-bg: #ebeeeb;
+  --rail-w: 10px;
+  --rail-border: 1px solid #dadfdb;
+  --table-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.08);
+  --felt-bg: #dde8e1;
+  --felt-inset: inset 0 0 0 1px #cfdad3;
+  --felt-ring: 1px solid rgb(0 0 0 / 0.07);
+  --pond-bg: #cfe4f2;
+  --pond-border: 1px solid #b7d3e6;
+}
+[data-theme="minimal"] .display { letter-spacing: -0.03em; }
+[data-theme="minimal"] .on-night { --name-l: 38%; --name-s: 60%; }
+[data-theme="minimal"] .btn.primary { --btn-border: #16161a; }
+[data-theme="minimal"] .btn.danger { --btn-border: #e5484d; }
+[data-theme="minimal"] .home .logo { text-shadow: none; }
+[data-theme="minimal"] .home-hero::after { display: none; }
+[data-theme="minimal"] .brand, [data-theme="minimal"] .poker .center-msg, [data-theme="minimal"] .fish-center-msg { text-shadow: none; }
+[data-theme="minimal"] .poker .center-msg.result strong, [data-theme="minimal"] .fish-center-msg .display { color: var(--ink); text-shadow: none; }
+[data-theme="minimal"] .chips.bet, [data-theme="minimal"] .pot { background: #ffffff; border: 1px solid #dcdcd8; box-shadow: none; border-radius: 999px; }
+[data-theme="minimal"] .chips .num, [data-theme="minimal"] .pot .num { color: var(--ink); }
+[data-theme="minimal"] .seat-open { background: rgb(255 255 255 / 0.6); border: 1px dashed #b9c4bd; border-radius: 10px; }
+[data-theme="minimal"] .px-icon { opacity: 0.85; }
+
+/* ===================== fantasy ===================== */
+[data-theme="fantasy"] {
+  --paper: #eadcbc;
+  --paper-hi: #f6ecd4;
+  --paper-lo: #e0cfa8;
+  --line: #c9b38a;
+  --ink: #2a1c10;
+  --ink-2: #5b4530;
+  --ink-3: #8a7458;
+  --night: #1c1310;
+  --night-2: #2b1d16;
+  --night-3: #4a3424;
+  --night-ink: #0c0806;
+  --on-night: #f1e2bd;
+  --on-night-2: #b7a27e;
+  --gilt: #c99a3c;
+  --gilt-hi: #ecd08a;
+  --gilt-lo: #8c6720;
+  --ember: #8e1b1b;
+  --ember-hi: #c43a3a;
+  --ember-lo: #5a0f0f;
+  --moss: #3f6b3a;
+  --moss-hi: #8bbd7e;
+  --arcane: #5a3a8c;
+  --arcane-hi: #b39ae0;
+  --water: #2b5d7a;
+  --accent-fg: #2a1c10;
+  --btn-hover: #fbf3df;
+
+  --font-body: "EB Garamond Variable", Georgia, serif;
+  --font-display: "Cinzel Variable", Georgia, serif;
+  --font-pixel: "Cinzel Variable", Georgia, serif;
+  --font-label: "Cinzel Variable", Georgia, serif;
+  --font-button: "Cinzel Variable", Georgia, serif;
+  --font-card: "Cinzel Variable", Georgia, serif;
+  --display-weight: 600;
+  --label-weight: 700;
+  --body-size: 17px;
+  --btn-tracking: 0.04em;
+
+  --border-w: 4px;
+  --border-style: double;
+  --box-border: var(--gilt-lo);
+  --radius: 4px;
+  --btn-radius: 3px;
+  --tag-radius: 2px;
+  --light-radius: 50%;
+  --meter-radius: 2px;
+  --card-radius: 6px;
+  --box-hard-shadow: none;
+  --box-glow: 0 10px 30px rgb(40 20 5 / 0.28), inset 0 0 0 1px rgb(255 240 200 / 0.25);
+  --btn-border: var(--gilt-lo);
+  --btn-box-shadow: 0 2px 0 var(--night-ink), 0 6px 14px rgb(40 20 5 / 0.3);
+  --btn-press: 0 2px;
+  --input-border-w: 1px;
+  --input-border: var(--gilt-lo);
+  --input-shadow: inset 0 1px 3px rgb(40 20 5 / 0.2);
+  --meter-fill: linear-gradient(90deg, var(--gilt-lo), var(--gilt-hi));
+  --winner-bg: #4a3010;
+  --selected-bg: #fbf0cf;
+  --page-bg: radial-gradient(ellipse at top, #f3e7c9, #e3d2ab 60%, #d6c193) fixed;
+
+  --card-face: #fbf3dd;
+  --card-border: #8c6720;
+  --card-border-w: 1px;
+  --card-back:
+    repeating-linear-gradient(45deg, rgb(201 154 60 / 0.4) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, rgb(201 154 60 / 0.4) 0 1px, transparent 1px 7px), radial-gradient(#7a1d1d, #3e0b0b);
+  --card-back-line: var(--gilt);
+  --rail-bg: linear-gradient(#5a3a22, #2a190d);
+  --rail-w: 20px;
+  --rail-border: 3px solid var(--gilt);
+  --table-shadow: 0 18px 40px rgb(30 15 5 / 0.45);
+  --felt-bg: radial-gradient(ellipse at 50% 40%, #8a2430, #5e1420 65%, #3c0b14);
+  --felt-inset: inset 0 0 0 3px var(--gilt-lo), inset 0 10px 30px rgb(0 0 0 / 0.45);
+  --felt-ring: 1px solid rgb(236 208 138 / 0.35);
+  --pond-bg: radial-gradient(ellipse at 40% 35%, #5c9cbd, #1f4f6b 70%);
+  --pond-border: 3px solid var(--gilt-lo);
+}
+[data-theme="fantasy"] .btn.primary { --btn-bg: linear-gradient(#ecd08a, #b8862d); }
+[data-theme="fantasy"] .btn.primary:hover:not(:disabled) { --btn-bg: linear-gradient(#f5e0a6, #c99a3c); }
+[data-theme="fantasy"] .on-night .box, [data-theme="fantasy"] .box.on-night { --box-border: var(--gilt-lo); }
+[data-theme="fantasy"] .home .logo, [data-theme="fantasy"] .brand { font-weight: 800; letter-spacing: 0.02em; }
+[data-theme="fantasy"] .label { letter-spacing: 0.1em; }
+[data-theme="fantasy"] .msg { font-size: 15px; }
+
+/* ===================== neon ===================== */
+[data-theme="neon"] {
+  --scheme: dark;
+  --paper: #070912;
+  --paper-hi: #0c1122;
+  --paper-lo: #0f1630;
+  --line: #1a2546;
+  --ink: #d6f7ff;
+  --ink-2: #9cc3d3;
+  --ink-3: #5e7a8c;
+  --night: #04050b;
+  --night-2: #0b1020;
+  --night-3: #1a2546;
+  --night-ink: #12384f;
+  --on-night: #d6f7ff;
+  --on-night-2: #6f8ea0;
+  --gilt: #00e5ff;
+  --gilt-hi: #7df4ff;
+  --gilt-lo: #00b3c8;
+  --ember: #ff2d8a;
+  --ember-hi: #ff6aae;
+  --ember-lo: #b0105a;
+  --moss: #39ff8b;
+  --moss-hi: #39ff8b;
+  --arcane: #b44dff;
+  --arcane-hi: #d395ff;
+  --water: #3d7bff;
+  --accent-fg: #00141a;
+  --danger-fg: #1a0010;
+  --btn-hover: #11193a;
+  --name-l: 70%;
+  --name-s: 95%;
+
+  --font-body: "Share Tech Mono", ui-monospace, monospace;
+  --font-display: "Orbitron Variable", sans-serif;
+  --font-pixel: "Orbitron Variable", sans-serif;
+  --font-label: "Orbitron Variable", sans-serif;
+  --font-button: "Orbitron Variable", sans-serif;
+  --font-card: "Orbitron Variable", sans-serif;
+  --display-weight: 800;
+  --label-weight: 600;
+  --label-size: 10px;
+  --body-size: 15px;
+  --btn-tracking: 0.08em;
+  --btn-case: uppercase;
+
+  --border-w: 1px;
+  --box-border: rgb(0 229 255 / 0.55);
+  --radius: 4px;
+  --btn-radius: 2px;
+  --tag-radius: 2px;
+  --light-radius: 50%;
+  --card-radius: 5px;
+  --box-hard-shadow: none;
+  --box-glow: 0 0 24px rgb(0 229 255 / 0.12), inset 0 0 24px rgb(0 229 255 / 0.05);
+  --btn-border: var(--gilt);
+  --btn-box-shadow: 0 0 12px rgb(0 229 255 / 0.35);
+  --btn-press: 0 0;
+  --input-border: rgb(0 229 255 / 0.45);
+  --input-shadow: inset 0 0 12px rgb(0 229 255 / 0.08);
+  --meter-fill: none;
+  --meter-fill-color: var(--meter-color, var(--gilt));
+  --winner-bg: #0d2a33;
+  --selected-bg: #0d2433;
+  --page-bg:
+    linear-gradient(rgb(0 229 255 / 0.05) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgb(0 229 255 / 0.05) 1px, transparent 1px) 0 0 / 32px 32px, #070912;
+
+  --card-face: #0a1020;
+  --card-border: var(--gilt);
+  --card-back:
+    repeating-linear-gradient(0deg, rgb(180 77 255 / 0.35) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(90deg, rgb(180 77 255 / 0.35) 0 1px, transparent 1px 6px), #070414;
+  --card-back-line: var(--arcane-hi);
+  --rail-bg: #050814;
+  --rail-w: 6px;
+  --rail-border: 2px solid var(--gilt);
+  --table-shadow: 0 0 30px rgb(0 229 255 / 0.35), inset 0 0 20px rgb(0 229 255 / 0.25);
+  --felt-bg:
+    linear-gradient(rgb(180 77 255 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgb(180 77 255 / 0.12) 1px, transparent 1px) 0 0 / 24px 24px, radial-gradient(ellipse, #0f1d3a, #050814);
+  --felt-inset: inset 0 0 0 1px var(--arcane), inset 0 0 50px rgb(180 77 255 / 0.25);
+  --felt-ring: 1px solid rgb(180 77 255 / 0.55);
+  --pond-bg: radial-gradient(#0b2b4a, #041222);
+  --pond-border: 1px solid var(--gilt);
+  --pond-shadow: 0 0 22px rgb(0 229 255 / 0.4), inset 0 0 22px rgb(0 229 255 / 0.3);
+}
+[data-theme="neon"] .display { text-shadow: 0 0 14px currentColor; }
+[data-theme="neon"] .home .logo, [data-theme="neon"] .brand { color: var(--gilt); text-shadow: 0 0 10px var(--gilt), 0 0 30px rgb(0 229 255 / 0.6); }
+[data-theme="neon"] .logo-dot { color: var(--ember); text-shadow: 0 0 10px var(--ember); }
+[data-theme="neon"] .btn.danger { --btn-border: var(--ember); box-shadow: 0 0 12px rgb(255 45 138 / 0.45); }
+[data-theme="neon"] .pcard-face { box-shadow: 0 0 10px rgb(0 229 255 / 0.25); }
+[data-theme="neon"] .pcard.red .pcard-face { --card-border: var(--ember); border-color: var(--ember); box-shadow: 0 0 10px rgb(255 45 138 / 0.3); }
+[data-theme="neon"] .plate.active { outline-color: var(--gilt); box-shadow: 0 0 18px rgb(0 229 255 / 0.6); }
+[data-theme="neon"] .light.good { box-shadow: 0 0 8px var(--good); }
+[data-theme="neon"] .meter-fill { box-shadow: 0 0 10px var(--gilt); }
+[data-theme="neon"] .sidebar { background: rgb(4 5 11 / 0.7); }
+[data-theme="neon"] .herald { border-color: var(--gilt); box-shadow: 0 0 16px rgb(0 229 255 / 0.2); }
+[data-theme="neon"] .chips.bet, [data-theme="neon"] .pot { border-color: var(--gilt); box-shadow: 0 0 10px rgb(0 229 255 / 0.3); }
+
+/* ---------- common to the smooth themes ---------- */
+[data-art="smooth"] .px-icon { image-rendering: auto; }
+[data-art="smooth"] .chips.bet, [data-art="smooth"] .pot { border-radius: var(--btn-radius, 0); }
+[data-art="smooth"] .seat-open { border-radius: var(--btn-radius, 0); }
+[data-art="smooth"] .dealer-btn { clip-path: none; border-radius: 50%; }
+[data-art="smooth"] .herald { border-radius: var(--radius); border-left: var(--border-w) solid var(--ink); border-right: var(--border-w) solid var(--ink); }
+[data-art="smooth"] .home-hero::after { display: none; }
+[data-art="smooth"] .game-card-emblem { border-radius: var(--btn-radius, 0); }
+[data-art="smooth"] .code { border-radius: var(--tag-radius, 0); }
+[data-art="smooth"] .spinner i { border-radius: var(--light-radius, 0); }
+[data-theme="minimal"] .home .logo { line-height: 1; }

@@ -2,8 +2,8 @@ import { type FormEvent, useState } from "react";
 import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
 import { CardBack, PlayingCard } from "../../games/kit/ui/Cards";
-import { drawTable } from "../../games/kit/ui/tableArt";
-import { Panel, PixelArt, PixelIcon } from "../../ui";
+import { TableSurface } from "../../games/kit/ui/CardTable";
+import { Panel, PixelIcon } from "../../ui";
 import { GameCard } from "../components/GameCard";
 import { saveName, useName } from "../identity";
 import { noAutofill } from "../noAutofill";
@@ -122,7 +122,7 @@ export function HomePage() {
 function HeroTable() {
   return (
     <div className="hero-table" aria-hidden>
-      <PixelArt draw={(c, r) => drawTable(c, r)} drawKey="hero" pixel={3} />
+      <TableSurface />
       <div className="hero-cards">
         <PlayingCard card="As" size="lg" highlight />
         <PlayingCard card="Ah" size="lg" highlight />

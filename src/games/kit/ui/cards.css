@@ -85,3 +85,19 @@
   background: var(--gilt);
   border: 2px solid var(--ink);
 }
+
+/* ---------- smooth themes: rounded cards, typeset suits ---------- */
+[data-art="pixel"] .art-smooth, [data-art="smooth"] .art-pixel { display: none !important; }
+[data-art="smooth"] .pcard-face { clip-path: none; border-radius: var(--card-radius, 6px); border-width: var(--card-border-w, 1px); border-color: var(--card-border, var(--ink)); background: var(--card-face, var(--paper-hi)); }
+[data-art="smooth"] .pcard { filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.3)); }
+[data-art="smooth"] .pcard.hl, [data-art="smooth"] .pcard.picked { filter: drop-shadow(0 0 0 transparent); }
+[data-art="smooth"] .pcard.hl .pcard-face { box-shadow: 0 0 0 3px var(--gilt), 0 4px 12px rgb(0 0 0 / 0.3); }
+[data-art="smooth"] .pcard.picked .pcard-face { box-shadow: 0 0 0 3px var(--arcane-hi), 0 6px 14px rgb(0 0 0 / 0.3); }
+[data-art="smooth"] .pcard-rank { top: 2px; left: 4px; font-size: calc(var(--cw) * 0.36); font-weight: 700; font-family: var(--font-card, var(--font-pixel)); }
+[data-art="smooth"] span.pcard-corner { top: calc(var(--cw) * 0.38); left: 5px; font-size: calc(var(--cw) * 0.26); line-height: 1; }
+[data-art="smooth"] span.pcard-pip { right: 4px; bottom: 1px; font-size: calc(var(--cw) * 0.62); line-height: 1; }
+[data-art="smooth"] .pcard.sm span.pcard-pip { font-size: calc(var(--cw) * 0.55); }
+[data-art="smooth"] .pcard.back .pcard-face { background: var(--card-back, var(--night-2)); }
+[data-art="smooth"] .pcard.back .pcard-face::before { inset: 3px; border-width: 1px; border-color: var(--card-back-line, var(--gilt-lo)); border-radius: calc(var(--card-radius, 6px) - 3px); }
+[data-art="smooth"] .pcard.slot .pcard-face { border-width: 2px; border-color: rgb(255 255 255 / 0.25); }
+[data-art="smooth"] .card-fan-count { border-radius: var(--tag-radius, 0); border-width: 1px; }

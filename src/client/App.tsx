@@ -3,6 +3,7 @@ import { normalizeRoomCode } from "../shared/roomCode";
 import { HomePage } from "./pages/Home";
 import { RoomPage } from "./pages/Room";
 import { StyleGuidePage } from "./pages/StyleGuide";
+import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { usePath } from "./router";
 
 export function App() {
@@ -13,7 +14,10 @@ export function App() {
     // Show the canonical code in the address bar (e.g. after a lower-cased link).
     if (code && raw !== code) history.replaceState(null, "", `/r/${code}`);
   }, [code, raw]);
-  if (code) return <RoomPage key={code} roomId={code} />;
-  if (path === "/ui") return <StyleGuidePage />;
-  return <HomePage />;
+  return (
+    <>
+      {code ? <RoomPage key={code} roomId={code} /> : path === "/ui" ? <StyleGuidePage /> : <HomePage />}
+      <ThemeSwitcher />
+    </>
+  );
 }

@@ -57,6 +57,7 @@
   --shadow: var(--ink);
   --accent: var(--gilt);
   --accent-fg: var(--ink);
+  --btn-hover: #fff;
   --focus: var(--arcane);
   --good: var(--moss);
   --bad: var(--ember);

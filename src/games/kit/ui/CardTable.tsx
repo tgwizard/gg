@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { PixelArt } from "../../../ui";
-import { drawTable, type Felt, onTable } from "./tableArt";
+import { PixelArt, useTheme } from "../../../ui";
+import { drawPond, drawTable, type Felt, onTable } from "./tableArt";
 import "./table.css";
 
 export interface TableSeat {
@@ -41,7 +41,7 @@ export function CardTable({
   return (
     <div className={`card-table ${className ?? ""}`} data-testid={testId}>
       <div className="table-surface">
-        <PixelArt className="table-art" draw={(c, r) => drawTable(c, r, felt)} drawKey={felt} pixel={3} />
+        <TableSurface felt={felt} />
         <div className="table-center">{center}</div>
         {seats.map((seat, i) => {
           const theta = Math.PI / 2 + (((i - rotation + n) % n) * 2 * Math.PI) / n;
@@ -78,4 +78,22 @@ function sideOf(theta: number): SeatSide {
   if (s > 0.4) return "bottom";
   if (s < -0.4) return "top";
   return Math.cos(theta) < 0 ? "left" : "right";
+}
+
+/** The table itself: pixel art, or CSS for smooth themes (styled per theme in themes.css). */
+export function TableSurface({ felt = "emerald" }: { felt?: Felt }) {
+  const { art } = useTheme();
+  if (art === "pixel") return <PixelArt className="table-art" draw={(c, r) => drawTable(c, r, felt)} drawKey={felt} pixel={3} />;
+  return (
+    <div className={`table-smooth felt-${felt}`} aria-hidden>
+      <div className="table-smooth-felt" />
+    </div>
+  );
+}
+
+/** A pond (Finns i sjön's lake). */
+export function PondSurface() {
+  const { art } = useTheme();
+  if (art === "pixel") return <PixelArt className="pond-art" draw={drawPond} drawKey="pond" pixel={3} />;
+  return <div className="pond-smooth" aria-hidden />;
 }
