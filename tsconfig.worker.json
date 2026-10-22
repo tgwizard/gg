@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2023"
+    ],
+    "types": []
+  },
+  "include": [
+    "src/worker",
+    "src/shared",
+    "src/games/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/games/*/ui/**",
+    "src/games/ui.ts",
+    "src/games/ui-registry.ts"
+  ]
+}
