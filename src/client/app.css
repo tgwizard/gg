@@ -127,7 +127,7 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 /* The serif "gg" has deep descenders: size it by its x-height, and nudge it onto the bar's center line. */
 .topbar .brand { font-size: 2.1rem; font-weight: 700; line-height: 1; margin: -4px 6px 0 0; color: var(--gold); text-decoration: none; }
 .topbar .brand:hover { color: #f7d696; }
-.room-id { display: inline-flex; align-items: center; gap: 8px; }
+.room-id { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .room-id .code { user-select: all; font-size: 14px; color: var(--on-brand); background: rgb(0 0 0 / 0.15); }
 .topbar .pill { color: var(--on-brand-2); }
 .topbar .mode-toggle { color: var(--on-brand-2); }
@@ -300,21 +300,30 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 
 .active-game { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; margin: 0 auto; }
 .game-header { display: flex; align-items: center; gap: 12px; }
+.game-header-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.game-header-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .game-header h2 { font-size: 1.9rem; }
 .game-header-icon { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--badge); }
 /* The running game's header, up in the room's top bar. */
 .topbar-game:empty { display: none; }
 .topbar-game { display: flex; min-width: 0; padding-left: 14px; border-left: 1px solid rgb(255 255 255 / 0.15); }
 .topbar-game .game-header { gap: 8px; }
-.topbar-game .game-header .spacer { width: 4px; flex: none; }
+.topbar-game .game-header-title { gap: 8px; margin-right: 4px; }
+.topbar-game .game-header .turn-pill { margin-left: 6px; }
 .topbar-game .game-header h2 { font-size: 1.3rem; color: var(--on-brand); white-space: nowrap; }
 .topbar-game .game-header-icon { width: 32px; height: 32px; }
 .topbar-game .icon-btn { width: 30px; height: 30px; }
 /* Whose turn it is: gold and pulsing once when it's yours. */
+/* Always the same width (long names are cut short), so the header never shifts. */
 .turn-pill {
   display: inline-flex;
+  flex: none;
   align-items: center;
+  justify-content: center;
   gap: 7px;
+  box-sizing: border-box;
+  width: 136px;
+  min-height: 28px;
   padding: 5px 12px;
   border-radius: var(--pill);
   font-size: 12.5px;
@@ -324,8 +333,10 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   background: var(--surface-2);
   border: 1px solid var(--line);
 }
+.turn-pill.empty { visibility: hidden; }
+.turn-pill-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .turn-pill.mine { color: #3a2e24; background: var(--gold); border-color: var(--gold); animation: turn-pop 700ms cubic-bezier(.3,1.5,.5,1); box-shadow: 0 0 0 0 rgb(243 199 122 / 0.6); }
-.turn-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: #3a2e24; animation: turn-dot 1.6s ease-in-out infinite; }
+.turn-pill-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #3a2e24; animation: turn-dot 1.6s ease-in-out infinite; }
 .topbar .turn-pill:not(.mine) { color: var(--on-brand-2); background: rgb(0 0 0 / 0.18); border-color: rgb(255 255 255 / 0.12); }
 @keyframes turn-pop {
   0% { scale: 0.6; box-shadow: 0 0 0 0 rgb(243 199 122 / 0.7); }
@@ -336,8 +347,14 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 @media (prefers-reduced-motion: reduce) { .turn-pill.mine, .turn-pill-dot { animation: none; } }
 
 @media (max-width: 860px) {
+  /* On the page: the name and buttons on one line, whose turn on a full-width line under them (kept when empty, so the game doesn't jump). */
+  .active-game > .game-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
+  .active-game > .game-header .game-header-title { gap: 10px; }
+  .active-game > .game-header h2 { min-width: 0; font-size: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .active-game > .game-header .game-header-icon { flex: none; width: 36px; height: 36px; }
+  .active-game > .game-header .turn-pill { grid-column: 1 / -1; width: auto; min-height: 34px; font-size: 14px; }
   .room { height: auto; min-height: 100%; }
-  .room-main { grid-template-columns: 1fr; }
+  .room-main { grid-template-columns: minmax(0, 1fr); }
   .sidebar { border-left: none; border-top: 1px solid var(--line-strong); }
   .chat-list { max-height: 50vh; }
   .stage { padding: 16px 12px 24px; }

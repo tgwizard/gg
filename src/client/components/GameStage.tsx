@@ -83,33 +83,37 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
     <div className="active-game">
       <InTopbar>
         <div className="game-header">
-          <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
-          <h2 className="display">{ui.meta.name}</h2>
-          <TurnPill waitingOn={game.waitingOn} me={snapshot.you!.id} members={members} instance={game.instanceId} />
-          <div className="spacer" />
-          <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
-          {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
-          {confirmEnd ? (
-            <span className="row">
-              <span className="muted small">End for everyone?</span>
-              <button
-                className="btn danger small"
-                onClick={() => {
-                  setConfirmEnd(false);
-                  client.endGame().catch((e) => toast(e instanceof RequestError ? e.message : "Couldn't end the game."));
-                }}
-              >
+          <div className="game-header-title">
+            <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
+            <h2 className="display">{ui.meta.name}</h2>
+          </div>
+          <div className="game-header-actions">
+            <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
+            {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
+            {confirmEnd ? (
+              <span className="row">
+                <span className="muted small">End for everyone?</span>
+                <button
+                  className="btn danger small"
+                  onClick={() => {
+                    setConfirmEnd(false);
+                    client.endGame().catch((e) => toast(e instanceof RequestError ? e.message : "Couldn't end the game."));
+                  }}
+                >
+                  End game
+                </button>
+                <button className="btn ghost small" onClick={() => setConfirmEnd(false)}>
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
                 End game
               </button>
-              <button className="btn ghost small" onClick={() => setConfirmEnd(false)}>
-                Cancel
-              </button>
-            </span>
-          ) : (
-            <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
-              End game
-            </button>
-          )}
+            )}
+          </div>
+          {/* Last, so it never moves the buttons; on a phone it's a bar of its own under them. */}
+          <TurnPill waitingOn={game.waitingOn} me={snapshot.you!.id} members={members} instance={game.instanceId} />
         </div>
       </InTopbar>
       <ui.Game view={game.view} snapshot={game} me={snapshot.you!.id} members={members} connected={connected} sendOp={sendOp} serverNow={serverNow} />
@@ -119,7 +123,8 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
 
 /**
  * Whose turn it is, for every game: "Your turn" (with a chime, and in the tab's title
- * so you notice from another tab), "Bob's turn", or nothing when nobody's being waited on.
+ * so you notice from another tab), "Bob's turn", or an empty slot when nobody's being
+ * waited on.
  */
 function TurnPill({ waitingOn, me, members, instance }: { waitingOn: string[]; me: string; members: Map<string, { name: string }>; instance: string }) {
   const mine = waitingOn.includes(me);
@@ -140,12 +145,13 @@ function TurnPill({ waitingOn, me, members, instance }: { waitingOn: string[]; m
     };
   }, [mine]);
 
-  if (!mine && !others.length) return null;
+  // A fixed-size slot, kept even when nobody's up, so nothing beside it moves as turns change.
+  if (!mine && !others.length) return <span className="turn-pill empty" aria-hidden data-testid="turn-pill" />;
   const text = mine ? "Your turn" : others.length === 1 ? `${others[0]}'s turn` : others.length === 2 ? `${others[0]} & ${others[1]}` : `${others.length} players`;
   return (
-    <span key={mine ? "mine" : "theirs"} className={`turn-pill ${mine ? "mine" : ""}`} role="status" data-testid="turn-pill">
+    <span key={mine ? "mine" : "theirs"} className={`turn-pill ${mine ? "mine" : ""}`} role="status" title={text} data-testid="turn-pill">
       {mine && <span className="turn-pill-dot" aria-hidden />}
-      {text}
+      <span className="turn-pill-text">{text}</span>
     </span>
   );
 }
