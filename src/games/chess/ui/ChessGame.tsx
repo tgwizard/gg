@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import type { GameUIProps } from "../../ui";
 import { type ChessView, type LastMove, resultText, type Side } from "../engine";
@@ -106,6 +107,8 @@ export function ChessGame({ view, me, members, connected, sendOp, serverNow }: P
           <Controls view={view} busy={busy} connected={connected} send={send} onFlip={() => setFlipped((f) => !f)} />
         </div>
       </div>
+
+      <ChessResult view={view} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={busy || !connected} />
 
       <div className="table-footer">
         <div className="table-footer-log">
@@ -428,5 +431,69 @@ function CopyPgn({ view, name }: { view: ChessView; name(id: string): string }) 
     <button className="btn ghost small" onClick={copy}>
       {copied ? "Copied" : "Copy PGN"}
     </button>
+  );
+}
+
+const HOW: Record<string, string> = {
+  checkmate: "by checkmate",
+  resign: "by resignation",
+  timeout: "on time",
+  left: "(the other player left)",
+  stalemate: "Stalemate",
+  repetition: "Threefold repetition",
+  fifty: "The fifty-move rule",
+  material: "Neither side can mate",
+  agreement: "Agreed",
+  timeoutDraw: "Out of time against a lone king",
+};
+
+/** The end of a game: who won and how, and the score between the two in this room. */
+function ChessResult({ view, me, name, rematch, disabled }: { view: ChessView; me: string; name(id: string): string; rematch: (() => void) | null; disabled: boolean }) {
+  const r = view.result;
+  const sides = view.sides;
+  const moves = Math.ceil(view.moves.length / 2);
+  let title = "";
+  let subtitle = "";
+  if (r && sides) {
+    if (r.winner) {
+      title = sides[r.winner] === me ? "You win!" : `${name(sides[r.winner])} wins!`;
+      subtitle = `${COLOR_NAME[r.winner]} wins ${HOW[r.reason] ?? ""} after ${moves} ${moves === 1 ? "move" : "moves"}.`;
+    } else {
+      title = "A draw";
+      subtitle = `${HOW[r.reason] ?? "Drawn"} after ${moves} ${moves === 1 ? "move" : "moves"}.`;
+    }
+  }
+  const order: Color[] = r?.winner === "b" ? ["b", "w"] : ["w", "b"];
+  return (
+    <GameOver
+      open={view.phase === "over" && !!r && !!sides}
+      gameKey={view.game}
+      me={me}
+      testId="chess-result"
+      title={title}
+      subtitle={subtitle}
+      columns={["Played", "This game", "Wins here"]}
+      rows={order.flatMap((c) => {
+        const id = sides?.[c];
+        if (!id) return [];
+        const seat = view.seats.find((s) => s?.playerId === id);
+        return [
+          {
+            playerId: id,
+            name: name(id),
+            winner: r?.winner === c,
+            left: !seat,
+            cells: [COLOR_NAME[c], r?.winner === c ? "1" : r?.winner ? "0" : "½", seat?.wins ?? "–"],
+          },
+        ];
+      })}
+      actions={
+        rematch && (
+          <button className="btn primary" disabled={disabled} onClick={rematch}>
+            Play again (swap colors)
+          </button>
+        )
+      }
+    />
   );
 }

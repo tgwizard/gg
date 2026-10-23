@@ -1,4 +1,4 @@
-.chess { container-type: inline-size; display: flex; flex-direction: column; gap: 12px; }
+.chess { container-type: inline-size; position: relative; display: flex; flex-direction: column; gap: 12px; }
 
 /* Stacked (narrow): opponent, board, you, then the moves and controls. */
 .chess-grid { display: flex; flex-direction: column; gap: 10px; }

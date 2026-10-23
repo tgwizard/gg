@@ -5,7 +5,7 @@
  */
 import { type FormEvent, useEffect, useState } from "react";
 import { PLAYER_COLORS } from "../../shared/colors";
-import { Avatar, Panel, playerStyle, Spinner } from "../../ui";
+import { Avatar, Panel, playerStyle, setSoundOn, Spinner, useSoundOn } from "../../ui";
 import { ModeToggle } from "../components/ModeToggle";
 import { ColorPicker, NameField } from "../components/Profile";
 import { deleteLocalData, saveColor, saveName, useColor, useName } from "../identity";
@@ -37,6 +37,7 @@ export function SettingsPage() {
 
       <main className="guide-main settings-main">
         <ProfileSection />
+        <SoundSection />
 
         <section className="stack">
           <h2 className="display settings-h2">AI connections</h2>
@@ -99,6 +100,23 @@ function ProfileSection() {
   );
 }
 
+function SoundSection() {
+  const on = useSoundOn();
+  return (
+    <section className="stack">
+      <h2 className="display settings-h2">Sound</h2>
+      <Panel>
+        <label className="settings-check">
+          <input type="checkbox" checked={on} onChange={(e) => setSoundOn(e.target.checked)} data-testid="settings-sound" />
+          <span>
+            Sound effects <span className="muted">Quiet chimes and clicks: your turn, cards, chips, moves, wins. Also the speaker in a room's top bar.</span>
+          </span>
+        </label>
+      </Panel>
+    </section>
+  );
+}
+
 function DeleteDataSection() {
   const [confirming, setConfirming] = useState(false);
   return (
@@ -106,7 +124,7 @@ function DeleteDataSection() {
       <h2 className="display settings-h2">Your data</h2>
       <Panel>
         <p className="settings-text">
-          Everything on this page lives only in this browser: your name, color, light or dark mode, and AI keys. gg has no accounts, and its server
+          Everything on this page lives only in this browser: your name, color, light or dark mode, sound, and AI keys. gg has no accounts, and its server
           never sees your keys.
         </p>
         <p className="muted small settings-text">

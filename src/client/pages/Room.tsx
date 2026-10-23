@@ -18,6 +18,7 @@ import { Avatar, Panel, PlayerName, PlayersProvider, Spinner, useMedia, usePlaye
 import { storage } from "../storage";
 import { noAutofill } from "../noAutofill";
 import { ModeToggle } from "../components/ModeToggle";
+import { SoundToggle } from "../components/SoundToggle";
 import { TopbarSlotProvider } from "../components/TopbarSlot";
 
 export function RoomPage({ roomId }: { roomId: string }) {
@@ -135,6 +136,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
             <div className="topbar-game" ref={setGameSlot} />
             <div className="spacer" />
             <ConnectionPill snapshot={snapshot} />
+            <SoundToggle />
             <ModeToggle />
             <ProfileMenu
               name={name}

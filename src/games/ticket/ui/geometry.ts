@@ -102,7 +102,7 @@ export const LABELS: Record<string, [number, number, "start" | "middle" | "end"]
   CHA: [13, 16, "start"],
   MIA: [-12, 15, "end"],
   MON: [0, -13, "middle"],
-  BOS: [8, -11, "start"],
+  BOS: [10, -15, "middle"],
   NYC: [13, 4, "start"],
   WAS: [13, 4, "start"],
   RAL: [13, -4, "start"],

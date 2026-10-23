@@ -1,11 +1,12 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { playerStyle, usePlayerColors } from "../../../ui";
-import { Flights, useFlights } from "../../kit/ui/Flights";
+import { play, playerStyle, usePlayerColors } from "../../../ui";
+import { Flights, useFlights, useOnChange } from "../../kit/ui/Flights";
+import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
-import { AUTO_PLAY_DELAY_MS, type Hand, type PlayerScore, type TicketView, type TtrEvent, type TtrPlayerView, type TtrView } from "../engine";
+import { AUTO_PLAY_DELAY_MS, type Hand, type TicketView, type TtrEvent, type TtrPlayerView, type TtrView } from "../engine";
 import { routeOpen } from "../graph";
 import { CARD_COLORS, type CardColor, cityName, ROUTE_POINTS, ROUTES, type Route, routeById, routeName, type Ticket, ticketById, TRAIN_COLORS } from "../map";
 import type { TtrOp } from "../index";
@@ -75,6 +76,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
 
   const marked = useMemo(() => new Set(view.you.tickets.filter((t) => !t.done).flatMap((t) => [t.a, t.b])), [view.you.tickets]);
   const lastClaim = [...view.log].reverse().find((e) => e.type === "claim");
+  useOnChange(lastClaim?.type === "claim" ? `${view.game}:${lastClaim.route}` : null, () => play("claim"));
   const inGame = view.phase !== "lobby";
   const lines = summarize(view.log);
   // Your own latest draw: the cards you drew blind are yours to see.
@@ -118,7 +120,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
           </TicketMap>
         </div>
 
-        {view.phase === "over" && view.result && <Result view={view} nameOf={nameOf} />}
+        <Result view={view} me={me} name={plainName} start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null} disabled={busy || !connected} />
 
         {/* Your side of the table: beside the map when there's room, under it otherwise. */}
         <div className="ttr-side">
@@ -216,7 +218,7 @@ function useCardFlights(game: number, hand: Hand | null) {
     launch(
       gained.map((color, i) => {
         const to = document.querySelector(`[data-testid="ttr-hand"] [data-color="${color}"]`)?.getBoundingClientRect();
-        return to ? { node: <TrainCard color={color} />, from: start, to, delay: i * 0.12, duration: 0.62 } : null;
+        return to ? { node: <TrainCard color={color} />, from: start, to, delay: i * 0.12, duration: 0.62, sound: "card" as const } : null;
       }),
     );
   }, [game, hand]);
@@ -314,6 +316,7 @@ function InGamePlate({
   const seat = view.seats[p.seat];
   const away = seat?.playerId === p.playerId && seat.sittingOut;
   const won = view.phase === "over" && !!view.result?.winners.includes(p.playerId);
+  const score = view.phase === "over" ? view.result?.scores.find((x) => x.playerId === p.playerId) : undefined;
   const color = usePlayerColors()(p.playerId);
   return (
     <PlayerPlate
@@ -343,9 +346,16 @@ function InGamePlate({
             <span className="num">{p.tickets}</span>
           </span>
         </div>
-        <span className="ttr-points" title="Points from routes">
-          <span className="num">{p.points}</span> pts
-        </span>
+        {/* At the end, the final score (tickets and the longest railway counted); before, points from routes. */}
+        {score ? (
+          <span className="ttr-points final" title="Final score">
+            <span className="num">{score.total}</span> pts
+          </span>
+        ) : (
+          <span className="ttr-points" title="Points from routes">
+            <span className="num">{p.points}</span> pts
+          </span>
+        )}
       </div>
       {/* One line for whatever's going on, kept even when empty so every plate is the same size. */}
       <div className="ttr-plate-foot">
@@ -692,66 +702,58 @@ function ClaimStory({ e, nameOf }: { e: Extract<Line, { type: "claim" }>; nameOf
   );
 }
 
-function Result({ view, nameOf }: { view: TtrView; nameOf(id: string): string }) {
-  const result = view.result!;
-  const ranked = [...result.scores].sort((a, b) => b.total - a.total);
+/** The end: everyone's score (routes, tickets, the longest railway), over the map. */
+function Result({ view, me, name, start, disabled }: { view: TtrView; me: string; name(id: string): string; start: (() => void) | null; disabled: boolean }) {
+  const result = view.result;
+  const ranked = result ? [...result.scores].sort((a, b) => b.total - a.total) : [];
+  const winners = result?.winners ?? [];
+  const longest = ranked.find((s) => s.bonus > 0);
+  const title = winners.includes(me) ? (winners.length > 1 ? "You share the win!" : "You win!") : `${winners.map(name).join(" & ")} ${winners.length > 1 ? "share the win!" : "wins!"}`;
   return (
-    <div className="ttr-result" data-testid="ttr-result">
-      <Herald big>
-        <span>{result.winners.length === 1 ? `${nameOf(result.winners[0]!)} won!` : `${result.winners.map(nameOf).join(" & ")} share the win!`}</span>
-      </Herald>
-      <table className="ttr-scores box">
-        <thead>
-          <tr>
-            <th />
-            <th>Routes</th>
-            <th>Tickets</th>
-            <th>Longest</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ranked.map((s) => (
-            <ScoreRow key={s.playerId} s={s} name={nameOf(s.playerId)} winner={result.winners.includes(s.playerId)} />
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function ScoreRow({ s, name, winner }: { s: PlayerScore; name: string; winner: boolean }) {
-  return (
-    <>
-      <tr className={winner ? "winner" : undefined}>
-        <th scope="row">
-          {name}
-          {s.left && <span className="muted"> (left)</span>}
-        </th>
-        <td className="num">{s.routePoints}</td>
-        <td className="num">{s.ticketPoints > 0 ? `+${s.ticketPoints}` : s.ticketPoints}</td>
-        <td className="num">
-          {s.longest}
-          {s.bonus > 0 && <span className="tag gold">+{s.bonus}</span>}
-        </td>
-        <td className="num ttr-total">{s.total}</td>
-      </tr>
-      {s.tickets.length > 0 && (
-        <tr className="ttr-score-tickets">
-          <td colSpan={5}>
+    <GameOver
+      open={view.phase === "over" && !!result}
+      gameKey={view.game}
+      me={me}
+      testId="ttr-result"
+      className="ttr-result"
+      title={title}
+      subtitle={
+        ranked[0] && (
+          <>
+            {ranked[0].total} points
+            {longest && ` · longest railway: ${longest.playerId === me ? "you" : name(longest.playerId)} (${longest.longest} trains, +${longest.bonus})`}
+          </>
+        )
+      }
+      columns={["Routes", "Tickets", "Longest", "Total"]}
+      rows={ranked.map((s) => ({
+        playerId: s.playerId,
+        name: name(s.playerId),
+        winner: winners.includes(s.playerId),
+        left: s.left,
+        cells: [s.routePoints, s.ticketPoints > 0 ? `+${s.ticketPoints}` : s.ticketPoints, s.bonus ? `${s.longest} (+${s.bonus})` : s.longest, s.total],
+        detail: s.tickets.length > 0 && (
+          <span className="ttr-score-tickets">
             {s.tickets.map((t) => {
               const ticket = ticketById.get(t.id)!;
               return (
                 <span key={t.id} className={t.done ? "done" : "missed"}>
-                  {t.done ? "✓" : "✗"} {cityName(ticket.a)}–{cityName(ticket.b)} ({t.done ? "+" : "−"}
-                  {ticket.points})
+                  {t.done ? "✓" : "✗"} {cityName(ticket.a)}–{cityName(ticket.b)} {t.done ? "+" : "−"}
+                  {ticket.points}
                 </span>
               );
             })}
-          </td>
-        </tr>
-      )}
-    </>
+          </span>
+        ),
+      }))}
+      actions={
+        start && (
+          <button className="btn primary" disabled={disabled} onClick={start}>
+            Play again
+          </button>
+        )
+      }
+    />
   );
 }
 

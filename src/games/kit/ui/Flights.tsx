@@ -1,5 +1,6 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { play, type Sfx } from "../../../ui";
 import "./kit.css";
 
 /**
@@ -22,6 +23,8 @@ export interface Flight {
   duration?: number;
   /** Size at takeoff and landing. */
   scale?: [number, number];
+  /** Played as it lands. */
+  sound?: Sfx;
 }
 
 export type FlightPlan = Omit<Flight, "id">;
@@ -48,12 +51,36 @@ export function useFlights() {
     /** Sends them off (unless motion is reduced), and says when the last one lands, in seconds. */
     launch(plans: (FlightPlan | null)[]): number {
       const ok = plans.filter((p): p is FlightPlan => !!p);
+      // A burst (a deal, chips into the pot) makes a few sounds, spaced out, not one per thing.
+      const heard = new Map<Sfx, number[]>();
+      for (const p of ok) {
+        if (!p.sound) continue;
+        const at = p.delay + (p.duration ?? FLIGHT_SECONDS) * 0.8;
+        const times = heard.get(p.sound) ?? [];
+        if (times.length >= 3 || times.some((x) => Math.abs(x - at) < 0.35)) continue;
+        heard.set(p.sound, [...times, at]);
+        play(p.sound, at);
+      }
       if (!ok.length || reducedMotion()) return 0;
       setFlights((f) => [...f, ...ok.map((p) => ({ ...p, id: next.current++ }))]);
       return Math.max(...ok.map((p) => p.delay + (p.duration ?? FLIGHT_SECONDS)));
     },
     land: (id: number) => setFlights((f) => f.filter((x) => x.id !== id)),
   };
+}
+
+/**
+ * Calls `onChange` when `key` changes, but not for the first value: for reacting to
+ * something that just happened (a move to play a sound for), not to how things were
+ * when you arrived.
+ */
+export function useOnChange(key: string | number | null, onChange: () => void) {
+  const seen = useRef(key);
+  useLayoutEffect(() => {
+    if (seen.current === key) return;
+    seen.current = key;
+    if (key !== null) onChange();
+  }, [key]);
 }
 
 export function Flights({ flights, onLand }: { flights: Flight[]; onLand(id: number): void }) {

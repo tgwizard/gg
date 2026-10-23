@@ -74,7 +74,7 @@ test("two players hide fleets, trade shots and finish a game of Battleship", asy
   await expect(alice.page.getByTestId("bs-result")).toContainText("You win!");
 
   // Rematch: back to placing, with Bob shooting first this time.
-  await bob.page.getByRole("button", { name: "Play again" }).click();
+  await bob.page.getByTestId("bs-result").getByRole("button", { name: "Play again" }).click();
   for (const p of [alice.page, bob.page]) await expect(p.getByTestId("bs-dock")).toBeVisible();
   for (const p of [alice.page, bob.page]) {
     await p.getByRole("button", { name: "Random" }).click();

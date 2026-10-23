@@ -1,4 +1,5 @@
 import { type PointerEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { play } from "../../../ui";
 import type { LastMove } from "../engine";
 import { type Color, colorOf, FILES, fileOf, inCheck, kingSquare, legalMoves, type Move, type Piece, parseFen, parseSquare, parseUci, pieceOf, type Promotion, rankOf, squareName, toUci, typeOf } from "../rules";
 
@@ -78,7 +79,9 @@ export function Board(props: {
     prevFen.current = props.fen;
     const last = props.lastMove;
     const m = last ? parseUci(last.uci) : null;
-    if (!last || !m || before === props.fen || reducedMotion()) return;
+    if (!last || !m || before === props.fen) return;
+    play(last.took ? "capture" : "place");
+    if (reducedMotion()) return;
     if (last.took && last.tookAt) setGhost({ sq: parseSquare(last.tookAt)!, piece: pieceOf(pos.turn, last.took), key: props.fen });
     if (dropped.current === last.uci) return;
     const slide = (from: number, to: number) => {

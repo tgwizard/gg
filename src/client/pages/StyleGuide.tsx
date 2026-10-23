@@ -5,12 +5,14 @@ import type { ReactNode } from "react";
 import { CardTable, type TableSeat } from "../../games/kit/ui/CardTable";
 import { CardBack, CardFan, CardSlot, PlayingCard } from "../../games/kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../games/kit/ui/Chips";
+import { GameOver } from "../../games/kit/ui/GameOver";
 import { ActionTray, GameLog, Herald } from "../../games/kit/ui/GameParts";
 import { PlayerPlate } from "../../games/kit/ui/PlayerPlate";
 import { gameUIs } from "../../games/ui-registry";
-import { Meter, Panel, Spinner } from "../../ui";
+import { Meter, Panel, play, SFX, Spinner } from "../../ui";
 import { GameCard } from "../components/GameCard";
 import { ModeToggle } from "../components/ModeToggle";
+import { SoundToggle } from "../components/SoundToggle";
 
 const SWATCHES = ["bg", "surface", "surface-2", "line-strong", "text", "text-2", "text-muted", "brand", "brand-2", "on-brand", "accent", "gold", "danger", "good", "blue"];
 
@@ -119,6 +121,18 @@ export function StyleGuidePage() {
           </div>
         </Section>
 
+        <Section title="Sounds">
+          <p className="muted small">Synthesized in the browser (src/ui/sound.ts). Click to hear one; the speaker turns them all off.</p>
+          <div className="row wrap">
+            <SoundToggle />
+            {SFX.map((sfx) => (
+              <button key={sfx} type="button" className="btn small" onClick={() => play(sfx)}>
+                {sfx}
+              </button>
+            ))}
+          </div>
+        </Section>
+
         <Section title="Game cards">
           <div className="game-grid">
             {Object.values(gameUIs).map((g, i) => (
@@ -149,6 +163,25 @@ export function StyleGuidePage() {
             <Bet amount={40} />
             <Pot amount={385} />
             <DealerButton />
+          </div>
+        </Section>
+
+        <Section title="Game over">
+          <div className="guide-game-over">
+            <GameOver
+              open
+              gameKey={1}
+              me="p1"
+              title="You win!"
+              subtitle="All 13 books are down. 6 books wins it."
+              columns={["Books"]}
+              rows={[
+                { playerId: "p1", name: "Adam", winner: true, cells: [6], detail: <GuideBooks ranks="9 8 4 3 7 5" /> },
+                { playerId: "p2", name: "Cogsworth", cells: [4], detail: <GuideBooks ranks="J 10 6 K" /> },
+                { playerId: "p3", name: "Dynamo", left: true, cells: [3], detail: <GuideBooks ranks="A 2 Q" /> },
+              ]}
+              actions={<button className="btn primary">Play again</button>}
+            />
           </div>
         </Section>
 
@@ -260,5 +293,17 @@ function Section({ title, brand, children }: { title: string; brand?: boolean; c
     <Panel title={title} brand={brand} className="guide-section">
       {children}
     </Panel>
+  );
+}
+
+function GuideBooks({ ranks }: { ranks: string }) {
+  return (
+    <span className="guide-books">
+      {ranks.split(" ").map((r) => (
+        <span key={r} className="guide-book">
+          {r}
+        </span>
+      ))}
+    </span>
   );
 }

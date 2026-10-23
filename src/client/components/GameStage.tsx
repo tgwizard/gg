@@ -4,7 +4,7 @@ import { gameUIs } from "../../games/ui-registry";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
 import { useServerNow } from "../useNow";
-import { Panel } from "../../ui";
+import { Panel, play } from "../../ui";
 import { GameCard } from "./GameCard";
 import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
@@ -85,6 +85,7 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
         <div className="game-header">
           <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
           <h2 className="display">{ui.meta.name}</h2>
+          <TurnPill waitingOn={game.waitingOn} me={snapshot.you!.id} members={members} instance={game.instanceId} />
           <div className="spacer" />
           <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
           {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
@@ -113,6 +114,39 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
       </InTopbar>
       <ui.Game view={game.view} snapshot={game} me={snapshot.you!.id} members={members} connected={connected} sendOp={sendOp} serverNow={serverNow} />
     </div>
+  );
+}
+
+/**
+ * Whose turn it is, for every game: "Your turn" (with a chime, and in the tab's title
+ * so you notice from another tab), "Bob's turn", or nothing when nobody's being waited on.
+ */
+function TurnPill({ waitingOn, me, members, instance }: { waitingOn: string[]; me: string; members: Map<string, { name: string }>; instance: string }) {
+  const mine = waitingOn.includes(me);
+  const others = waitingOn.filter((id) => id !== me).map((id) => members.get(id)?.name ?? "Someone");
+  // Chime when it becomes your turn, not when you arrive and it already is.
+  const was = useRef<{ instance: string; mine: boolean } | null>(null);
+  useEffect(() => {
+    const before = was.current;
+    was.current = { instance, mine };
+    if (mine && before && before.instance === instance && !before.mine) play("turn");
+  }, [mine, instance]);
+  useEffect(() => {
+    if (!mine) return;
+    const title = document.title;
+    document.title = `● Your turn · ${title}`;
+    return () => {
+      document.title = title;
+    };
+  }, [mine]);
+
+  if (!mine && !others.length) return null;
+  const text = mine ? "Your turn" : others.length === 1 ? `${others[0]}'s turn` : others.length === 2 ? `${others[0]} & ${others[1]}` : `${others.length} players`;
+  return (
+    <span key={mine ? "mine" : "theirs"} className={`turn-pill ${mine ? "mine" : ""}`} role="status" data-testid="turn-pill">
+      {mine && <span className="turn-pill-dot" aria-hidden />}
+      {text}
+    </span>
   );
 }
 

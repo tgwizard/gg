@@ -196,7 +196,22 @@ can once none of its players are online).
   `data-seat` and bet spots with `data-bet-spot`), launches flights, and hides what's
   arriving until it lands (`arrivalStyle`). Only changes that arrive live animate,
   never a first view or a refresh, and nothing moves with reduced motion. Coast to
-  Coast, Texas Hold'em and Finns i sjön use it.
+  Coast, Texas Hold'em and Finns i sjön use it. `GameOver` is the end of a game for every game
+  that has one: the winners' avatars under a crown, a title and how it ended, everyone's
+  scores best first (columns the game chooses, with an optional line of detail per
+  player), and the game's own buttons (play again). A game that ends while you watch
+  gets a sound, and confetti if you won; "See the board" tucks it into a bar. Tic-tac-toe
+  (short rounds that restart on their own) and Texas Hold'em (hands, no end) don't use it.
+
+**Whose turn, and sound.** The game header (in the top bar) shows "Your turn" or
+"Bob's turn" for every game from the snapshot's `waitingOn`, chimes when it becomes
+your turn, and puts it in the tab's title. The active player's nameplate breathes a
+gold glow. Sound effects (`src/ui/sound.ts`) are synthesized with the Web Audio API
+(tones and filtered noise, no audio files), quiet, and on unless turned off with the
+speaker in the top bar or on /settings (remembered per browser). Games play them for
+what just happened (`play("chip")`, a flight's landing `sound`, `useOnChange` for live
+changes only); in a background tab only the "your turn" chime plays. /ui lists them all
+to audition.
 - `testing.ts`: a seeded RNG for tests.
 
 **Conformance (`src/games/conformance.test.ts`).** Every registered game is

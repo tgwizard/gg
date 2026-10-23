@@ -1,4 +1,5 @@
-.fish { display: flex; flex-direction: column; gap: 18px; }
+.fish { position: relative; display: flex; flex-direction: column; gap: 18px; }
+.game-over-detail .fish-books { justify-content: flex-start; }
 
 .fish-spot { display: flex; flex-direction: column; align-items: center; }
 .fish-fan { margin-bottom: -8px; z-index: 1; min-height: 20px; display: flex; align-items: flex-end; }

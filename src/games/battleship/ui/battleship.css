@@ -1,4 +1,4 @@
-.bs { display: flex; flex-direction: column; gap: 16px; }
+.bs { position: relative; display: flex; flex-direction: column; gap: 16px; }
 
 /* What just happened: a fixed height so the boards don't jump as shots come in. */
 /* Room for two lines of news, so the boards below don't shift as it fills. */

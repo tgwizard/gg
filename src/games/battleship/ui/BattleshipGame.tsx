@@ -1,4 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { play } from "../../../ui";
+import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -134,6 +136,8 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
         </ActionTray>
       )}
 
+      <BsResult view={view} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={!connected || busy} />
+
       <TableFooter
         log={
           view.log.length > 0 && (
@@ -169,7 +173,9 @@ function useLanding(view: BsView, connected: boolean): Shot | null {
     seen.current = { fired, connected };
     if (fired === before.fired) return;
     const shot = view.log.findLast((e): e is Shot => e.type === "shot") ?? null;
-    setLanding(fired === before.fired + 1 && before.connected && connected ? shot : null);
+    const live = fired === before.fired + 1 && before.connected && connected;
+    setLanding(live ? shot : null);
+    if (live && shot) play(shot.result === "sunk" ? "sink" : shot.result === "hit" ? "hit" : "splash", 0.12);
   }, [fired, connected]);
   return landing;
 }
@@ -492,21 +498,10 @@ function describe(e: BsEvent, me: string, name: (id: string) => string, myBoard:
 
 function News({ view, me, name, myBoard }: { view: BsView; me: string; name(id: string): string; myBoard: BoardView | null }) {
   if (view.phase === "over" && view.result) {
-    const r = view.result;
-    const winner = r.winner === me ? "You win!" : `${name(r.winner)} wins!`;
-    const how =
-      r.forfeit === "left"
-        ? `${r.loser === me ? "You" : name(r.loser)} left the battle.`
-        : r.forfeit === "timeouts"
-          ? `${r.loser === me ? "You" : name(r.loser)} ran out of time three times in a row.`
-          : `${r.winner === me ? "You" : name(r.winner)} sank ${r.loser === me ? "your" : `${name(r.loser)}'s`} whole fleet in ${r.shots} shots.`;
     return (
-      <div data-testid="bs-result">
-        <Herald big className="bs-news">
-          <span>{winner}</span>
-          <span className="bs-news-sub">{how} Both fleets are on show.</span>
-        </Herald>
-      </div>
+      <Herald testId="bs-news" className="bs-news">
+        <span>Both fleets are on show.</span>
+      </Herald>
     );
   }
   const recent = view.log.slice(-2);
@@ -569,4 +564,55 @@ function TrayAside(props: { view: BsView; mySeat: Side | null; busy: boolean; co
       Play again
     </button>
   ) : null;
+}
+
+/** The end: who sank whom, and how everyone shot. */
+function BsResult({ view, me, name, rematch, disabled }: { view: BsView; me: string; name(id: string): string; rematch: (() => void) | null; disabled: boolean }) {
+  const r = view.result;
+  const you = (id: string) => id === me;
+  let subtitle = "";
+  if (r) {
+    const loser = you(r.loser) ? "You" : name(r.loser);
+    subtitle =
+      r.forfeit === "left"
+        ? `${loser} left the battle.`
+        : r.forfeit === "timeouts"
+          ? `${loser} ran out of time three times in a row.`
+          : `${you(r.winner) ? "You" : name(r.winner)} sank ${you(r.loser) ? "your" : `${name(r.loser)}'s`} whole fleet in ${r.shots} shots.`;
+  }
+  const rows = SIDES.flatMap((side) => {
+    const board = view.boards[side];
+    const target = view.boards[1 - side];
+    if (!board || !target) return [];
+    const hits = target.shots.filter((s) => s.hit).length;
+    const shots = target.shots.length;
+    return [
+      {
+        playerId: board.playerId,
+        name: name(board.playerId),
+        winner: r?.winner === board.playerId,
+        left: view.seats[side]?.playerId !== board.playerId,
+        cells: [shots, hits, shots ? `${Math.round((hits / shots) * 100)}%` : "–", `${target.sunk.length} of ${FLEET.length}`],
+      },
+    ];
+  }).sort((a, b) => Number(b.winner) - Number(a.winner));
+  return (
+    <GameOver
+      open={view.phase === "over" && !!r}
+      gameKey={view.game}
+      me={me}
+      testId="bs-result"
+      title={r ? (you(r.winner) ? "You win!" : `${name(r.winner)} wins!`) : ""}
+      subtitle={subtitle}
+      columns={["Shots", "Hits", "Aim", "Sunk"]}
+      rows={rows}
+      actions={
+        rematch && (
+          <button className="btn primary" disabled={disabled} onClick={rematch}>
+            Play again
+          </button>
+        )
+      }
+    />
+  );
 }

@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Member } from "../../../shared/protocol";
-import { useNarrow } from "../../../ui";
+import { play, useNarrow } from "../../../ui";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
@@ -24,7 +24,7 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
   const bestSeats = new Set(hand?.result?.pots.flatMap((p) => p.winners) ?? []);
   const showdownCards = new Set<string>();
   for (const seat of bestSeats) for (const c of hand?.result?.hands[seat]?.cards ?? []) showdownCards.add(c);
-  const motion = usePokerMotion(hand, view.seats.length);
+  const motion = usePokerMotion(hand, view.seats.length, view.you.seat);
 
   const seats: TableSeat[] = view.seats.map((seat, i) => {
     const hp = seat && hand ? hand.players.find((p) => p.seat === i && p.playerId === seat.playerId) : undefined;
@@ -396,7 +396,7 @@ const DEAL_SECONDS = 0.42;
  * the table as it is): dealing, bets swept into the pot when a betting round ends,
  * board cards and showdown hands turning over, and the pot going to the winners.
  */
-function usePokerMotion(hand: HandView | null, seatCount: number) {
+function usePokerMotion(hand: HandView | null, seatCount: number, mySeat: number | null) {
   const { flights, launch, land } = useFlights();
   const [state, setState] = useState<Motion | null>(null);
   /** The hand in the last view: undefined before the first view (nothing to animate from), null between games. */
@@ -416,7 +416,7 @@ function usePokerMotion(hand: HandView | null, seatCount: number) {
           const delay = (round * order.length + k) * 0.08;
           deal.set(p.seat, [...(deal.get(p.seat) ?? []), delay + DEAL_SECONDS]);
           const to = seatRect(p.seat, ".seat-cards");
-          return board && to ? { node: <CardBack size="sm" />, from: board, to, delay, duration: DEAL_SECONDS, scale: [0.8, 1] as [number, number] } : null;
+          return board && to ? { node: <CardBack size="sm" />, from: board, to, delay, duration: DEAL_SECONDS, scale: [0.8, 1] as [number, number], sound: "card" as const } : null;
         }),
       );
       launch(plans);
@@ -434,21 +434,24 @@ function usePokerMotion(hand: HandView | null, seatCount: number) {
           .filter((p) => p.bet > 0)
           .map((p, i) => {
             const from = rectOf(`[data-bet-spot="${p.seat}"]`);
-            return from ? { node: <Bet amount={p.bet} />, from, to: pot, delay: i * 0.05, duration: 0.42 } : null;
+            return from ? { node: <Bet amount={p.bet} />, from, to: pot, delay: i * 0.05, duration: 0.42, sound: "chip" as const } : null;
           }),
       );
     }
     const boardFrom = hand.board.length > prev.board.length ? prev.board.length : undefined;
     const boardDone = t + (boardFrom === undefined ? 0 : (hand.board.length - boardFrom) * 0.14 + 0.38);
     const reveal = new Set(hand.players.filter((p) => p.cards && !prev.players.find((q) => q.seat === p.seat)?.cards).map((p) => p.seat));
+    if (boardFrom !== undefined) play("flip", t);
+    if (reveal.size) play("flip", boardDone);
     if (boardFrom !== undefined || reveal.size) setState({ hand: hand.id, boardFrom, boardDelay: t, reveal, revealDelay: boardDone });
     // The hand is over: the pot goes to whoever won it, once the cards are seen.
     if (pot && hand.result && prev.status !== "complete" && hand.status === "complete") {
       const delay = boardDone + (reveal.size ? 0.5 : 0.1);
+      if (mySeat !== null && hand.result.payouts[mySeat]) play("good", delay + 0.6);
       launch(
         Object.entries(hand.result.payouts).map(([seat, amount]) => {
           const to = seatRect(Number(seat));
-          return to && amount ? { node: <Chips amount={amount} className="bet" />, from: pot, to, delay, duration: 0.6 } : null;
+          return to && amount ? { node: <Chips amount={amount} className="bet" />, from: pot, to, delay, duration: 0.6, sound: "chip" as const } : null;
         }),
       );
     }

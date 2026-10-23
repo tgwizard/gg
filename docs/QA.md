@@ -141,6 +141,11 @@ these through the browser and reports back.
 - [ ] On a laptop screen (1440×900) the players, the map, the market, your cards and your tickets all fit without scrolling; narrower windows stack them under the map.
 - [ ] Phone: the map scrolls sideways; the market, your cards and tickets stay usable.
 
+### Turns, sound and the end of a game
+- [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
+- [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
+- [ ] End screens (Coast to Coast, chess, Battleship, Finns i sjön): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
+
 ### Bots
 - [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.
 - [ ] Click your bot's name: rename and recolor it, mid-game too. Chat says "Y is now known as Z" and the board updates.

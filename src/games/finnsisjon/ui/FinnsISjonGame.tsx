@@ -1,9 +1,10 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
-import { hash2 } from "../../../ui";
+import { hash2, play } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
 import { CardTable, PondSurface, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
 import { arrivalStyle, FLIGHT_SECONDS, type FlightPlan, Flights, rectOf, reducedMotion, seatRect, useFlights } from "../../kit/ui/Flights";
+import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -100,7 +101,14 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         }
       />
 
-      {view.phase === "over" && view.result ? <Result view={view} nameOf={nameOf} /> : playing && <Happenings view={view} me={me} nameOf={nameOf} mine={mine} />}
+      {playing && <Happenings view={view} me={me} nameOf={nameOf} mine={mine} />}
+      <Result
+        view={view}
+        me={me}
+        name={(id) => members.get(id)?.name ?? "Player"}
+        start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null}
+        disabled={busy || !connected}
+      />
 
       <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fish-tray">
         {mine && view.phase === "playing" ? (
@@ -323,23 +331,38 @@ function Happenings({ view, me, nameOf, mine }: { view: FishView; me: string; na
   );
 }
 
-function Result({ view, nameOf }: { view: FishView; nameOf(id: string): string }) {
-  const result = view.result!;
+/** The end: everyone's books, most first. */
+function Result({ view, me, name, start, disabled }: { view: FishView; me: string; name(id: string): string; start: (() => void) | null; disabled: boolean }) {
+  const result = view.result;
+  const winners = result?.winners ?? [];
   const ranking = [...view.players].sort((a, b) => b.books.length - a.books.length);
+  const title = winners.includes(me) ? (winners.length > 1 ? "You share the win!" : "You win!") : `${winners.map(name).join(" & ")} ${winners.length > 1 ? "share the win!" : "wins!"}`;
+  const most = ranking[0]?.books.length ?? 0;
   return (
-    <div data-testid="fish-result">
-      <Herald big>
-        <span>{result.winners.length === 1 ? `${nameOf(result.winners[0]!)} won!` : `${result.winners.map(nameOf).join(" & ")} share the win!`}</span>
-        <span className="fish-ranking">
-          {ranking.map((p) => (
-            <span key={`${p.seat}-${p.playerId}`}>
-              {nameOf(p.playerId)}: {p.books.length} {p.books.length === 1 ? "book" : "books"}
-              {p.left ? " (left)" : ""}
-            </span>
-          ))}
-        </span>
-      </Herald>
-    </div>
+    <GameOver
+      open={view.phase === "over" && !!result}
+      gameKey={view.game}
+      me={me}
+      testId="fish-result"
+      title={title}
+      subtitle={`All 13 books are down. ${most} ${most === 1 ? "book" : "books"} wins it.`}
+      columns={["Books"]}
+      rows={ranking.map((p) => ({
+        playerId: p.playerId,
+        name: name(p.playerId),
+        winner: winners.includes(p.playerId),
+        left: p.left,
+        cells: [p.books.length],
+        detail: p.books.length > 0 && <Books ranks={p.books} arriving={() => undefined} />,
+      }))}
+      actions={
+        start && (
+          <button className="btn primary" disabled={disabled} onClick={start}>
+            Play again
+          </button>
+        )
+      }
+    />
   );
 }
 
@@ -443,7 +466,7 @@ function useFishMotion(view: FishView, me: string) {
     let splash: { key: number; at: number } | null = null;
     let t = 0;
     const fly = (node: ReactNode, from: DOMRect | null, to: DOMRect | null, delay: number, card?: Card) => {
-      plans.push(from && to ? { node, from, to, delay, duration: FLIGHT_SECONDS } : null);
+      plans.push(from && to ? { node, from, to, delay, duration: FLIGHT_SECONDS, sound: "card" } : null);
       if (card && from && to) cards.set(card, delay + FLIGHT_SECONDS);
     };
 
@@ -466,6 +489,7 @@ function useFishMotion(view: FishView, me: string) {
           t += 0.35 + e.cards.length * 0.08;
         } else if (e.type === "ask") {
           splash = { key: view.logged, at: t };
+          play("splash", t);
           t += 0.3;
         } else if (e.type === "fish" || e.type === "draw") {
           // Your own catch you see; someone else's only when it was what they asked for.
@@ -476,6 +500,7 @@ function useFishMotion(view: FishView, me: string) {
           const to = seat(e.who) === undefined ? null : rectOf(`[data-seat="${seat(e.who)}"] .fish-book[data-rank="${e.rank}"]`);
           SUIT_ORDER.forEach((suit, i) => fly(<PlayingCard card={`${e.rank}${suit}`} size="xs" />, at(e.who), to, t + i * 0.06));
           if (to) books.set(`${e.who}:${e.rank}`, t + 0.18 + FLIGHT_SECONDS);
+          play("good", t + 0.18 + FLIGHT_SECONDS);
           t += 0.6;
         }
       }

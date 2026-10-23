@@ -16,5 +16,6 @@ export { Meter } from "./Meter";
 export { applyMode, type Mode, toggleMode, useMode } from "./mode";
 export { Panel } from "./Panel";
 export { ActivityBubble, Avatar, BotIcon, PlayerName, PlayersProvider, playerStyle, useActivity, useIsBot, usePlayerColors } from "./players";
+export { play, setSoundOn, SFX, type Sfx, soundOn, useSoundOn } from "./sound";
 export { Spinner } from "./Spinner";
 export { useMedia, useNarrow } from "./useMedia";

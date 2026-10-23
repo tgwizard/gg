@@ -22,7 +22,10 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
 .plate-name .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .plate-name .light { width: 7px; height: 7px; box-shadow: none; }
 .plate .meter { height: 5px; margin-top: 2px; }
-.plate.active { box-shadow: 0 0 0 3px var(--gold), 0 0 22px rgb(243 199 122 / 0.45), var(--shadow-md); }
+/* Whose move it is: a gold ring that breathes gently, so it's found at a glance. */
+.plate.active { box-shadow: 0 0 0 3px var(--gold), 0 0 22px rgb(243 199 122 / 0.45), var(--shadow-md); animation: plate-turn 2.4s ease-in-out infinite; }
+@keyframes plate-turn { 50% { box-shadow: 0 0 0 3px var(--gold), 0 0 34px 4px rgb(243 199 122 / 0.7), var(--shadow-md); } }
+@media (prefers-reduced-motion: reduce) { .plate.active { animation: none; } }
 .plate.selected { box-shadow: 0 0 0 3px var(--accent), var(--shadow-md); }
 .plate.dim { opacity: 0.6; }
 .plate.winner { --box-bg: #6b4a1e; --box-line: #4a3010; }
@@ -116,3 +119,80 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
   100% { transform: perspective(600px) rotateY(0) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) { .flip-in { animation: none; } }
+
+/* ---------- the end of a game ---------- */
+/* Over the game (whose root is position: relative), with the card kept in view as you scroll. */
+.game-over {
+  position: absolute;
+  inset: -8px;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 16px;
+  border-radius: var(--radius);
+  background: rgb(244 237 225 / 0.6);
+  backdrop-filter: blur(2px) saturate(0.8);
+}
+[data-mode="dark"] .game-over { background: rgb(27 23 19 / 0.6); }
+.game-over.live { animation: game-over-dim 500ms ease-out both; }
+.game-over-card {
+  position: sticky;
+  top: 84px;
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 22px 18px;
+  text-align: center;
+  box-shadow: var(--shadow-md), 0 24px 60px rgb(0 0 0 / 0.25);
+}
+.game-over.live .game-over-card { animation: game-over-in 520ms cubic-bezier(.25,1.4,.5,1) both; }
+.game-over-winners { display: flex; gap: 14px; justify-content: center; margin-top: 4px; }
+.game-over-winner { position: relative; display: inline-flex; flex-direction: column; align-items: center; }
+.game-over-winner .avatar { width: 58px; height: 58px; font-size: 26px; box-shadow: 0 0 0 4px var(--gold), 0 6px 18px rgb(243 199 122 / 0.5); }
+.game-over-crown { width: 34px; height: 22px; margin-bottom: -4px; fill: var(--gold); stroke: #9a6a20; stroke-width: 1; stroke-linejoin: round; filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.2)); }
+.game-over.live .game-over-crown { animation: crown-drop 600ms cubic-bezier(.3,1.6,.5,1) 250ms both; }
+.game-over-title { font-size: 2.2rem; line-height: 1.1; margin-top: 4px; }
+.game-over-sub { margin: 0 0 8px; color: var(--text-2); font-size: 14.5px; }
+.game-over-scores { width: 100%; border-collapse: collapse; font-size: 14px; margin: 6px 0 4px; }
+.game-over-scores th, .game-over-scores td { padding: 10px 10px; text-align: right; white-space: nowrap; }
+.game-over-scores thead th { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); }
+.game-over-scores .game-over-who { text-align: left; width: 100%; }
+.game-over-name { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; }
+.game-over-place { width: 24px; text-align: center !important; color: var(--text-muted); font-weight: 800; }
+.game-over-player { border-top: 1px solid var(--line); }
+.game-over-player.winner { background: color-mix(in oklab, var(--gold) 18%, transparent); }
+.game-over-player.winner .game-over-place { color: var(--gold-text); font-size: 16px; }
+.game-over-player.has-detail .game-over-row td, .game-over-player.has-detail .game-over-row th { padding-bottom: 4px; }
+.game-over-total { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; }
+.game-over-player.winner .game-over-total { color: var(--gold-text); }
+.game-over-detail td { padding-top: 2px; padding-bottom: 14px; text-align: left; white-space: normal; font-size: 12.5px; color: var(--text-2); }
+.game-over.live .game-over-player { animation: row-in 420ms ease-out both; }
+.game-over-actions { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-top: 10px; }
+.game-over-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; }
+.game-over-bar .display { font-size: 1.2rem; }
+@keyframes game-over-dim { from { opacity: 0; } }
+@keyframes game-over-in { from { opacity: 0; translate: 0 24px; scale: 0.92; } }
+@keyframes crown-drop { from { opacity: 0; translate: 0 -24px; rotate: -20deg; } }
+@keyframes row-in { from { opacity: 0; translate: -12px 0; } }
+
+.confetti { position: fixed; inset: 0; z-index: 60; overflow: hidden; pointer-events: none; }
+.confetti i {
+  position: absolute;
+  top: -20px;
+  width: 7px;
+  height: 11px;
+  border-radius: 2px;
+  animation: confetti-fall linear both;
+}
+.confetti i.wide { width: 11px; height: 6px; }
+@keyframes confetti-fall {
+  0% { translate: 0 0; rotate: 0deg; opacity: 1; }
+  85% { opacity: 1; }
+  100% { translate: var(--drift) 105vh; rotate: var(--spin); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-over.live, .game-over.live .game-over-card, .game-over.live .game-over-crown, .game-over.live .game-over-player { animation: none; }
+}

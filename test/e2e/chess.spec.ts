@@ -65,7 +65,7 @@ test("Chess: sit, move by clicking and dragging, mate, then swap colors and resi
   await expect(a.locator(".chess-sq.check")).toHaveCount(1);
 
   // The next game swaps colors: Bob opens.
-  await b.getByTestId("chess-rematch").click();
+  await b.getByTestId("chess-result").getByRole("button", { name: /Play again/ }).click();
   await expect(b.getByTestId("chess-status")).toHaveText("Your move.");
   await expect(a.getByTestId("chess-status")).toContainText("White to move (Bob)");
   expect(await top(a)).toBe(false);

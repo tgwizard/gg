@@ -1,5 +1,6 @@
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
-import { playerStyle, usePlayerColors } from "../../../ui";
+import { play, playerStyle, usePlayerColors } from "../../../ui";
+import { useOnChange } from "../../kit/ui/Flights";
 import { Herald } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -21,6 +22,11 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
   const myTurn = view.status === "playing" && view.turn === mySeat;
   const winLine = new Set(view.result?.line ?? []);
   const fresh = useFreshMove(view.board, connected);
+  // The end of a round: a fanfare for the winner, a sigh for the other, a chime for a draw or anyone watching.
+  useOnChange(view.status === "over" && view.result ? view.round : null, () => {
+    const w = view.result!.winner;
+    play(mySeat === null || w === null ? "good" : w === mySeat ? "win" : "lose", 0.35);
+  });
   const nextIn = view.nextRoundAt ? Math.max(0, Math.ceil((view.nextRoundAt - serverNow) / 1000)) : null;
   const open = ([0, 1] as Mark[]).filter((m) => !view.seats[m]);
   const opponentOf = (m: Mark) => view.seats[(1 - m) as Mark];
@@ -150,7 +156,9 @@ function useFreshMove(board: (Mark | null)[], connected: boolean): number | null
     if (key === before.key) return;
     const changed = [...key].flatMap((c, i) => (c === before.key[i] ? [] : [i]));
     const one = changed.length === 1 && before.key[changed[0]!] === "-";
-    setFresh(one && before.connected && connected ? changed[0]! : null);
+    const live = one && before.connected && connected;
+    setFresh(live ? changed[0]! : null);
+    if (live) play("place");
   }, [key, connected]);
   return fresh;
 }

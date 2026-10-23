@@ -1,4 +1,4 @@
-.ttr { container-type: inline-size; }
+.ttr { container-type: inline-size; position: relative; }
 .ttr-grid { display: flex; flex-direction: column; gap: 14px; }
 /* Stacked (narrow): the side's parts join the column, with the players above the map. */
 .ttr-side { display: contents; }
@@ -51,8 +51,8 @@
   .ttr-side .ttr-players .activity-bubble::after { display: none; }
   .ttr-side .ttr-seat-open { width: 100%; height: 38px; }
   .ttr-board { grid-area: board; }
+  .ttr-result.game-over-bar { grid-area: result; }
   .ttr-side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-  .ttr-result { grid-area: result; }
   .ttr-grid > .table-footer { grid-area: footer; }
   .ttr-side .action-tray { flex-direction: column; align-items: stretch; padding: 12px; }
   .ttr-side .action-tray-main { min-width: 0; }
@@ -354,16 +354,9 @@
 .ttr-yours { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
 
 /* ---------- results ---------- */
-.ttr-result { display: flex; flex-direction: column; gap: 10px; }
-.ttr-scores { width: 100%; border-collapse: separate; border-spacing: 0; padding: 6px 12px; font-size: 14px; }
-.ttr-scores th, .ttr-scores td { padding: 6px 10px; text-align: right; }
-.ttr-scores th:first-child { text-align: left; }
-.ttr-scores thead th { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); }
-.ttr-scores tr.winner th { color: var(--gold-text); }
-.ttr-total { font-size: 18px; font-weight: 800; }
-.ttr-scores .tag { margin-left: 6px; }
-.ttr-score-tickets td { text-align: left; padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
-.ttr-score-tickets span { display: inline-block; margin-right: 14px; }
+.ttr-score-tickets { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.ttr-score-tickets .done { color: var(--good); }
+.ttr-score-tickets .missed { color: var(--danger); }
 .ttr-score-tickets .done { color: var(--good); }
 .ttr-score-tickets .missed { color: var(--danger); }
 
