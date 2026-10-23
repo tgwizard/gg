@@ -13,7 +13,7 @@ const SEED = 14;
 const length = (op: Extract<TtrOp, { type: "claim" }>) => routeById.get(op.route)!.length;
 
 /**
- * Plays like the Easy bot until it's down to 20 trains. Then it greedily draws three
+ * Plays like the built-in bot until it's down to 20 trains. Then it greedily draws three
  * more tickets and keeps them all, and spends its trains fast: the longest route that
  * leaves at least `keep`, otherwise cards from the deck.
  */
@@ -34,7 +34,7 @@ const rusher =
 /**
  * Three players well into a game (seeded, so it's the same map every time): your turn,
  * with 3 trains left and cards to claim a route with them, which starts the last round.
- * You played the Easy bot's game, then took on more tickets and rushed, so some of
+ * You played the built-in bot's game, then took on more tickets and rushed, so some of
  * yours aren't done.
  */
 function lastRound(players: string[], ctx: GameContext): TtrState {

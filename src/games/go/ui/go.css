@@ -1,0 +1,190 @@
+.go { container-type: inline-size; position: relative; display: flex; flex-direction: column; gap: 12px; }
+
+/* Stacked (narrow): opponent, board, you, then the moves and controls. */
+.go-layout { display: flex; flex-direction: column; gap: 10px; }
+.go-board-wrap { width: min(100%, max(300px, 100dvh - 230px)); margin: 0 auto; }
+
+/* Wide: the board as big as the screen allows, the players and the panel beside it, you at the bottom. */
+@container (min-width: 760px) {
+  .go-layout {
+    --board-size: clamp(300px, min(100cqi - 318px, 100dvh - 140px), 900px);
+    display: grid;
+    grid-template-columns: var(--board-size) minmax(260px, 300px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "board top" "board panel" "board bottom";
+    justify-content: center;
+    gap: 12px 18px;
+    height: var(--board-size);
+  }
+  .go-board-wrap { grid-area: board; width: 100%; height: 100%; }
+  .go-side.top { grid-area: top; }
+  .go-side.bottom { grid-area: bottom; }
+  .go-panel { grid-area: panel; }
+  .go-panel .go-moves { flex: 1; max-height: none; align-content: flex-start; overflow: hidden auto; }
+}
+
+/* ---------- the board ---------- */
+/* Pale wood, with room around the lines for the coordinates (left and bottom). */
+.go-board-wrap {
+  --go-frame: clamp(16px, 3cqi, 28px);
+  container-type: inline-size;
+  aspect-ratio: 1;
+  padding: calc(var(--go-frame) * 0.55) calc(var(--go-frame) * 0.55) var(--go-frame) var(--go-frame);
+  border-radius: 6px;
+  background: var(--go-wood);
+  border: 1px solid var(--wood-edge);
+  box-shadow: var(--table-shadow), inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+.go-board { position: relative; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; }
+.go-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.go-lines line { stroke: var(--go-line); stroke-width: 1px; shape-rendering: crispEdges; }
+.go-lines .edge line:first-child, .go-lines .edge line:last-child { stroke-width: 1.6px; }
+.go-star {
+  position: absolute;
+  width: max(5px, calc(28% / var(--n)));
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--go-line);
+  translate: -50% -50%;
+  pointer-events: none;
+}
+.go-grid { position: absolute; inset: 0; display: grid; grid-template: repeat(var(--n), 1fr) / repeat(var(--n), 1fr); }
+.go-pt { position: relative; }
+.go-pt.open, .go-pt.markable { cursor: pointer; }
+.go-coord {
+  position: absolute;
+  font-size: max(9px, calc(1.5cqi + 2px));
+  font-weight: 800;
+  line-height: 1;
+  color: var(--go-coord);
+  pointer-events: none;
+  translate: -50% -50%;
+}
+.go-coord.col { top: calc(100% + var(--go-frame) / 2); }
+.go-coord.row { left: calc(var(--go-frame) / -2); }
+
+/* Slate and shell stones, a hair smaller than the point spacing. */
+.go-stone {
+  position: absolute;
+  z-index: 2;
+  inset: 3.5%;
+  border-radius: 50%;
+  box-shadow: 0.06em 0.12em 0.2em rgb(0 0 0 / 0.38);
+  font-size: min(1.6cqi, 6px);
+}
+.go-stone.b { background: var(--stone-black); }
+.go-stone.w { background: var(--stone-white); box-shadow: 0.06em 0.12em 0.2em rgb(0 0 0 / 0.32), inset 0 0 0 0.5px rgb(0 0 0 / 0.12); }
+.go-stone.ghost { opacity: 0.5; box-shadow: none; pointer-events: none; }
+.go-stone.ghost.picked { opacity: 0.75; animation: go-picked 800ms ease-in-out infinite alternate; }
+@keyframes go-picked { from { scale: 0.9; } to { scale: 1.03; } }
+/* Marked dead while counting: faded, with the territory mark showing through. */
+.go-stone.dead { opacity: 0.42; box-shadow: none; }
+/* The last stone played. */
+.go-last { position: absolute; inset: 28%; border-radius: 50%; border: max(1.5px, 0.18em) solid var(--accent); }
+.go-stone.b .go-last { border-color: var(--gold); }
+/* Whose a point is, while counting: a small square of that color. */
+.go-terr { position: absolute; z-index: 3; inset: 34%; border-radius: 2px; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); pointer-events: none; }
+.go-terr.b { background: var(--go-territory-black); }
+.go-terr.w { background: var(--go-territory-white); }
+/* A ko: can't take back here yet. */
+.go-ko { position: absolute; inset: 30%; border: 2px solid var(--danger); border-radius: 2px; opacity: 0.8; }
+/* Captured stones lift off the board. */
+.go-leaving { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.go-leave-at { position: absolute; width: calc(100% / var(--n)); aspect-ratio: 1; }
+.go-stone.lifting { animation: go-lift 520ms ease-in both; }
+@keyframes go-lift {
+  from { opacity: 1; transform: none; }
+  30% { opacity: 1; transform: translateY(-12%) scale(1.12); }
+  to { opacity: 0; transform: translateY(-45%) scale(1.15); }
+}
+@media (prefers-reduced-motion: reduce) { .go-stone.ghost.picked, .go-stone.lifting { animation: none; } }
+
+/* Waiting for players: the board greys out under a prompt. */
+.go-prompt-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  background: rgb(244 237 225 / 0.55);
+  backdrop-filter: grayscale(0.85);
+}
+[data-mode="dark"] .go-prompt-backdrop { background: rgb(27 23 19 / 0.55); }
+.go-prompt { width: min(340px, 88%); padding: 20px 22px 22px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.go-prompt h3 { font-size: 1.5rem; }
+.go-prompt p { font-size: 14px; }
+.go-prompt .btn { margin-top: 8px; }
+
+/* ---------- the players ---------- */
+.go-mini { display: inline-block; width: 12px; height: 12px; flex-shrink: 0; border-radius: 50%; vertical-align: -1px; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
+.go-mini.b { background: var(--stone-black); }
+[data-mode="dark"] .go-mini.b { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.4); }
+.go-mini.w { background: var(--stone-white); }
+.go-side { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
+.go-side .plate { flex: 1; width: auto; min-width: 0; padding: 8px 12px; }
+.go-side .plate-name { justify-content: flex-start; }
+.go-side .plate-name .name { flex: 0 1 auto; }
+.go-side .plate .activity-bubble {
+  position: static;
+  translate: none;
+  align-self: flex-start;
+  padding: 2px 9px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+.go-side .plate .activity-bubble::after { display: none; }
+.go-plate-line { flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2px 8px; }
+.go-count { display: inline-flex; align-items: baseline; gap: 6px; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.go-count .go-mini { width: 14px; height: 14px; align-self: center; }
+.go-count-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; }
+.go-wins { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+.go-open-seat { flex: 1; display: grid; place-items: center; min-height: 52px; border: 2px dashed var(--line-strong); border-radius: var(--radius); }
+
+/* ---------- info, moves, status and controls ---------- */
+.go-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
+.go-info { display: flex; gap: 12px; padding: 10px 14px 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); }
+.go-info span:last-child { margin-left: auto; }
+.go-scorebar { display: flex; height: 30px; margin: 8px 12px 4px; border-radius: var(--pill); overflow: hidden; box-shadow: 0 0 0 1px var(--line-strong); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
+.go-scorebar > div { display: flex; align-items: center; min-width: 30px; padding: 0 10px; white-space: nowrap; transition: width 450ms cubic-bezier(.3,.7,.4,1); }
+.go-scorebar small { font-size: 10px; font-weight: 700; opacity: 0.7; }
+.go-scorebar-b { background: var(--stone-black); color: #f3ead9; }
+.go-scorebar-w { flex: 1; justify-content: flex-end; background: var(--stone-white); color: #2b2420; }
+@media (prefers-reduced-motion: reduce) { .go-scorebar > div { transition: none; } }
+.go-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 12px;
+  max-height: 96px;
+  overflow: auto;
+  mask-image: linear-gradient(transparent, #000 10px);
+  list-style: none;
+  font-size: 13px;
+  scrollbar-width: thin;
+}
+.go-moves li { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px 1px 4px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
+.go-moves li .go-mini { width: 10px; height: 10px; }
+.go-moves li.pass { color: var(--text-2); font-weight: 600; font-style: italic; }
+.go-moves li.last { background: var(--gold); color: #3a2e24; }
+.go-move-num { min-width: 1.4em; color: var(--text-2); font-size: 10.5px; font-weight: 700; text-align: right; }
+.go-moves li.last .go-move-num { color: #6a5a4a; }
+.go-moves-empty { padding: 2px 2px !important; font-weight: 400 !important; }
+.go-last-line { padding: 10px 14px 0; border-top: 1px solid var(--line); font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
+.go-last-line + .go-status { border-top: none; padding-top: 4px; }
+.go-tag { display: inline-block; padding: 0 8px; border-radius: var(--pill); font-size: 12px; font-weight: 800; color: #3a2e24; background: var(--gold); }
+.go-status { padding: 10px 14px; border-top: 1px solid var(--line); font-weight: 700; font-size: 14px; }
+.go-status.turn, .go-status.won { color: var(--gold-text); }
+.go-status.lost { color: var(--danger); }
+.go-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.go-counting { flex-direction: column; align-items: stretch; }
+.go-hint { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.go-tnum { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* ---------- setup ---------- */
+.go-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.go-setup-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }

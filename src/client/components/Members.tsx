@@ -59,7 +59,7 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
       <div className="members-foot">
         <AddBot roomId={roomId} members={snapshot.members} disabled={!connected || bots.length >= MAX_BOTS_PER_PLAYER} />
         <span className="muted small">
-          {bots.length >= MAX_BOTS_PER_PLAYER ? `Up to ${MAX_BOTS_PER_PLAYER} bots each.` : "Easy, or AI with your own key. Plays from this tab."}
+          {bots.length >= MAX_BOTS_PER_PLAYER ? `Up to ${MAX_BOTS_PER_PLAYER} bots each.` : "Built-in, or AI with your own key. Plays from this tab."}
         </span>
       </div>
     </Panel>
@@ -69,7 +69,7 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
 /** "AI bot (muse-spark-1.3, low effort, Meta), playing from Adam's browser." */
 function botSummary(m: Member, owner: string): string {
   const where = owner === "you" ? "playing from this browser" : `playing from ${owner}'s browser`;
-  if (m.bot?.level !== "ai") return `Easy bot, no AI, ${where}.`;
+  if (m.bot?.level !== "ai") return `Built-in bot, no AI, ${where}.`;
   const how = [m.bot.model, m.bot.effort && `${m.bot.effort} effort`, m.bot.provider].filter(Boolean).join(", ");
   return `AI bot${how ? ` (${how})` : ""}, ${where}.`;
 }
@@ -95,7 +95,7 @@ function AboutBot({ member, owner, you }: { member: Member; owner: string; you: 
                 <strong className="name" style={playerStyle(member.color)}>
                   {member.name}
                 </strong>
-                <span className="muted small">{ai ? "AI bot" : "Easy bot · no AI"}</span>
+                <span className="muted small">{ai ? "AI bot" : "Built-in bot · no AI"}</span>
               </div>
             </div>
             {ai && (

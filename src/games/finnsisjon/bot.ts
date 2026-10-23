@@ -1,5 +1,5 @@
 /**
- * The Easy Finns i sjön bot. It asks for the rank it holds most of, and half the
+ * The built-in Finns i sjön bot. It asks for the rank it holds most of, and half the
  * time remembers who just asked for a rank it has (they must be holding some).
  */
 import { rankOf } from "../kit/cards";

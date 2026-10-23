@@ -1,6 +1,6 @@
 /**
  * /try: games in a set-up position (the move before the end, the end itself), with
- * Easy bots in the other seats, for trying a game (or checking its end screens)
+ * built-in bots in the other seats, for trying a game (or checking its end screens)
  * without playing it through. /try/<game>/<scenario> makes a practice room, adds the
  * bots, has the room set the game up, and takes you there. Loaded on demand, since
  * it brings every game's rules. See "Practice rooms" in docs/ARCHITECTURE.md.
@@ -39,7 +39,7 @@ function TryIndex() {
           ← gg
         </a>
         <h1 className="display">Try a game</h1>
-        <p>Jump into a game at an interesting moment, with Easy bots in the other seats. Each one opens a new practice room.</p>
+        <p>Jump into a game at an interesting moment, with built-in bots in the other seats. Each one opens a new practice room.</p>
         <ModeToggle />
       </header>
       <main className="guide-main">

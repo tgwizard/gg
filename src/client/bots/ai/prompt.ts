@@ -114,12 +114,46 @@ export function updateText(u: Update): string {
     const people = [...u.names].map(([id, name]) => `${id} = ${id === u.you ? `${name} (you)` : name}`).join(", ");
     parts.push(`Your view of the game (player ids: ${people}):\n${JSON.stringify(u.view)}`);
   }
-  if (u.moves.length) parts.push(`It's your move. Legal moves:\n${u.moves.map((m) => JSON.stringify(m)).join("\n")}`);
+  if (u.moves.length) parts.push(`It's your move. Legal moves:\n${describeMoves(u.moves).join("\n")}`);
   else if (u.inGame !== false) parts.push("It isn't your move right now: you can say something or pass.");
   else parts.push("You can say something or pass.");
   if (u.reminder) parts.push(u.reminder);
   return parts.join("\n\n");
 }
+
+/**
+ * The legal moves, one per line, except that many moves differing only in one field
+ * (a point on a Go board) are written once with the choices listed:
+ * `{"type":"play","point":…} with point one of: A1 B1 C1`.
+ */
+export function describeMoves(moves: unknown[]): string[] {
+  const groups = new Map<string, { field: string; values: unknown[] }>();
+  for (const m of moves) {
+    const fields = m && typeof m === "object" ? Object.keys(m).filter((k) => k !== "type") : [];
+    const value = fields.length === 1 ? (m as Record<string, unknown>)[fields[0]!] : undefined;
+    if (typeof value !== "string" && typeof value !== "number") continue;
+    const key = JSON.stringify({ ...(m as object), [fields[0]!]: "…" });
+    const group = groups.get(key) ?? { field: fields[0]!, values: [] };
+    group.values.push(value);
+    groups.set(key, group);
+  }
+  const lines: string[] = [];
+  const done = new Set<string>();
+  for (const m of moves) {
+    const fields = m && typeof m === "object" ? Object.keys(m).filter((k) => k !== "type") : [];
+    const key = fields.length === 1 ? JSON.stringify({ ...(m as object), [fields[0]!]: "…" }) : "";
+    const group = groups.get(key);
+    if (!group || group.values.length < GROUP_FROM) lines.push(JSON.stringify(m));
+    else if (!done.has(key)) {
+      done.add(key);
+      lines.push(`${key} with ${group.field} one of: ${group.values.join(" ")}`);
+    }
+  }
+  return lines;
+}
+
+/** Fewer moves of a kind than this are listed one by one. */
+const GROUP_FROM = 10;
 
 /** The game moves among the legal ops (table moves are handled for the bot). */
 export function gameMoves(legalOps: unknown[]): unknown[] {

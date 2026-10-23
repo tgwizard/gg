@@ -97,6 +97,14 @@
   --othello-coord: rgb(255 244 228 / 0.78);
   --disc-black: radial-gradient(circle at 35% 30%, #57504a, #26211d 55%, #151210);
   --disc-white: radial-gradient(circle at 35% 30%, #fffdf7, #f1e8d6 55%, #d8cab0);
+  /* a Go board: pale kaya ruled in ink, slate and shell stones */
+  --go-wood: linear-gradient(160deg, #e9c27f, #ddb06a 45%, #d3a35e);
+  --go-line: rgb(52 33 14 / 0.78);
+  --go-coord: #6e4a22;
+  --stone-black: radial-gradient(circle at 36% 30%, #6a645e, #24201d 48%, #0e0c0b);
+  --stone-white: radial-gradient(circle at 36% 30%, #ffffff, #f4efe4 50%, #cfc5b1);
+  --go-territory-black: #1d1916;
+  --go-territory-white: #fbf7ee;
 
   /* type & shape */
   --font-body: "Nunito Variable", system-ui, sans-serif;
@@ -172,6 +180,9 @@
   --othello-felt: #2f6545;
   --othello-line: #173826;
   --othello-coord: rgb(255 244 228 / 0.55);
+  --go-wood: linear-gradient(160deg, #c79a5c, #b98b4f 45%, #ad7f45);
+  --go-line: rgb(36 22 8 / 0.82);
+  --go-coord: #e4c48f;
 
   color-scheme: dark;
 }

@@ -6,7 +6,7 @@ Live at <https://gg.tgwizard.com>.
 Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSockets,
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
 Games so far: Coast to Coast (a fan-made take on Ticket to Ride), no-limit Texas Hold'em,
-chess, Othello, Battleship, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
+chess, Othello, Go, Battleship, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
 
 - **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.
 - **Names** (and colors) are set once per browser and used in every room. Change
@@ -18,7 +18,7 @@ chess, Othello, Battleship, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
   played into a game you haven't seen.
 - **Private hands**: each player only ever receives their own view of the game.
 - **Bots**: add one from the members panel and it takes a free seat in any game.
-  Easy bots need no AI. AI bots use your own Anthropic, OpenAI or Meta (Muse) key
+  Built-in bots need no AI. AI bots use your own Anthropic, OpenAI or Meta (Muse) key
   (paste it at `/settings`), with a personality of your choosing, and chat as they
   play. Bots play from your tab while you have the room open, and keys never leave
   your browser.
@@ -42,7 +42,7 @@ Other scripts: `pnpm test:unit`, `pnpm test:integration`, `pnpm test:e2e`,
 Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
 
 1. `src/games/<id>/index.ts`: a `GameDefinition` (config + op schemas, `create`,
-   `apply`, `view`, `players`, `waitingOn`, `legalOps`, an Easy `bot`, optional
+   `apply`, `view`, `players`, `waitingOn`, `legalOps`, a built-in `bot`, optional
    timers and invariants). Use `src/games/kit` for seats, table moves (`lobby.ts`)
    and timers. Register it in `src/games/registry.ts`.
 2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`, and `icon`

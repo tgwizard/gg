@@ -5,7 +5,7 @@ import type { OthelloState } from "./engine";
 import { othello as game } from "./index";
 import { CORNERS, count, legalMoves } from "./rules";
 
-/** A first game with you as Black (seat 0), played by Easy bots on both sides until `done`, from the first seed that gets there. */
+/** A first game with you as Black (seat 0), played by built-in bots on both sides until `done`, from the first seed that gets there. */
 function reach(players: string[], ctx: GameContext, done: (state: OthelloState) => boolean): OthelloState {
   for (let seed = 1; seed <= 200; seed++) {
     const c = scenarioContext(ctx, seed);

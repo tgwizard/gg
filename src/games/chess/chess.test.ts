@@ -152,7 +152,7 @@ describe("chess", () => {
     expect(view).not.toHaveProperty("positions");
   });
 
-  it("lets Easy bots play whole games, and the bot takes a mate in one", () => {
+  it("lets built-in bots play whole games, and the bot takes a mate in one", () => {
     let decisive = 0;
     for (let seed = 1; seed <= 6; seed++) {
       const rand = seededRandomInt(seed);

@@ -1,5 +1,5 @@
 /**
- * The Easy Battleship bot: lets the server place its fleet at random, then fires at
+ * The built-in Battleship bot: lets the server place its fleet at random, then fires at
  * random, following up on a hit about half the time.
  */
 import type { GameBot } from "../types";

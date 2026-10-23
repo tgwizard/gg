@@ -5,6 +5,8 @@ import { chess } from "./chess";
 import { scenarios as chessScenarios } from "./chess/scenarios";
 import { finnsISjon } from "./finnsisjon";
 import { scenarios as finnsISjonScenarios } from "./finnsisjon/scenarios";
+import { go } from "./go";
+import { scenarios as goScenarios } from "./go/scenarios";
 import type { Scenario } from "./kit/scenario";
 import { othello } from "./othello";
 import { scenarios as othelloScenarios } from "./othello/scenarios";
@@ -20,6 +22,7 @@ export const scenarios: Record<string, Scenario[]> = {
   [poker.meta.id]: pokerScenarios,
   [chess.meta.id]: chessScenarios,
   [othello.meta.id]: othelloScenarios,
+  [go.meta.id]: goScenarios,
   [battleship.meta.id]: battleshipScenarios,
   [finnsISjon.meta.id]: finnsISjonScenarios,
   [ticTacToe.meta.id]: ticTacToeScenarios,

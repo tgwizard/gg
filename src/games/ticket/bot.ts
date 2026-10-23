@@ -1,5 +1,5 @@
 /**
- * The Easy Coast to Coast bot: keeps the tickets that are cheapest to finish, claims
+ * The built-in Coast to Coast bot: keeps the tickets that are cheapest to finish, claims
  * routes on the cheapest path to its unfinished tickets, and otherwise draws cards,
  * preferring colors those routes need. With every ticket done it claims long routes
  * for points (and sometimes draws more tickets).

@@ -124,7 +124,7 @@ test("an AI bot plays tic-tac-toe and chats", async ({ browser }) => {
   expect(requests.at(-1)).toMatchObject({ model: "muse-spark-1.2", reasoning: { effort: "medium" } });
 });
 
-test("when the model fails, the Easy bot moves for it, after a moment, and the owner can see why", async ({ browser }) => {
+test("when the model fails, the built-in bot moves for it, after a moment, and the owner can see why", async ({ browser }) => {
   const { page, context } = await newPlayer(browser);
   await context.addInitScript(() => {
     if (localStorage.getItem("gg.llm.connections")) return;
@@ -158,7 +158,7 @@ test("when the model fails, the Easy bot moves for it, after a moment, and the o
   await expect(page.getByTestId("member").filter({ hasText: "Glitch" })).toContainText("AI problem");
 
   await page.getByRole("button", { name: "Edit Glitch" }).click();
-  await expect(page.getByTestId("bot-stand-ins")).toContainText("The Easy bot made 1 move for it");
+  await expect(page.getByTestId("bot-stand-ins")).toContainText("The built-in bot made 1 move for it");
   await expect(page.getByTestId("bot-stand-ins")).toContainText("Model is overloaded");
 
   // It comes back, still an AI bot, after a refresh.
@@ -198,7 +198,7 @@ test("other people see that a bot is an AI bot, which model it runs, and whose b
   await expect(about).toContainText("Meta");
   await expect(about).toContainText("Alice added it, and it plays from Alice's browser, with Alice's own AI key.");
 
-  // Switching it to Easy shows up for everyone.
+  // Switching it to built-in shows up for everyone.
   await alice.page.getByRole("button", { name: "Edit Luna" }).click();
   const edit = alice.page.getByRole("dialog", { name: "Edit Luna" });
   await edit.getByLabel("Plays").selectOption("easy");

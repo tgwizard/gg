@@ -1,5 +1,5 @@
 /**
- * The Easy Othello bot: it looks one move ahead. It weighs squares the usual way
+ * The built-in Othello bot: it looks one move ahead. It weighs squares the usual way
  * (corners are gold, the squares beside an empty corner give it away, edges are good)
  * and likes leaving the other side few moves, with enough randomness that it can be
  * beaten.

@@ -1,5 +1,5 @@
 /**
- * The Easy poker bot: a loose, passive player with a rough sense of hand strength.
+ * The built-in poker bot: a loose, passive player with a rough sense of hand strength.
  * It calls a lot, folds weak hands to big bets and now and then raises a good one.
  */
 import { type Card, rankOf, rankValue, suitOf } from "../kit/cards";

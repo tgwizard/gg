@@ -9,25 +9,25 @@
  * it (scenarios.test.ts checks every one).
  */
 import { isLobbyOp } from "./lobby";
-import type { GameContext, GameDefinition } from "../types";
+import type { BotOptions, GameContext, GameDefinition } from "../types";
 import { seededRandomInt } from "./testing";
 
 export interface Scenario<State = unknown> {
   id: string;
   name: string;
   description: string;
-  /** Easy bots to add; they take players[1..]. */
+  /** Built-in bots to add; they take players[1..]. */
   bots: number;
   /** `players[0]` is you, the rest are the bots' member ids, in the order added. */
   build(players: string[], ctx: GameContext): State;
 }
 
 /** A policy for one player: an op from their view and legal game moves, or null if stuck. */
-export type Policy<View, Op> = (view: View, ops: Op[], rand: (maxExclusive: number) => number) => Op | null;
+export type Policy<View, Op> = (view: View, ops: Op[], rand: (maxExclusive: number) => number, opts?: BotOptions) => Op | null;
 
 /**
  * Play moves until `done(state)`: whoever the game waits on moves, by their `policies`
- * entry or else the game's Easy bot. Seeded, so a scenario comes out the same every
+ * entry or else the game's built-in bot. Seeded, so a scenario comes out the same every
  * time. Throws if the game stalls or takes more than `maxSteps`.
  */
 export function playUntil<State, Op, View>(
@@ -44,7 +44,8 @@ export function playUntil<State, Op, View>(
     if (!actor) throw new Error("the game isn't waiting on anyone");
     const ops = def.legalOps(state, actor).filter((op) => !isLobbyOp(op));
     const policy = opts.policies?.[actor] ?? def.bot.easy;
-    const op = policy(def.view(state, actor), ops, rand);
+    // Quick: a scenario is built while you wait.
+    const op = policy(def.view(state, actor), ops, rand, { quick: true });
     if (op == null) throw new Error(`${actor} has no move`);
     def.apply(state, actor, op, ctx);
   }

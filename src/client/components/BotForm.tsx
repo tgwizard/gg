@@ -6,7 +6,7 @@ import { ProfileForm } from "./Profile";
 import { SettingsLink } from "./SettingsLink";
 
 /**
- * A bot's setup: name and color, and how it plays: Easy (no AI), or with one of your
+ * A bot's setup: name and color, and how it plays: built-in (no AI), or with one of your
  * AI connections and an optional personality. Editing also shows what it has used.
  */
 export function BotForm(props: {
@@ -38,7 +38,7 @@ export function BotForm(props: {
       color={props.initial.color}
       whose="Bot"
       bot
-      caption={connection ? `AI bot · ${model ?? "…"} · ${effort} effort` : "Easy bot · no AI"}
+      caption={connection ? `AI bot · ${model ?? "…"} · ${effort} effort` : "Built-in bot · no AI"}
       submitLabel={props.submitLabel}
       taken={props.taken}
       onSubmit={(name, color) =>
@@ -55,7 +55,7 @@ export function BotForm(props: {
             setPicked(undefined);
           }}
         >
-          <option value="easy">Easy, without AI</option>
+          <option value="easy">Built-in, without AI</option>
           {connections.map((c) => (
             <option key={c.id} value={c.id}>
               AI · {c.label}
@@ -119,7 +119,7 @@ export function BotForm(props: {
       )}
       {props.bot?.standIns && connection && (
         <p className="muted small bot-form-note" data-testid="bot-stand-ins">
-          The Easy bot made {props.bot.standIns.count} {props.bot.standIns.count === 1 ? "move" : "moves"} for it; the last at{" "}
+          The built-in bot made {props.bot.standIns.count} {props.bot.standIns.count === 1 ? "move" : "moves"} for it; the last at{" "}
           {new Date(props.bot.standIns.lastAt).toTimeString().slice(0, 5)}, because {props.bot.standIns.lastWhy}.
         </p>
       )}

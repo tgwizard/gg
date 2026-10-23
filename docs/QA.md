@@ -12,7 +12,7 @@ pnpm test:all           # typecheck + unit + integration + e2e
 
 | layer | where | what it covers |
 | --- | --- | --- |
-| unit | `src/**/*.test.ts` | game kit, hand evaluator, poker and tic-tac-toe rules, redaction, and the conformance fuzzer every game must pass (including a table of its Easy bots) |
+| unit | `src/**/*.test.ts` | game kit, hand evaluator, poker and tic-tac-toe rules, redaction, and the conformance fuzzer every game must pass (including a table of its built-in bots) |
 | integration | `test/integration` | the real Worker + Room DO in workerd over WebSockets: joining, identity, chat catch-up, idempotency, stale ops, secret redaction on the wire, eviction, alarms, rate limits, room expiry |
 | e2e | `test/e2e/*.spec.ts` | real browsers, multiple players: rooms, chat, refresh, offline, dropped and half-open sockets, a full poker hand, turn timer, how limits look, playing a bot |
 
@@ -26,11 +26,12 @@ node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battlesh
 node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Coast to Coast, light + dark
 node test/e2e/screens-chess.ts http://localhost:5311 ./screens        # Chess, light + dark
 node test/e2e/screens-othello.ts http://localhost:5311 ./screens      # Othello (from /try), light + dark
+node test/e2e/screens-go.ts http://localhost:5311 ./screens           # Go (from /try), light + dark
 ```
 
 End screens and late-game situations, without playing a whole game (local dev server
 only; not on gg.tgwizard.com): `/try` (linked from the home page footer in dev) sets up a practice room in a chosen position with
-Easy bots, e.g. `http://localhost:5311/try/chess/checkmate`. `pnpm scenario` lists
+built-in bots, e.g. `http://localhost:5311/try/chess/checkmate`. `pnpm scenario` lists
 every link (`pnpm scenario coast game-over --open` opens one; `--base` for another
 server). Each opens a new room, so it's also a quick way to get a fresh table.
 
@@ -132,7 +133,7 @@ these through the browser and reports back.
 - [ ] *Resign* asks first. The result shows in the panel and in chat; *Play again* swaps colors. Captured pieces and the material lead show under each name.
 - [ ] Leaving before your first move calls the game off; after, it's a loss.
 - [ ] *Copy PGN* pastes into an analysis board (e.g. lichess.org/paste).
-- [ ] Against an Easy bot: it answers within a couple of seconds and rarely leaves a piece to be taken for free.
+- [ ] Against a built-in bot: it answers within a couple of seconds and rarely leaves a piece to be taken for free.
 - [ ] Laptop (1440×900 and 1280×800): board, players, clocks and moves fit without scrolling. Phone: opponent above the board, you below, moves in a strip.
 
 ### Othello
@@ -143,8 +144,21 @@ these through the browser and reports back.
 - [ ] Passing (`/try/othello/pass`): the panel says "Bob has no move: your turn again.", the move list shows the pass, and it stays your turn.
 - [ ] The last square (`/try/othello/last-move`): filling it ends the game; the end screen shows the discs. *Play again* swaps colors.
 - [ ] Clocks: only the side to move runs, the increment is added per move; running out loses. *Resign* asks first. Leaving before your first move calls the game off; after, it's a loss.
-- [ ] Against an Easy bot: it answers within a couple of seconds and grabs corners when it can.
+- [ ] Against a built-in bot: it answers within a couple of seconds and grabs corners when it can.
 - [ ] Laptop (1440×900): board, players, clocks and panel fit without scrolling. Phone: opponent above the board, you below. Both modes: discs, hints and coordinates readable.
+
+### Go
+- [ ] Setup: 9×9, 13×13 and 19×19 each offer their own clock presets; *No clock* hides the clocks.
+- [ ] Nobody seated: a "Take a seat" prompt over a greyed board; the second player sitting starts the game; seat 0 has Black, who moves first.
+- [ ] On your move, pointing at a point shows your stone there (not on taken points, suicide or a ko). On a phone, 13×13 and 19×19 need a second tap on the same point.
+- [ ] A move: the stone clacks down; captured stones lift off; the last stone has a ring. The panel says it ("Bob played D4 and captured 2 stones."), and each plate counts the stones taken.
+- [ ] Ko (`/try/go/ko`): the point you can't retake has a red square; clicking it does nothing. Play elsewhere, and after White answers it can be taken.
+- [ ] Passing: "Bob passed. Pass too and play stops for counting."; the button says *Pass & count*.
+- [ ] Counting (`/try/go/counting`): dead stones fade, territory shows as small squares, the score bar and the plates show points (White with komi). Clicking a group marks it dead or alive and withdraws both acceptances; *Accept score* from both ends it; *Resume play* goes back to playing with the other side to move. A countdown says when it's scored as marked.
+- [ ] The end (`/try/go/game-over`): the end screen with points; under it, the board still shows the territory. *Play again* swaps colors.
+- [ ] Clocks: main time, then "byo-yomi · 3 left" counting down a period; moving in time keeps the period, letting it run out uses one up; out of periods loses. *Resign* asks first. Leaving before your first move calls the game off.
+- [ ] Against a built-in bot on 9×9: it answers in under a second, captures stones left in atari, and passes when the game is decided. In counting it fixes a marking that's wrong against it and accepts.
+- [ ] Laptop (1440×900): board, players, clocks and panel fit without scrolling. Phone: 19×19 (`/try/go/big-board`) is playable with two taps. Both modes: stones, lines, coordinates and territory readable.
 
 ### Coast to Coast
 - [ ] Two to five sit down; *Start* deals 4 cards and offers 3 tickets to each. Hovering a ticket points out its cities on the map; *Keep* needs at least 2. Others only see "choosing tickets".
@@ -162,7 +176,7 @@ these through the browser and reports back.
 ### Turns, sound and the end of a game
 - [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
 - [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
-- [ ] End screens (Coast to Coast, chess, Othello, Battleship, Finns i sjön): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
+- [ ] End screens (Coast to Coast, chess, Othello, Go, Battleship, Finns i sjön): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
 
 ### Bots
 - [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.
@@ -178,7 +192,7 @@ these through the browser and reports back.
 - [ ] Say hello before any game: it answers in character. Start a game: it sits, plays its moves within a few seconds, and chats now and then (not after every move).
 - [ ] While its model works, a bubble over its nameplate says what it's doing, and dots show on its avatar in the members list (the name stays readable).
 - [ ] Edit it: tokens used so far; change model or effort and it uses them from its next move.
-- [ ] Remove the key in settings (or use a bad one): the bot shows *AI problem* and the Easy bot plays its moves, so the game never waits.
+- [ ] Remove the key in settings (or use a bad one): the bot shows *AI problem* and the built-in bot plays its moves, so the game never waits.
 - [ ] *?* in a game's header shows How to play.
 
 ### End screens (via `/try`)

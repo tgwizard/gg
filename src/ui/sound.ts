@@ -20,6 +20,8 @@ export type Sfx =
   | "chip"
   /** A piece set down on a board. */
   | "place"
+  /** A Go stone clacked down on wood. */
+  | "stone"
   /** A piece taking another. */
   | "capture"
   /** Check, or something pointed at you. */
@@ -39,7 +41,7 @@ export type Sfx =
   | "win"
   | "lose";
 
-export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "capture", "check", "splash", "hit", "sink", "knock", "claim", "good", "win", "lose"];
+export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "capture", "check", "splash", "hit", "sink", "knock", "claim", "good", "win", "lose"];
 
 const KEY = "gg.sound";
 const VOLUME = 0.18;
@@ -168,6 +170,11 @@ const SOUNDS: Record<Sfx, (a: AudioContext, t: number) => void> = {
   },
   place(a, t) {
     tone(a, t, vary(190), 0.08, { to: 130, gain: 0.32, attack: 0.003 });
+  },
+  stone(a, t) {
+    // A short hard click over a little body of wood.
+    tone(a, t, vary(2400, 0.06), 0.025, { gain: 0.07, attack: 0.001 });
+    tone(a, t, vary(330), 0.07, { to: 210, gain: 0.26, attack: 0.002 });
   },
   capture(a, t) {
     tone(a, t, vary(200), 0.09, { to: 120, gain: 0.34, attack: 0.003 });

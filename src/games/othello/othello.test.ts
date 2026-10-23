@@ -109,7 +109,7 @@ describe("othello", () => {
     expect(game.legalOps(state, "carol")).not.toContainEqual({ type: "rematch" });
   });
 
-  it("lets Easy bots play whole games, and the bot takes a corner", () => {
+  it("lets built-in bots play whole games, and the bot takes a corner", () => {
     const winners = new Set<string>();
     for (let seed = 1; seed <= 8; seed++) {
       const rand = seededRandomInt(seed);

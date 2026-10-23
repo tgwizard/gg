@@ -102,11 +102,20 @@ export interface GameDefinition<State = unknown, Op = unknown, View = unknown, C
 /** How a bot plays a game. Bots submit ops through the same `apply` path as humans. */
 export interface GameBot<View, Op> {
   /**
-   * The Easy bot, which needs no AI: pick one of `ops` (the legal game moves right
+   * The built-in bot, which needs no AI: pick one of `ops` (the legal game moves right
    * now, table moves left out) or null to wait. It decides from `view` alone, like a
    * person at the table would. Starting games is left to people.
+   *
+   * It runs in the browser, on the page, so it should decide within a few hundred ms.
+   * A bot that searches cuts its search short when `quick` is set (tests and set-up
+   * positions, which play thousands of moves).
    */
-  easy(view: View, ops: Op[], rand: (maxExclusive: number) => number): Op | null;
+  easy(view: View, ops: Op[], rand: (maxExclusive: number) => number, opts?: BotOptions): Op | null;
+}
+
+export interface BotOptions {
+  /** Decide fast rather than well. */
+  quick?: boolean;
 }
 
 export type AnyGameDefinition = GameDefinition<any, any, any, any>;

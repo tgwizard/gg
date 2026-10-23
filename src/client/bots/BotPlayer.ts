@@ -126,7 +126,7 @@ export class BotPlayer {
     client.start();
   }
 
-  /** AI bots get a brain; switching a bot to Easy (or to another connection) replaces it. */
+  /** AI bots get a brain; switching a bot to built-in (or to another connection) replaces it. */
   private setBrain() {
     const { level, connectionId, name, persona, model, effort, removing } = this.bot;
     if (level !== "ai" || !connectionId || removing) {

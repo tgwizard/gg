@@ -215,3 +215,6 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
 .game-clock.running { color: var(--on-brand); background: var(--brand); border-color: var(--brand-line); box-shadow: 0 0 0 3px var(--gold); }
 .game-clock.running.low { background: var(--danger); border-color: var(--danger); color: #fffaf2; }
 .game-clock.flagged { color: var(--danger); }
+/* Byo-yomi: the periods to come, small under the time. */
+.game-clock.byo { place-items: center end; gap: 1px; line-height: 1.05; }
+.game-clock-periods { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; white-space: nowrap; }

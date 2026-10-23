@@ -101,7 +101,7 @@ describe("AiBrain", () => {
     t.brain.stop();
   });
 
-  it("treats chatting instead of moving as passing: one nudge, then the Easy bot moves", async () => {
+  it("treats chatting instead of moving as passing: one nudge, then the built-in bot moves", async () => {
     const requests: LLMRequest[] = [];
     generate = async (req) => {
       requests.push(req);

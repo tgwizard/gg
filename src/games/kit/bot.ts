@@ -3,7 +3,7 @@
  * in after being sat out, and stands up when it's leaving. Everything else (the
  * game's own moves) is up to the game's bot. Starting games is left to people.
  */
-import type { AnyGameDefinition } from "../types";
+import type { AnyGameDefinition, BotOptions } from "../types";
 import { isLobbyOp, type LobbyOp } from "./lobby";
 
 export type BotIntent = "play" | "leave";
@@ -15,6 +15,7 @@ export function botMove(
   legalOps: unknown[],
   rand: (maxExclusive: number) => number,
   intent: BotIntent = "play",
+  opts?: BotOptions,
 ): unknown {
   return (
     tableMove(legalOps, rand, intent) ??
@@ -24,6 +25,7 @@ export function botMove(
           view,
           legalOps.filter((op) => !isLobbyOp(op)),
           rand,
+          opts,
         ))
   );
 }

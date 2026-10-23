@@ -389,7 +389,7 @@ describe("views", () => {
   });
 });
 
-describe("Easy bots", () => {
+describe("built-in bots", () => {
   it("play whole games to the end, completing tickets", () => {
     for (let seed = 1; seed <= 6; seed++) {
       const n = 2 + (seed % 4);

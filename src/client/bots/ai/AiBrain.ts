@@ -12,7 +12,7 @@
  * One call at a time. The model answers with the `act` tool; moves go through the same
  * path as anyone's, and their result goes back to the model (which can retry a few
  * times). If the model can't be reached, takes too long, or keeps passing on its own
- * move, the Easy bot plays that move so the table never waits on it.
+ * move, the built-in bot plays that move so the table never waits on it.
  *
  * Every decision is bound to the game and version it was made from: a new game starts a
  * new conversation and cancels the call in flight, and an answer that arrives after the
@@ -29,13 +29,13 @@ export interface BrainHost {
   /** A move, made against the game (and version) the bot was looking at. */
   sendOp(op: unknown, at: GameAt): Promise<void>;
   say(text: string): void;
-  /** The Easy bot's move, when the model can't or won't make one. */
+  /** The built-in bot's move, when the model can't or won't make one. */
   easyMove(): unknown;
   usage(u: LLMUsage): void;
   error(message: string | undefined): void;
   /** What it's doing, for everyone to see (null when done). */
   activity(text: string | null): void;
-  /** The Easy bot is about to make a move for it, and why. */
+  /** The built-in bot is about to make a move for it, and why. */
   standIn(why: string): void;
   /** Dev logging (see devlog.ts). */
   log(event: string, data?: unknown): void;
@@ -72,7 +72,7 @@ const UNPROMPTED_SAY_MS = 30_000;
  */
 const MAX_CALLS_PER_MINUTE = 8;
 const MAX_MOVE_CALLS_PER_MINUTE = 30;
-/** How long the Easy bot "thinks" when it stands in, like it does on its own. */
+/** How long the built-in bot "thinks" when it stands in, like it does on its own. */
 const STAND_IN_MS: [number, number] = [600, 1500];
 const MAX_ATTEMPTS = 3;
 /** Model calls are given up on after this long; for its own move, before its clock runs out. */
@@ -355,7 +355,7 @@ export class AiBrain {
     if (moves.length && act.op === undefined) return this.passed(reasons, attempt, at!);
   }
 
-  /** It passed on its own move: one nudge, then the Easy bot moves for it (if that's still the move). */
+  /** It passed on its own move: one nudge, then the built-in bot moves for it (if that's still the move). */
   private passed(reasons: Set<Reason>, attempt: number, at: GameAt): Promise<void> | void {
     const game = this.host.snapshot().game;
     if (game?.instanceId !== at.instanceId || game.version !== at.version) return;
@@ -378,7 +378,7 @@ export class AiBrain {
   }
 
   /**
-   * The Easy bot makes this move instead, after its usual moment's thought, and the
+   * The built-in bot makes this move instead, after its usual moment's thought, and the
    * owner can see that it did and why.
    */
   private standIn(why: string) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { games } from "../../../games/registry";
 import type { ChatMessage } from "../../../shared/protocol";
-import { actTool, gameMoves, instructions, parseAct, updateText } from "./prompt";
+import { actTool, describeMoves, gameMoves, instructions, parseAct, updateText } from "./prompt";
 
 const fish = games.finnsisjon!;
 const ttt = games.tictactoe!;
@@ -79,6 +79,14 @@ describe("updateText", () => {
 
   it("says when it isn't your move", () => {
     expect(updateText({ chat: [], moves: [], names: new Map(), you: "b1" })).toBe("It isn't your move right now: you can say something or pass.");
+  });
+
+  it("writes many moves of one kind once, with the choices", () => {
+    const points = ["A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1", "J1", "A2", "B2"];
+    const moves = [...points.map((point) => ({ type: "play", point })), { type: "pass" }, { type: "mark", point: "C3" }];
+    expect(describeMoves(moves)).toEqual([`{"type":"play","point":"…"} with point one of: ${points.join(" ")}`, '{"type":"pass"}', '{"type":"mark","point":"C3"}']);
+    // A few stay one per line.
+    expect(describeMoves(moves.slice(-4))).toEqual(['{"type":"play","point":"A2"}', '{"type":"play","point":"B2"}', '{"type":"pass"}', '{"type":"mark","point":"C3"}']);
   });
 
   it("leaves table moves out of the legal moves", () => {

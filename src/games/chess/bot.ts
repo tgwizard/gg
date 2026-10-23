@@ -1,5 +1,5 @@
 /**
- * The Easy chess bot: it looks one move ahead. It takes a mate when it sees one, likes
+ * The built-in chess bot: it looks one move ahead. It takes a mate when it sees one, likes
  * winning material, checks and castling, and steers clear of moves that hand over
  * material or allow a mate in one. Beyond that it plays with some randomness, so it
  * blunders now and then and can be beaten. It takes a draw when it's well behind.

@@ -16,7 +16,7 @@ async function addBot(page: Page, rename?: string): Promise<string> {
   return name;
 }
 
-test("play tic-tac-toe against an Easy bot, then remove it", async ({ browser }) => {
+test("play tic-tac-toe against a built-in bot, then remove it", async ({ browser }) => {
   const alice = await newPlayer(browser);
   const page = alice.page;
   await createRoom(page, "Alice");

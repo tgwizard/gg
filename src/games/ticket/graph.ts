@@ -1,7 +1,7 @@
 /**
  * The map as a graph: which routes a player may still claim, whether their routes
  * join two cities, their longest continuous path, and the cheapest way to finish a
- * ticket. Shared by the engine (scoring) and the Easy bot (planning).
+ * ticket. Shared by the engine (scoring) and the built-in bot (planning).
  */
 import { ROUTES, type Route, routeById } from "./map";
 

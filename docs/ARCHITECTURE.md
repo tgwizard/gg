@@ -208,7 +208,8 @@ can once none of its players are online).
   gets a sound, and confetti if you won; "See the board" tucks it into a bar. Tic-tac-toe
   (short rounds that restart on their own) and Texas Hold'em (hands, no end) don't use it.
   `Clock` is a two-player game clock (chess, Othello) from a view's `{w|b ms, since,
-  running}`, counting down between server ticks.
+  running}`, counting down between server ticks; `ByoYomiClock` (Go) is the same for
+  main time followed by byo-yomi periods (`{b|w: {main, periods}, since, running, period}`).
 
 **Whose turn, and sound.** The game header (in the top bar) shows "Your turn" or
 "Bob's turn" for every game from the snapshot's `waitingOn`, chimes when it becomes
@@ -251,7 +252,7 @@ without playing it through, `/try` lists **scenarios**: a game set up at an
 interesting moment, mostly the move before the end and the end itself (mate in one,
 the last book, an all-in on the river, Coast to Coast's last round and final
 scores). Each game has a `scenarios.ts` (`kit/scenario.ts` has the type and a seeded
-`playUntil` that plays moves by policy or the Easy bot; `scenarios.ts` collects
+`playUntil` that plays moves by policy or the built-in bot; `scenarios.ts` collects
 them). A scenario's `build(players, ctx)` makes its state through the game's own
 `create` and `apply` (seating everyone with real ops, then playing or editing it
 into shape), with its own seeded randomness, so it's the same position every time;
@@ -262,7 +263,7 @@ then:
 1. creates a **practice room** (`POST /api/rooms {practice: true}`; the usual room
    limits apply). Practice is fixed when a room is created and shows as a small
    *Practice* tag by the room code;
-2. joins it (your saved name, or "You"), adds the Easy bots the scenario needs the
+2. joins it (your saved name, or "You"), adds the built-in bots the scenario needs the
    same way *Add a bot* does, and waits for them to join;
 3. builds the state with the real member ids and sends it to
    `POST /api/rooms/:code/scenario {secret, gameId, name, state}`;
@@ -377,8 +378,45 @@ game, calling the game off if you leave before moving, and Fischer clocks).
   taken back if refused). A new disc drops in and the trapped ones flip in 3D (two
   faces back to back), outward from it one step at a time, live moves only. Colors are
   tokens (`--othello-*`, `--disc-*`).
-- **The Easy bot** weighs squares the classic way (corners high, the squares next to
+- **The built-in bot** weighs squares the classic way (corners high, the squares next to
   an empty corner low), likes leaving few replies, and avoids opening a corner.
+
+### Go (`src/games/go`)
+
+Go for two on 9×9, 13×13 or 19×19, built like Othello (seating, colors swapping every
+game, calling the game off if you leave before moving), with byo-yomi clocks.
+- **The rules** (`rules.ts`) work on the board as a string of size² cells ("b", "w",
+  "."), points named the Go way (a column letter skipping I, the row from the
+  bottom: A1 is the bottom left). No suicide, and positional superko: no move may
+  bring back any earlier position. The state keeps every position as a short hash
+  (`positionKey`, two 32-bit hashes) rather than whole boards. Scoring is by area
+  (stones plus surrounded points, dead stones taken off), with 7.5 komi for White.
+  The view lists the points ko forbids (`ko`) for the board's marker.
+- **Counting** is a phase of its own. Two passes in a row stop play; the server
+  guesses the dead stones (`estimateDead`, random playouts from the final position),
+  and either player can mark a group dead or alive (which withdraws both
+  acceptances). When both accept, the game is scored as marked. Either can resume
+  play instead (the other side moves first). Counting has no clock but a deadline:
+  quiet for 3 minutes and it's scored as marked. A counted game keeps its marking
+  after it's over, so the board shows the territory under the end screen.
+- **Clocks** are byo-yomi: main time, then periods of a few seconds; a move made
+  within a period keeps it, letting one run out uses it up. One flag timer per turn,
+  at main time plus all periods; `spend` works out what's left when the move comes.
+- **The bot** (`montecarlo.ts`, `bot.ts`) is Monte Carlo: fast playouts on typed
+  arrays (random moves that never fill their own eyes and take stones left in atari
+  by the last move) score each candidate move, steered by UCB and RAVE (credit for a
+  point played anywhere later in a playout), within 5000 playouts or 350 ms on the
+  page. It skips edge moves with nothing near, passes when every open point is
+  settled one way (by playout ownership) or when the other side has passed and it's
+  ahead, and resigns hopeless games late on. While counting it corrects the marking
+  only where it's clearly wrong against it, then accepts; two bots can't fight over
+  a group. With `quick` (tests, set-up positions) it uses 40 playouts.
+- **The board** (`ui/Board.tsx`): an SVG grid with stones as gradient discs (tokens
+  `--go-*`, `--stone-*`). Pointing shows your stone; on a touch screen a 13×13 or
+  19×19 board takes two taps on the same point (the stone appears lightly first).
+  A new stone clacks down and captured ones lift off; the last stone has a ring.
+  While counting, dead stones fade, each side's area gets small squares, and
+  clicking a stone marks its group.
 
 ### Coast to Coast (`src/games/ticket`)
 
@@ -394,7 +432,7 @@ locomotives showing and all five are replaced), 30 destination tickets, 100 rout
   tickets, checked against a published route list. `graph.ts` answers questions
   about it: whether a route is open to a player (double-route rules), whether routes
   connect two cities, the longest continuous path, and the cheapest way to finish a
-  ticket (for the Easy bot).
+  ticket (for the built-in bot).
 - **A turn** has stages: `start`, `second` (one card drawn, one to go) and `tickets`
   (choosing drawn tickets). Choosing the first tickets is simultaneous (`keep` is a
   `concurrentOp`). A claim names a color and a number of locomotives
@@ -492,8 +530,11 @@ A bot is just another member of the room, played from its owner's browser:
   places at random and hunts around hits, Coast to Coast keeps its cheapest
   tickets and claims routes on the cheapest path to them, chess looks one move ahead
   (mates, material, no free pieces for the other side) with some randomness, Othello
-  weighs squares (corners, edges) and the replies it leaves. It decides from the view
-  only, so it can't cheat. The conformance suite seats a table of Easy bots in every game and
+  weighs squares (corners, edges) and the replies it leaves, and Go runs a few
+  thousand random playouts per move. The bot runs on the page, so it decides within
+  a few hundred ms; `{ quick: true }` (the conformance suite, building /try
+  positions) asks a searching bot to cut its search short. It decides from the view
+  only, so it can't cheat. The conformance suite seats a table of built-in bots in every game and
   fails if the game ever waits on a bot that has no move.
 - **Where it runs.** While the owner has the room open. One tab plays each bot
   (a Web Lock per bot); other tabs of the room wait and take over if it closes.
@@ -521,11 +562,13 @@ it out of it (the bot form says so).
   Schema, minus table moves (those stay with `botMove`'s table logic), checked
   with the schema before it's sent; `say` is one chat message; neither is a pass.
   Tool choice stays `auto` (the newest Claude models reject forced tool use), and a
-  pass on its own move gets one nudge before the Easy bot moves for it.
+  pass on its own move gets one nudge before the built-in bot moves for it.
 - **An append-only conversation** per game (`prompt.ts`): instructions (being a bot
   in gg, the persona, the game's `rules` and `botNotes`), the tool, then one user
   turn per wake-up: chat and game news since the last one, the bot's view if it
-  changed, and its legal moves. The `act` call's result opens the next update.
+  changed, and its legal moves (`describeMoves` writes many moves differing in one
+  field once, with the choices listed, so 361 Go points are one line). The `act`
+  call's result opens the next update.
   Nothing earlier ever changes, so each request is mostly a cache hit. A new game,
   a changed setup, or 80 messages start a fresh conversation with recent chat.
   Between games there's a lobby conversation with a chat-only tool.
@@ -537,7 +580,7 @@ it out of it (the bot form says so).
 - **Never stalls a table:** a failed call, a call that runs too long (90 s, or for
   its own move, until 3 s before its clock runs out: snapshots carry the game's
   next `deadline`), a pass on its own move (chat alone counts) after one nudge, or
-  a refused move (after a few tries), and the Easy bot plays that move.
+  a refused move (after a few tries), and the built-in bot plays that move.
 - **Decisions are bound to their game.** Moves carry the game instance and version
   the model saw, so a move for a situation that's moved on is refused as stale and
   the bot looks again. A new game starts a new conversation and cancels the call in

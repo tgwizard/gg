@@ -10,7 +10,7 @@ import { newSecret } from "../identity";
 import type { Effort } from "../llm/types";
 import { storage } from "../storage";
 
-/** Easy plays without AI; "ai" plays with one of your AI connections (see /settings). */
+/** "easy" is the built-in bot, without AI; "ai" plays with one of your AI connections (see /settings). */
 export type BotLevel = "easy" | "ai";
 
 /** What a bot is: everything you choose when adding or editing one. */
@@ -40,7 +40,7 @@ export interface BotRecord extends BotSetup {
   usage?: { input: number; cachedInput: number; output: number; calls: number };
   /** Why an AI bot last couldn't reach its model, until it next can. */
   error?: string;
-  /** Moves the Easy bot made for an AI bot, and why the last one was. */
+  /** Moves the built-in bot made for an AI bot, and why the last one was. */
   standIns?: { count: number; lastWhy: string; lastAt: string };
   /**
    * You removed it, and it's leaving the room. The record (with the bot's secret) is kept
