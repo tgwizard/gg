@@ -3,7 +3,9 @@
  * whoever the game is waiting on, so games actually progress) and lets timers fire,
  * checking the contract the room relies on after every step:
  *
- *   - every op from `legalOps` is accepted by `apply`;
+ *   - every op from `legalOps` is accepted by `apply`, and table moves it doesn't
+ *     offer (a spectator dealing, sitting in twice) are refused;
+ *   - `removePlayer` takes a player out of `players`;
  *   - state and every player's view are plain JSON;
  *   - `waitingOn` only names `players`;
  *   - timers make progress (no alarm hot-loops);
@@ -18,7 +20,7 @@ import { isLobbyOp } from "./kit/lobby";
 import { seededRandomInt } from "./kit/testing";
 import { gameMetas } from "./metas";
 import { games } from "./registry";
-import type { AnyGameDefinition, GameContext } from "./types";
+import { type AnyGameDefinition, type GameContext, GameError } from "./types";
 
 const SEEDS = 30;
 const STEPS = 1500;
@@ -39,7 +41,7 @@ for (const def of Object.values(games)) {
           throw new Error(`seed ${seed}: ${(e as Error).message}`, { cause: e });
         }
       }
-    });
+    }, 30_000);
 
     it("can be played by a table of Easy bots", () => {
       for (let seed = 1; seed <= 10; seed++) {
@@ -94,6 +96,23 @@ function playBots(def: AnyGameDefinition, seed: number) {
   if (announced === 0) throw new Error("the bots never got anywhere");
 }
 
+const TABLE_MOVES = [{ type: "leave" }, { type: "sitOut" }, { type: "sitIn" }, { type: "start" }];
+
+/** Ops are checked by `apply`, not by whether `legalOps` offered them: a custom client can send anything. */
+function checkRefusesUnofferedTableMoves(def: AnyGameDefinition, state: unknown, actor: string, ctx: GameContext) {
+  const offered = new Set(def.legalOps(state, actor).map((op) => JSON.stringify(op)));
+  for (const op of TABLE_MOVES) {
+    if (offered.has(JSON.stringify(op)) || !def.opSchema.safeParse(op).success) continue;
+    try {
+      def.apply(structuredClone(state), actor, op, ctx);
+    } catch (e) {
+      if (e instanceof GameError) continue;
+      throw e;
+    }
+    throw new Error(`${actor} could ${op.type} without being offered it`);
+  }
+}
+
 function ctxAt(now: number, randomInt: (n: number) => number, announce: (t: string) => void = () => {}): GameContext {
   return { now, randomInt, nameOf: (id) => id, announce };
 }
@@ -112,7 +131,17 @@ function play(def: AnyGameDefinition, seed: number) {
     const ops = def.legalOps(state, actor);
     const deadline = def.nextDeadline?.(state) ?? null;
 
-    if (ops.length && (deadline === null || rand(20) > 0)) {
+    if (rand(4) === 0) checkRefusesUnofferedTableMoves(def, state, actor, ctxAt(now, rand));
+
+    const playing = def.players(state);
+    if (playing.length && rand(40) === 0) {
+      // Someone (a bot) removed for good.
+      const gone = playing[rand(playing.length)]!;
+      const next = structuredClone(state);
+      def.removePlayer(next, gone, ctxAt(now, rand));
+      if (def.players(next).includes(gone)) throw new Error(`${gone} is still playing after being removed`);
+      state = next;
+    } else if (ops.length && (deadline === null || rand(20) > 0)) {
       const op = ops[rand(ops.length)];
       const next = structuredClone(state);
       try {

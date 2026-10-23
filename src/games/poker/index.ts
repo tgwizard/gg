@@ -68,13 +68,14 @@ export const poker: GameDefinition<PokerState, PokerOp, PokerView, PokerConfig> 
       case "rebuy":
         return rebuy(state, actor, ctx);
       case "start":
-        return start(state, ctx);
+        return start(state, actor, ctx);
       default:
         return act(state, actor, op, ctx);
     }
   },
   view: viewFor,
   players: seatedPlayers,
+  removePlayer: (state, player, ctx) => leave(state, player, ctx),
   waitingOn(state) {
     const hand = state.hand;
     if (hand?.status !== "betting" || hand.toAct === null) return [];

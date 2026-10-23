@@ -173,10 +173,29 @@ describe("bots", () => {
     expect(await alice.request({ type: "leaveRoom" })).toMatchObject({ ok: false, error: { code: "not_a_bot" } });
     const gone = alice.next("members", (m) => m.members.every((x) => x.id !== bw.you.id));
     const removed = alice.next("chat", (c) => c.messages.some((m) => m.text === "Alice removed Beep."));
+    // Leaving the room gives up its seat too, in the same step.
+    const unseated = alice.next("game", (g) => !g.game!.players.includes(bw.you.id));
     expect((await bot.request({ type: "leaveRoom" })).ok).toBe(true);
-    await Promise.all([gone, removed]);
+    await Promise.all([gone, removed, unseated]);
     await sleep(20);
     expect(bot.closed?.code).toBe(CloseCode.Left);
+    const { welcome: later } = await TestClient.join(room, secret("carol"), "Carol");
+    expect(later.game!.players).toEqual([]);
+  });
+
+  it("only lets people in the room own bots: not bots, not strangers", async () => {
+    const room = await createRoom();
+    await TestClient.join(room, secret("alice"), "Alice");
+    await TestClient.join(room, secret("beep"), "Beep", null, 0, secret("alice"));
+    for (const owner of [secret("beep"), secret("nobody-here")]) {
+      const c = await TestClient.connect(room);
+      c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret(`child-of-${owner}`), name: "Child", chatCursor: null, owner });
+      expect(await c.next("error")).toMatchObject({ code: "no_owner" });
+    }
+    // A person can't make themselves a bot by claiming an owner later.
+    const { welcome } = await TestClient.join(room, secret("alice"), "Alice", null, 0, secret("beep"));
+    expect(welcome.you).toMatchObject({ kind: "human" });
+    expect(welcome.you).not.toHaveProperty("bot");
   });
 
   it("shows everyone what a member is up to, until they're done or gone", async () => {
@@ -340,6 +359,42 @@ describe("games", () => {
     expect((update.game!.view as PokerView).hand!.status).toBe("complete");
     // And the next alarm is already queued (sweep or next hand).
     expect(await runDurableObjectAlarm(stub(room))).toBe(true);
+  });
+
+  it("applies a deadline that has passed before a move, even if the alarm hasn't run yet", async () => {
+    const { room, alice, bob, aliceId, game } = await headsUp({ turnSeconds: 30 });
+    const late = alice.latestGame()!.waitingOn[0] === aliceId ? alice : bob;
+    const version = late.latestGame()!.version;
+    expect(late.latestGame()!.deadline).toBeGreaterThan(Date.now());
+    // Pretend the clock ran out a moment ago, without the alarm having fired.
+    await runInDurableObject(stub(room), (instance) => {
+      const g = (instance as unknown as { game: { state: { timers: { turn?: number } } } }).game;
+      g.state.timers.turn = Date.now() - 1;
+    });
+    const ack = await late.request({ type: "gameOp", instanceId: game.instanceId, op: { type: "fold" }, ifVersion: version });
+    expect(ack).toMatchObject({ ok: false, error: { code: "stale" } });
+    const view = late.latestGame()!.view as PokerView;
+    expect(view.hand!.status).toBe("complete");
+    expect(view.hand!.players.some((p) => p.lastAction?.endsWith("(timeout)"))).toBe(true);
+  });
+
+  it("lets Battleship players place their fleets at the same time", async () => {
+    const room = await createRoom();
+    const { client: alice } = await TestClient.join(room, secret("alice"), "Alice");
+    const { client: bob } = await TestClient.join(room, secret("bob"), "Bob");
+    const placing = bob.next("game", (g) => (g.game!.view as { phase: string }).phase === "placing");
+    expect((await alice.request({ type: "selectGame", gameId: "battleship", config: {} })).ok).toBe(true);
+    const { instanceId } = alice.latestGame() ?? (await alice.next("game", (g) => g.game !== null)).game!;
+    const op = (c: TestClient, o: unknown, ifVersion?: number) => c.request({ type: "gameOp", instanceId, op: o, ifVersion });
+    expect((await op(alice, { type: "sit", seat: 0 })).ok).toBe(true);
+    expect((await op(bob, { type: "sit", seat: 1 })).ok).toBe(true);
+    const seen = (await placing).game!.version;
+    // Both place against the same version: neither is refused as stale.
+    const carrier = { id: "carrier", row: 0, col: 0, vertical: false };
+    expect((await op(alice, { type: "arrange", ships: [carrier] }, seen)).ok).toBe(true);
+    expect((await op(bob, { type: "arrange", ships: [carrier] }, seen)).ok).toBe(true);
+    // Other moves still are.
+    expect(await op(bob, { type: "leave" }, seen)).toMatchObject({ ok: false, error: { code: "stale" } });
   });
 
   it("drops a game that no longer exists after a deploy, instead of wedging the room", async () => {

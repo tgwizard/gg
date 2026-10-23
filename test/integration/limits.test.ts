@@ -127,6 +127,26 @@ describe("griefing a room", () => {
     expect(extra.closed?.code).toBe(CloseCode.RateLimited);
   });
 
+  it("refuses oversized messages before reading them", async () => {
+    const room = await createRoom();
+    const { client: alice } = await TestClient.join(room, secret("alice"), "Alice");
+    const { client: bob } = await TestClient.join(room, secret("bob"), "Bob");
+    alice.send({ type: "chat", cid: "big", text: "hi", padding: "x".repeat(1_000_000) });
+    expect(await alice.next("error")).toMatchObject({ code: "bad_message" });
+    // A normal message right after goes through, and the big one never did.
+    expect((await alice.request({ type: "chat", text: "hello" })).ok).toBe(true);
+    await sleep(20);
+    const texts = bob.received.flatMap((m) => (m.type === "chat" ? m.messages.map((x) => x.text) : []));
+    expect(texts).toContain("hello");
+    expect(texts).not.toContain("hi");
+  });
+
+  it("reads only so much of a new room's body", async () => {
+    const res = await postRoom(randomIp(), { name: "Big", padding: "x".repeat(100_000) });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({ name: null });
+  });
+
   it("allows one identity per connection", async () => {
     const room = await createRoom();
     const { client } = await TestClient.join(room, secret("first"), "First");

@@ -106,7 +106,9 @@ export function BotForm(props: {
               placeholder="e.g. A grumpy old sea captain who hates losing"
             />
           </label>
-          <p className="muted small bot-form-note">{PROVIDERS[connection.provider].billing} It plays from this tab, and nothing but its moves and chat leave your browser.</p>
+          <p className="muted small bot-form-note">{PROVIDERS[connection.provider].billing} It plays from this tab: the room's chat and its view of the game (its own cards too) go to{" "}
+            {PROVIDERS[connection.provider].short}, and only its moves and messages to the room. It's told to keep its cards to itself, but people in the chat can try to talk it out of that.
+          </p>
         </>
       )}
       {usage && (

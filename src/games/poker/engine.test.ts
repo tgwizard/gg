@@ -13,6 +13,7 @@ import {
   start,
   viewFor,
 } from "./engine";
+import { poker } from "./index";
 import { makeCtx, rig, totalChips } from "./testing";
 
 const CONFIG: PokerConfig = { startingStack: 1000, smallBlind: 5, bigBlind: 10, turnSeconds: 30 };
@@ -28,7 +29,7 @@ function table(seats: number[], opts: { button: number; stacks?: number[]; confi
   // The button moves before each hand, so park it one seat earlier.
   const sorted = [...seats].sort((a, b) => a - b);
   state.button = sorted[(sorted.indexOf(opts.button) - 1 + sorted.length) % sorted.length]!;
-  start(state, ctx());
+  start(state, "a", ctx());
   return { state, ctx, announcements };
 }
 
@@ -109,6 +110,73 @@ describe("short all-ins", () => {
     act(state, "a", { type: "call" }, ctx()); // a live opponent, so raising means something
     expect(state.hand!.toAct).toBe(1);
     expect(legalActions(state, 1)).toMatchObject({ toCall: 100, canRaise: true, minRaiseTo: 300 });
+  });
+});
+
+describe("short all-in blinds", () => {
+  it("a covered short all-in big blind leaves nothing to decide: the excess comes back and the hand runs out", () => {
+    // Heads-up 5/10: a (button) posts 5, b has only 3 and is all-in for it.
+    const { state, ctx } = table([0, 1], { button: 0, stacks: [1000, 3] });
+    const hand = state.hand!;
+    expect(hand.toAct).toBeNull();
+    expect(hand.status).toBe("runout");
+    while (state.hand!.status === "runout") onDeadline(state, ctx(nextDeadline(state)!));
+    // The pot was 3 + 3; a's other 2 were never at stake.
+    expect(state.seats[0]!.stack + state.seats[1]!.stack).toBe(1003);
+    expect(state.hand!.result!.pots.map((p) => p.amount)).toEqual([6]);
+  });
+
+  it("an uncovered short all-in big blind is called only for what it put in", () => {
+    const { state } = table([0, 1], { button: 0, stacks: [1000, 8] });
+    expect(state.hand!.toAct).toBe(0);
+    expect(legalActions(state, 0)).toMatchObject({ canCheck: false, toCall: 3, canRaise: false });
+  });
+
+  it("multiway, the others still owe the full big blind", () => {
+    const { state } = table([0, 1, 2], { button: 0, stacks: [1000, 1000, 3] });
+    expect(state.hand!.toAct).toBe(0);
+    expect(legalActions(state, 0)).toMatchObject({ toCall: 10, canRaise: true });
+  });
+});
+
+describe("going heads-up", () => {
+  for (const gone of ["a", "b", "c"]) {
+    it(`never makes the big blind post it twice in a row (${gone} leaves)`, () => {
+      const { state, ctx } = table([0, 2, 5], { button: 0 });
+      const lastBb = state.hand!.bb;
+      for (let i = 0; i < 2; i++) act(state, toActId(state), { type: "fold" }, ctx());
+      expect(state.hand!.status).toBe("complete");
+      leave(state, gone, ctx());
+      onDeadline(state, ctx(nextDeadline(state)!));
+      const hand = state.hand!;
+      expect(hand.id).toBe(2);
+      if (state.seats[lastBb]) expect(hand.bb).not.toBe(lastBb);
+      expect(hand.sb).toBe(hand.button);
+    });
+  }
+});
+
+describe("who may deal", () => {
+  it("only players at the table, not people watching", () => {
+    const { ctx } = makeCtx();
+    const state = createState(CONFIG);
+    sit(state, "a", 0, ctx());
+    sit(state, "b", 1, ctx());
+    expect(() => start(state, "spectator", ctx())).toThrow(/not seated/);
+    start(state, "a", ctx());
+    expect(state.hand!.id).toBe(1);
+  });
+});
+
+describe("players who left", () => {
+  it("are forgotten after a while, taking their chips off the table", () => {
+    const { state, ctx } = table([0, 1], { button: 0 });
+    for (let i = 0; i < 50; i++) {
+      sit(state, `p${i}`, 5, ctx());
+      leave(state, `p${i}`, ctx());
+    }
+    expect(Object.keys(state.away)).toHaveLength(32);
+    poker.checkInvariants!(state);
   });
 });
 
@@ -273,7 +341,7 @@ describe("fuzz", () => {
       const players = 2 + (seed % 7);
       for (let i = 0; i < players; i++) sit(state, `p${i}`, i, ctx());
       const total = totalChips(state);
-      start(state, ctx());
+      start(state, "p0", ctx());
       let now = 0;
       for (let step = 0; step < 3000; step++) {
         const hand = state.hand!;

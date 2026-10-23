@@ -10,7 +10,7 @@
  */
 import { RATE_LIMITED } from "../shared/protocol";
 import { generateRoomCode, normalizeRoomCode } from "../shared/roomCode";
-import { clientIp, rejectSocket } from "./limits";
+import { clientIp, MAX_BODY_BYTES, rejectSocket } from "./limits";
 
 export { Room } from "./room";
 
@@ -67,14 +67,40 @@ export default {
 
 /** The optional `{ "name": "..." }` body of a create request. Anything odd means no name. */
 async function roomNameFrom(request: Request): Promise<string | null> {
-  const text = await request.text().catch(() => "");
-  if (!text || text.length > 2_000) return null;
+  const text = await readText(request, MAX_BODY_BYTES).catch(() => null);
+  if (!text) return null;
   try {
     const body = JSON.parse(text) as { name?: unknown };
     return typeof body.name === "string" ? body.name : null;
   } catch {
     return null;
   }
+}
+
+/** The body as text, or null if it's longer than `maxBytes` (it stops reading there). */
+async function readText(request: Request, maxBytes: number): Promise<string | null> {
+  if (Number(request.headers.get("Content-Length") ?? 0) > maxBytes) return null;
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 function roomStub(env: Env, id: string) {

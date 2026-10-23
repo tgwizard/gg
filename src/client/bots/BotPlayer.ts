@@ -8,6 +8,10 @@
  *
  * Only one tab plays a given bot: each holds a Web Lock while playing, and other tabs
  * of the room wait for it (taking over if that tab closes).
+ *
+ * Removing a bot is one request to the room, which takes it out of the game and the
+ * room together. Until the room confirms, the bot's record stays (marked `removing`),
+ * so a removal made offline happens when you're back.
  */
 import { botMove, tableMove } from "../../games/kit/bot";
 import type { AnyGameDefinition } from "../../games/types";
@@ -17,7 +21,7 @@ import { getConnection, PROVIDERS } from "../llm/connections";
 import { RequestError, RoomClient } from "../net/RoomClient";
 import { AiBrain } from "./ai/AiBrain";
 import { gameMoves } from "./ai/prompt";
-import { addBotStandIn, addBotUsage, type BotRecord, setBotError } from "./store";
+import { addBotStandIn, addBotUsage, type BotRecord, forgetBot, setBotError } from "./store";
 
 /** How long a bot "thinks" before moving. */
 const THINK_MS: [number, number] = [600, 1500];
@@ -34,6 +38,7 @@ export class BotPlayer {
   private readonly lock = new AbortController();
   private releaseLock: (() => void) | null = null;
   private stopped = false;
+  /** A request to leave the room is on its way. */
   private leaving = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   /** The game situation (instance and version) the bot last decided on. */
@@ -70,14 +75,15 @@ export class BotPlayer {
     return `gg.bot.${this.bot.id}`;
   }
 
-  /** Its setup changed (name, color, AI connection, persona). */
+  /** Its setup changed (name, color, AI connection, persona), or it's been removed. */
   update(bot: BotRecord) {
     this.bot = bot;
+    if (bot.removing) return this.onChange();
     this.client?.setProfile(bot.name, bot.color, botInfo(bot));
     if (this.client) this.setBrain();
   }
 
-  /** Stop playing (you left the room); the bot stays a member and comes back with you. */
+  /** Stop playing (you left the room, or it's gone); a bot still in the room comes back with you. */
   stop() {
     this.stopped = true;
     this.brain?.stop();
@@ -88,24 +94,20 @@ export class BotPlayer {
     this.releaseLock?.();
   }
 
-  /** Take the bot out of the room for good: give up its seat, leave, then stop. */
-  async remove() {
-    const client = this.client;
-    // Not playing in this tab (another tab has it, and does this there).
-    if (!client) return this.stop();
+  /** Removed: leave the room for good once connected (retried on every change until it's done). */
+  private leave(client: RoomClient) {
+    const status = client.getSnapshot().status;
+    if (status === "left") return forgetBot(this.bot.id);
+    if (this.leaving || status !== "connected") return;
     this.leaving = true;
-    clearTimeout(this.timer);
-    this.brain?.stop();
-    this.brain = null;
-    try {
-      await connected(client, 10_000);
-      const game = client.getSnapshot().game;
-      if (game?.legalOps?.some((op) => (op as { type?: string }).type === "leave")) await client.sendGameOp({ type: "leave" }).catch(() => {});
-      await client.leaveRoom();
-    } catch {
-      // Offline: it stays in the room as a disconnected member.
-    }
-    this.stop();
+    this.log("leaving the room");
+    client.leaveRoom().then(
+      () => forgetBot(this.bot.id),
+      (e: unknown) => {
+        this.leaving = false;
+        this.log("couldn't leave yet", { error: e instanceof Error ? e.message : String(e) });
+      },
+    );
   }
 
   private log(event: string, data?: unknown) {
@@ -126,8 +128,8 @@ export class BotPlayer {
 
   /** AI bots get a brain; switching a bot to Easy (or to another connection) replaces it. */
   private setBrain() {
-    const { level, connectionId, name, persona, model, effort } = this.bot;
-    if (level !== "ai" || !connectionId || this.leaving) {
+    const { level, connectionId, name, persona, model, effort, removing } = this.bot;
+    if (level !== "ai" || !connectionId || removing) {
       this.brain?.stop();
       this.brain = null;
       return;
@@ -137,7 +139,7 @@ export class BotPlayer {
     const client = this.client!;
     this.brain = new AiBrain(setup, this.games!, {
       snapshot: () => client.getSnapshot(),
-      sendOp: (op, ifVersion) => client.sendGameOp(op, ifVersion),
+      sendOp: (op, at) => client.sendGameOp(op, at),
       say: (text) => void client.sendChat(text).catch(() => {}),
       easyMove: () => {
         const game = client.getSnapshot().game;
@@ -154,6 +156,13 @@ export class BotPlayer {
   }
 
   private onChange() {
+    if (this.bot.removing) {
+      clearTimeout(this.timer);
+      this.brain?.stop();
+      this.brain = null;
+      if (this.client) this.leave(this.client);
+      return;
+    }
     this.brain?.observe();
     const snapshot = this.client?.getSnapshot();
     const game = snapshot?.status === "connected" ? snapshot.game : null;
@@ -162,7 +171,7 @@ export class BotPlayer {
     this.seen = key;
     this.attempts = 0;
     clearTimeout(this.timer);
-    if (key && !this.leaving) this.think();
+    if (key) this.think();
   }
 
   private think() {
@@ -174,7 +183,7 @@ export class BotPlayer {
     const client = this.client;
     const game = client?.getSnapshot().game;
     const def = game && this.games?.[game.gameId];
-    if (!client || !game || !def || this.leaving) return;
+    if (!client || !game || !def || this.bot.removing) return;
     // AI bots only make table moves here; their brain plays the game.
     const op = this.brain ? tableMove(game.legalOps ?? [], random) : botMove(def, game.view, game.legalOps ?? [], random);
     if (op == null) return;
@@ -198,24 +207,6 @@ export class BotPlayer {
       else console.warn(`${this.bot.name} couldn't move`, op, e);
     });
   }
-}
-
-function connected(client: RoomClient, timeoutMs: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const check = () => {
-      if (client.getSnapshot().status !== "connected") return false;
-      unsubscribe();
-      clearTimeout(timer);
-      resolve();
-      return true;
-    };
-    const unsubscribe = client.subscribe(check);
-    const timer = setTimeout(() => {
-      unsubscribe();
-      reject(new Error("not connected"));
-    }, timeoutMs);
-    check();
-  });
 }
 
 /** What the room is told about how a bot plays. */

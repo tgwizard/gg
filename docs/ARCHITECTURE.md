@@ -97,7 +97,9 @@ all look like a short blip, never lost or duplicated actions.
 - **Idempotent mutations.** Results are stored per `(player, cid)` in the `ops`
   table (1h retention). Chat dedupes on `(player, cid)` in the chat table.
 - **Outbox.** The client keeps un-acked mutations and resends them after
-  reconnecting. Chat typed while offline is queued and shown as pending. Game
+  reconnecting. Chat typed while offline is queued and shown as pending, and kept
+  in the tab's sessionStorage so it survives a refresh (resent with the same cid;
+  dropped after an hour, past the server's dedupe memory). Game
   ops need a live connection, and every op carries `ifVersion` (the game version
   the player was looking at), so it's rejected (`stale`) instead of applied to a
   game the player hasn't seen, whether it's a first send or a resend.
@@ -141,6 +143,8 @@ interface GameDefinition<State, Op, View, Config> {
   apply(state, actor, op, ctx): void;        // mutate a private copy or throw GameError
   view(state, viewer): View;                 // per-player redaction
   players(state): string[];                  // who's taking part (e.g. seated)
+  removePlayer(state, player, ctx): void;    // gone for good (a removed bot): give up their place
+  concurrentOp?(op): boolean;                // ops that skip the version check (own fleet)
   waitingOn(state): string[];                // whose move it is
   legalOps(state, player): Op[];             // what they could do now (bots, fuzzing)
   nextDeadline?(state): number | null;       // timers, via the DO alarm
@@ -150,6 +154,11 @@ interface GameDefinition<State, Op, View, Config> {
 }
 ```
 
+`apply` is the authority on who may do what: `legalOps` is a list for bots, not a
+gate, and a custom client can send any op that parses. So `apply` refuses table
+moves from people who aren't seated (a spectator can't deal), and no-op toggles
+(sitting in twice). The conformance test sends such unoffered table moves.
+
 The room is game-agnostic: it never looks inside a game's state. Everything it
 needs (who's playing, whose turn it is, when to wake up) comes through the
 contract. Only the game's players, or whoever started it, can end a game (anyone
@@ -158,8 +167,9 @@ can once none of its players are online).
 **Shared kit (`src/games/kit`)** for what most turn-based games need:
 
 - `seating.ts`: seats with per-player data (a stack, a score) that's kept when a
-  player stands up and restored when they return; sitting out; clockwise turn
-  order.
+  player stands up and restored when they return (the 32 most recent; older ones
+  are forgotten, poker taking their chips off the table); sitting out; clockwise
+  turn order.
 - `lobby.ts`: the table moves games share (`sit`, `leave`, `sitOut`, `sitIn`,
   `start`), as op schemas to build a game's `opSchema` from and `legalLobbyOps`.
   Because every game spells them the same way, generic players (bots, the
@@ -177,8 +187,9 @@ can once none of its players are online).
 - `testing.ts`: a seeded RNG for tests.
 
 **Conformance (`src/games/conformance.test.ts`).** Every registered game is
-fuzzed with random legal moves from random people (mostly whoever's turn it is)
-and timers firing. After each step it checks that legal ops are accepted, state
+fuzzed with random legal moves from random people (mostly whoever's turn it is),
+timers firing, and players removed for good. After each step it checks that legal
+ops are accepted and unoffered table moves refused, `removePlayer` works, state
 and views are plain JSON, `waitingOn` ⊆ `players`, deadlines make progress (no
 alarm hot-loops), and the game's invariants hold. For poker that's about 3,000
 hands per run, with people joining, leaving and sitting out mid-hand.
@@ -192,15 +203,20 @@ hands per run, with people joining, leaving and sitting out mid-hand.
 - **Randomness** comes from `ctx.randomInt` (crypto-backed in production, seeded
   in tests).
 - **Time** comes from `ctx.now`; deadlines are executed by the DO alarm, which
-  also catches up if several are overdue.
+  also catches up if several are overdue. A deadline that has passed is also
+  applied before any op, so a move can't beat its clock by arriving before the
+  alarm runs (it finds the game changed, and is refused as stale).
+- **History is bounded** in stored state, not just in views (Finns i sjön can go
+  round in circles indefinitely once the lake is empty).
 - Games can post to room chat via `ctx.announce()`. Chat is shared by the room and
   the game.
 
 ### Tic-tac-toe (`src/games/tictactoe`)
 
 The smallest complete game, and the template to copy: kit seats (scores survive
-standing up), a turn clock that forfeits the round, alternating openers, and a
-pause between rounds. It has no hidden information, so the view is the state.
+standing up), a turn clock that forfeits the round and the seat (so an empty
+chair doesn't keep losing rounds, and an abandoned table stops), alternating
+openers, and a pause between rounds. It has no hidden information, so the view is the state.
 
 ### Finns i sjön (`src/games/finnsisjon`)
 
@@ -216,7 +232,8 @@ wins.
   lake, you're out.
 - **Away players:** running out of time plays your turn for you and marks you away.
   After that your turns are played quickly (asking for what you hold most of)
-  until you're back. A dropped player never stalls the table.
+  until you're back. A dropped player never stalls the table. Going away and back
+  never extends a turn: the turn's end (`turnEndsAt`) is set once, when it begins.
 - **Leaving mid-game** shuffles your hand back into the lake. Your books stay on
   the table, but you can't win.
 
@@ -229,7 +246,9 @@ Classic Battleship for two: each player hides a fleet (Carrier 5, Battleship 4,
 Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firing.
 - **Placing** is server-validated one ship at a time (`arrange` sends the whole,
   possibly unfinished layout), or `random` lets the server deal a valid fleet.
-  `ready` needs all five; `unready` is allowed until both are ready. The other
+  `ready` needs all five; `unready` is allowed until both are ready. Placing ops
+  are `concurrentOp`s: both players place at once, so one's placing never makes
+  the other's click stale. The other
   side only learns "placing…" or "ready".
 - **Hidden information:** a fleet's layout is only in its owner's view until the
   game is over, when both are revealed. Shots and their results are public, and
@@ -293,7 +312,9 @@ A bot is just another member of the room, played from its owner's browser:
   `src/client/bots/store.ts`). Renames go to the room like anyone's (`setProfile`).
   The bot connects with its own `RoomClient` and says hello with that secret plus
   its owner's (`hello.owner`), so the room records it as `kind: "bot"` with an
-  `ownerId`. Up to 4 per player per room (`MAX_BOTS_PER_PLAYER`).
+  `ownerId`. The owner must be a person in the room (bots can't own bots, so one
+  person's identities are bounded): up to 4 bots each (`MAX_BOTS_PER_PLAYER`),
+  added at a bounded rate. What a member is gets settled when they first join.
 - **Playing** (`BotPlayer`). The bot gets only its own redacted view, like
   anyone, plus `legalOps` (the server adds them to bots' snapshots). After every
   change it waits a moment, like a person, then makes one move through the same
@@ -316,16 +337,21 @@ A bot is just another member of the room, played from its owner's browser:
 - **Looks.** Bots' avatars are a robot in their color instead of an initial, in
   the members list and on every game board (`PlayerPlate` reads who's a bot from
   `PlayersProvider`).
-- **Removing** a bot (× in the members panel) deletes it from localStorage; the
-  tab playing it gives up its seat and sends `leaveRoom`, which removes the member
-  and closes its connections with `Left` so it doesn't come back.
+- **Removing** a bot (× in the members panel) marks it `removing` in localStorage;
+  the tab playing it sends `leaveRoom` once connected. The room takes it out of the
+  game (`removePlayer`) and the room in one step, and closes its connections with
+  `Left` so it doesn't come back. Only then is the record (with the bot's secret)
+  forgotten, so a removal made offline still happens later.
 
 ### AI bots (`src/client/bots/ai`)
 
 An AI bot is the same bot, with the owner's model deciding instead of `bot.easy`.
 When adding one you pick one of your AI keys, a model and an effort (the cheapest
 model at low effort by default; a key's model list is saved with it), and
-optionally a personality. Only moves and chat leave the browser.
+optionally a personality. The room's chat and the bot's own view of the game go to
+the model's provider; only its moves and messages go to the room. "Never reveal
+your cards" is an instruction, not a boundary: people in the chat can try to talk
+it out of it (the bot form says so).
 
 - **One tool**, `act({ op?, say? })`: `op` is the game's own `opSchema` as JSON
   Schema, minus table moves (those stay with `botMove`'s table logic), checked
@@ -344,9 +370,14 @@ optionally a personality. Only moves and chat leave the browser.
   people and game news refill, so bots can banter but not forever), and a 60 s
   heartbeat while there's unseen news. One call at a time, at most 8 a minute;
   unprompted chat at most every 30 s; replies to people aren't limited.
-- **Never stalls a table:** a failed call or a refused move (after a few tries) and
-  the Easy bot plays that move. Moves carry the game version the model saw, so a
-  move for a situation that's moved on is refused as stale and the bot looks again.
+- **Never stalls a table:** a failed call, a call that runs too long (90 s, or for
+  its own move, until 3 s before its clock runs out: snapshots carry the game's
+  next `deadline`), a pass on its own move (chat alone counts) after one nudge, or
+  a refused move (after a few tries), and the Easy bot plays that move.
+- **Decisions are bound to their game.** Moves carry the game instance and version
+  the model saw, so a move for a situation that's moved on is refused as stale and
+  the bot looks again. A new game starts a new conversation and cancels the call in
+  flight; an answer that still arrives is dropped, never played into the new game.
 - **What it's doing** (`activity`): while its model works, the bot tells the room
   ("Thinking about its move", "Reading the chat"), which relays it to everyone as
   `Member.activity` (kept in memory, cleared on disconnect). It shows as a bubble
@@ -378,6 +409,9 @@ e2e test for exactly that). All values are in `src/worker/limits.ts` and
 | moves and everything else | DO, per connection | burst 30, then 5/s | far above click speed |
 | chat / moves, shared by one network in a room | DO, per IP | burst 40 then 3/s / burst 80 then 12/s | a household playing together; stops "more sockets = more throughput" |
 | new identities (fresh browsers) | DO, per IP per room | 6, then 1/min | a group of friends joining at once |
+| new bots | DO, per owner | 4 at once, then 1 per 30 s (and 4 at a time) | adding a few bots |
+| message size | DO, before parsing | 16,384 characters | a full chat message is ~2,000 |
+| room creation body | worker, while reading | 2 KB | a room name |
 | sustained flooding | DO | 50 refused messages (forgiven at 1/s) → disconnect for 30s | only scripts get here |
 | connections per player | DO | newest 6 kept; older tabs pause | refreshing on a bad connection can leave dead sockets behind |
 | connections per IP per room | DO | 20 | |
@@ -421,6 +455,11 @@ every 5 minutes for the presence sweep.
 ## Known limitations / next steps
 
 - Chat retention is the last ~1000 messages per room.
+- Game state is stored as JSON with no per-game schema version: a deploy that
+  changes a game's state shape can break rooms with that game running (ending the
+  game fixes it). Add versions and migrations once compatibility matters.
+- AI bots have per-minute call limits but no spending budget; people chatting can
+  keep someone's AI bot busy. Usage is shown on the bot.
 - Multiple tabs with the same identity are the same player (by design). Both can act.
 - A bot runs in its owner's browser, so the owner could read its private view in
   devtools (e.g. its hole cards). Fine among friends; the alternative is running

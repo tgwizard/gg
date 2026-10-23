@@ -17,7 +17,9 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
     <Panel className="members" title="In this room" actions={<span className="label">{members.filter((m) => m.online).length} online</span>}>
       <ul>
         {members.map((m) => {
-          const bot = mine.get(m.id);
+          const record = mine.get(m.id);
+          // A bot you removed is on its way out: nothing left to edit.
+          const bot = record?.removing ? undefined : record;
           return (
             <li key={m.id} className={m.online ? "online" : "away"} data-testid="member">
               {/* On the avatar's corner, so it never takes room from the name. */}
@@ -43,6 +45,7 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
                   AI problem
                 </span>
               )}
+              {record?.removing && <span className="tag">leaving…</span>}
               {waiting.has(m.id) && <span className="tag gold">to act</span>}
               {bot && (
                 <button className="member-remove" onClick={() => removeBot(bot.id)} aria-label={`Remove ${m.name}`} title={`Remove ${m.name}`}>

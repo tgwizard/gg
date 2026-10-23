@@ -53,7 +53,7 @@ export interface FishPlayer {
 }
 
 export type FishEvent =
-  /** `cards` are what changed hands: in state always, in views only for the two players involved. */
+  /** `cards` are what changed hands, handed over in plain view, so everyone sees them. */
   | { type: "ask"; from: string; to: string; rank: string; got: number; cards: Card[] }
   /** Drew after "Finns i sjön!". The card is only public when it was the rank asked for. */
   | { type: "fish"; who: string; rank: string; lucky: boolean; card: Card | null }
@@ -72,10 +72,17 @@ export interface FishState extends Seating<FishSeat> {
   lake: Card[];
   /** Seat whose turn it is. */
   turn: number | null;
+  /** The most recent events (LOG_KEEP of them). */
   log: FishEvent[];
   result: { winners: string[]; books: Record<string, number> } | null;
+  /** When the current turn's clock runs out (null: no clock), whatever happens to "turn". */
+  turnEndsAt: number | null;
+  /** turn: the current turn's deadline, sooner for a player who's away. */
   timers: Timers<"turn">;
 }
+
+/** Events kept in state, as many as views show. Play can go round in circles for a long time. */
+export const LOG_KEEP = 40;
 
 export function createState(config: FishConfig): FishState {
   return {
@@ -89,6 +96,7 @@ export function createState(config: FishConfig): FishState {
     turn: null,
     log: [],
     result: null,
+    turnEndsAt: null,
     timers: {},
   };
 }
@@ -107,6 +115,11 @@ export function currentPlayer(state: FishState): FishPlayer | undefined {
 
 function opponentsWithCards(state: FishState, p: FishPlayer) {
   return active(state).filter((o) => o !== p && o.hand.length > 0);
+}
+
+function logEvent(state: FishState, e: FishEvent) {
+  state.log.push(e);
+  if (state.log.length > LOG_KEEP) state.log.splice(0, state.log.length - LOG_KEEP);
 }
 
 function booksDown(state: FishState) {
@@ -128,7 +141,7 @@ function layBooks(state: FishState, p: FishPlayer, ctx: GameContext) {
     if (n < 4) continue;
     p.hand = p.hand.filter((c) => rankOf(c) !== rank);
     p.books.push(rank);
-    state.log.push({ type: "book", who: p.playerId, rank });
+    logEvent(state, { type: "book", who: p.playerId, rank });
     ctx.announce(`${ctx.nameOf(p.playerId)} lays down four ${rankName(rank, true)}.`);
   }
 }
@@ -152,7 +165,7 @@ export function leave(state: FishState, playerId: string, ctx: GameContext) {
     state.lake.push(...p.hand);
     p.hand = [];
     shuffle(state.lake, ctx.randomInt);
-    state.log.push({ type: "left", who: playerId });
+    logEvent(state, { type: "left", who: playerId });
     if (state.turn === p.seat) beginTurn(state, ctx, p.seat, false);
     else if (isOver(state)) finish(state, ctx);
   }
@@ -161,13 +174,16 @@ export function leave(state: FishState, playerId: string, ctx: GameContext) {
 
 export function setSittingOut(state: FishState, playerId: string, away: boolean, ctx: GameContext) {
   setSeatSittingOut(state, playerId, away);
+  // On your turn: away, it's played for you soon; back, you have what's left of your turn.
   const p = currentPlayer(state);
-  if (p?.playerId === playerId) startTurnClock(state, p, ctx);
+  if (p?.playerId === playerId) setTurnTimer(state, p, ctx);
 }
 
 // --- the game --------------------------------------------------------------
 
-export function start(state: FishState, ctx: GameContext) {
+/** Deal a new game: for players at the table only. */
+export function start(state: FishState, actor: string, ctx: GameContext) {
+  requireSeat(state, actor);
   if (state.phase === "playing") throw new GameError("in_progress", "A game is already on.");
   const seats = seatsWhere(state, (s) => !s.sittingOut);
   if (seats.length < 2) throw new GameError("not_enough_players", "Need at least two players at the table.");
@@ -197,7 +213,7 @@ export function ask(state: FishState, actor: string, targetId: string, rank: str
   if (!p.hand.some((c) => rankOf(c) === rank)) throw new GameError("must_hold_rank", "You can only ask for a rank you hold.");
 
   const given = target.hand.filter((c) => rankOf(c) === rank);
-  state.log.push({ type: "ask", from: actor, to: targetId, rank, got: given.length, cards: [...given] });
+  logEvent(state, { type: "ask", from: actor, to: targetId, rank, got: given.length, cards: [...given] });
   if (given.length) {
     target.hand = target.hand.filter((c) => rankOf(c) !== rank);
     p.hand.push(...given);
@@ -209,7 +225,7 @@ export function ask(state: FishState, actor: string, targetId: string, rank: str
   if (state.lake.length === 0) return beginTurn(state, ctx, p.seat, false);
   const card = draw(state, p);
   const lucky = rankOf(card) === rank;
-  state.log.push({ type: "fish", who: actor, rank, lucky, card: lucky ? card : null });
+  logEvent(state, { type: "fish", who: actor, rank, lucky, card: lucky ? card : null });
   layBooks(state, p, ctx);
   beginTurn(state, ctx, p.seat, lucky);
 }
@@ -247,34 +263,38 @@ function beginTurn(state: FishState, ctx: GameContext, from: number, again: bool
         continue;
       }
       draw(state, p);
-      state.log.push({ type: "draw", who: p.playerId });
+      logEvent(state, { type: "draw", who: p.playerId });
     }
     if (opponentsWithCards(state, p).length === 0) {
       // Nobody to ask: take a card from the lake, if any, and pass.
       if (state.lake.length > 0) {
         draw(state, p);
-        state.log.push({ type: "draw", who: p.playerId });
+        logEvent(state, { type: "draw", who: p.playerId });
         layBooks(state, p, ctx);
       }
       seat = next(seat);
       continue;
     }
     state.turn = p.seat;
-    startTurnClock(state, p, ctx);
+    const secs = state.config.turnSeconds;
+    state.turnEndsAt = secs > 0 ? ctx.now + secs * 1000 : null;
+    setTurnTimer(state, p, ctx);
     return;
   }
   finish(state, ctx);
 }
 
-function startTurnClock(state: FishState, p: FishPlayer, ctx: GameContext) {
+/** The turn's deadline: the end of its clock, or soon for a player who's away. */
+function setTurnTimer(state: FishState, p: FishPlayer, ctx: GameContext) {
   const away = state.seats[p.seat]?.sittingOut ?? true;
-  const ms = away ? AUTO_PLAY_DELAY_MS : state.config.turnSeconds * 1000;
-  setTimer(state.timers, "turn", ms > 0 ? ctx.now + ms : null);
+  const ends = state.turnEndsAt ?? null;
+  setTimer(state.timers, "turn", away ? Math.min(ends ?? Infinity, ctx.now + AUTO_PLAY_DELAY_MS) : ends);
 }
 
 function finish(state: FishState, ctx: GameContext) {
   state.phase = "over";
   state.turn = null;
+  state.turnEndsAt = null;
   setTimer(state.timers, "turn", null);
   const books = Object.fromEntries(state.players.map((p) => [p.playerId, p.books.length]));
   const contenders = active(state);

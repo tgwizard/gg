@@ -76,13 +76,13 @@ these through the browser and reports back.
 - [ ] (Automated only) a connection told to back off shows the server's reason, hides "Retry now", and reconnects after the requested delay. Expiry runs in integration tests, by back-dating the room's stored timestamps.
 
 ### Finns i sjön
-- [ ] When cards change hands, the asker and the giver see the exact cards in the strip under the table; others see only how many.
+- [ ] When cards change hands, everyone sees exactly which cards (in the strip under the table and the history), as at a real table.
 - [ ] Seats stay where people sat (no rotating so you're at the bottom); step away / leave are small links under the tray, not in it.
 - [ ] 2–3 players get 7 cards, 4–6 get 5; the lake count matches.
 - [ ] Pick a card, then an opponent; *Ask X for Ys*. If they have some, they move to your hand and it's still your turn.
 - [ ] "Finns i sjön!": you draw (only you see the card under "You drew"); catching the asked rank shows it to everyone and gives you another turn.
 - [ ] Four of a kind is laid down at once (book badge + chat announcement).
-- [ ] Let the turn timer run out: your move is made for you and you're marked away; later turns are auto-played until *I'm back*.
+- [ ] Let the turn timer run out: your move is made for you and you're marked away; later turns are auto-played until *I'm back*. Coming back mid-turn gives you what's left of that turn, not a fresh clock.
 - [ ] *Leave game* mid-game: your cards go back to the lake and the others play on (with two players, the other wins).
 - [ ] Play to the end: all 13 books down, winner(s) announced, *Play again* deals a new game with whoever's seated.
 - [ ] Phone layout: opponents, lake, news line and your hand all fit, and cards are tappable.
@@ -110,7 +110,7 @@ these through the browser and reports back.
 - [ ] On every game board, bots' nameplates show the robot avatar; people show their initial.
 - [ ] Start each game with a bot in the room: once you sit down it takes a free seat within a couple of seconds and plays its turns (poker: after someone deals; Battleship: places and readies its fleet by itself). If nobody sits, bots wait about 10 s before sitting down.
 - [ ] Refresh: your bots come back online with you. Close the tab: they go offline. Open the room in two tabs: each bot is online once, and closing the tab playing it hands it to the other.
-- [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list.
+- [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list. Removed while offline, it shows *leaving…* and goes once you're back.
 - [ ] Another player sees your bot as *bot* (hover: "Adam's bot") without a ×.
 
 ### AI bots (needs an AI key in `/settings`)

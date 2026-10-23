@@ -186,13 +186,34 @@ function putIn(state: PokerState, p: HandPlayer, amount: number) {
   return amt;
 }
 
-function needsAction(hand: Hand, p: HandPlayer): boolean {
-  return !p.folded && !p.allIn && (!p.acted || p.bet < hand.currentBet);
+/** Everyone else still in the hand is all-in: nobody is left to bet against. */
+function othersAllIn(hand: Hand, p: HandPlayer): boolean {
+  return hand.players.every((o) => o === p || o.folded || o.allIn);
 }
+
+/**
+ * The bet `p` has to match: the current bet, or with everyone else all-in, only what
+ * they actually put in (a short all-in big blind is less than the big blind).
+ */
+function betToMatch(hand: Hand, p: HandPlayer): number {
+  if (!othersAllIn(hand, p)) return hand.currentBet;
+  return Math.min(hand.currentBet, Math.max(0, ...hand.players.filter((o) => o !== p && !o.folded).map((o) => o.bet)));
+}
+
+function needsAction(hand: Hand, p: HandPlayer): boolean {
+  if (p.folded || p.allIn) return false;
+  // With everyone else all-in there's nothing to decide once you've matched them.
+  if (othersAllIn(hand, p)) return p.bet < betToMatch(hand, p);
+  return !p.acted || p.bet < hand.currentBet;
+}
+
+/** Hand history kept in state (views show the last 40). */
+const LOG_KEEP = 100;
 
 function log(hand: Hand, p: HandPlayer, action: string) {
   p.lastAction = action;
   hand.log.push({ street: hand.street, seat: p.seat, playerId: p.playerId, action });
+  if (hand.log.length > LOG_KEEP) hand.log.splice(0, hand.log.length - LOG_KEEP);
 }
 
 function setToAct(state: PokerState, seat: number, ctx: GameContext) {
@@ -216,8 +237,9 @@ export function sit(state: PokerState, playerId: string, seat: number, ctx: Game
 export function leave(state: PokerState, playerId: string, ctx: GameContext) {
   const p = inCurrentHand(state, requireSeat(state, playerId));
   if (p && !p.folded) foldOutOfTurn(state, p, ctx);
-  // Chips already committed stay in the pot; the hand keeps a record of the player.
-  standUp(state, playerId);
+  // Chips already committed stay in the pot; the hand keeps a record of the player. Players
+  // gone so long they're forgotten take their chips with them.
+  standUp(state, playerId, (gone) => (state.chipsIssued -= gone.stack));
 }
 
 export function setSittingOut(state: PokerState, playerId: string, sittingOut: boolean, ctx: GameContext) {
@@ -239,7 +261,9 @@ export function canStart(state: PokerState): boolean {
   return !handInProgress(state) && eligibleSeats(state).length >= 2;
 }
 
-export function start(state: PokerState, ctx: GameContext) {
+/** Deal (the first hand, or the next one early): for players at the table only. */
+export function start(state: PokerState, actor: string, ctx: GameContext) {
+  requireSeat(state, actor);
   if (handInProgress(state)) throw new GameError("in_progress", "A hand is already in progress.");
   if (eligibleSeats(state).length < 2)
     throw new GameError("not_enough_players", "Need at least two seated players with chips.");
@@ -261,11 +285,15 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
   const eligible = eligibleSeats(state);
   if (eligible.length < 2) return false;
 
-  const button =
+  let button =
     state.button === null
       ? eligible[ctx.randomInt(eligible.length)]!
       : nextClockwise(seatList(eligible), state.button)!.seat;
   const headsUp = eligible.length === 2;
+  // Heads-up, the button posts the small blind. Going heads-up from a bigger table, the
+  // usual move could make last hand's big blind post it again: then they get the button.
+  const lastBb = state.hand?.bb;
+  if (headsUp && lastBb !== undefined && eligible.includes(lastBb) && button !== lastBb) button = lastBb;
   const sb = headsUp ? button : nextClockwise(seatList(eligible), button)!.seat;
   const bb = nextClockwise(seatList(eligible), sb)!.seat;
 
@@ -323,8 +351,8 @@ export function legalActions(state: PokerState, seat: number): LegalActions | nu
   const p = hand.players.find((x) => x.seat === seat);
   const s = state.seats[seat];
   if (!p || !s) return null;
-  const owed = Math.max(0, hand.currentBet - p.bet);
-  const othersCanAct = hand.players.some((o) => o.seat !== seat && !o.folded && !o.allIn);
+  const owed = Math.max(0, betToMatch(hand, p) - p.bet);
+  const othersCanAct = !othersAllIn(hand, p);
   const maxRaiseTo = p.bet + s.stack;
   return {
     canFold: true,

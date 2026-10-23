@@ -38,7 +38,7 @@ export interface TttState extends Seating<TttSeat> {
   timers: Timers<"turn" | "nextRound">;
 }
 
-export interface TttView extends Omit<TttState, "timers"> {
+export interface TttView extends Omit<TttState, "timers" | "away"> {
   turnDeadline: number | null;
   nextRoundAt: number | null;
   you: { seat: Mark | null };
@@ -98,6 +98,14 @@ function endRound(state: TttState, result: TttResult, ctx: GameContext) {
   setTimer(state.timers, "nextRound", bothSeated(state) ? ctx.now + NEXT_ROUND_DELAY_MS : null);
 }
 
+/** Give up a seat (forfeiting a round in progress); the next round waits for someone to take it. */
+function leave(state: TttState, actor: string, ctx: GameContext) {
+  const seat = requireSeat(state, actor) as Mark;
+  if (state.status === "playing") endRound(state, { winner: (1 - seat) as Mark, line: null, forfeit: true }, ctx);
+  standUp(state, actor);
+  setTimer(state.timers, "nextRound", null);
+}
+
 function place(state: TttState, actor: string, cell: number, ctx: GameContext) {
   const seat = requireSeat(state, actor) as Mark;
   if (state.status !== "playing") throw new GameError("not_playing", "The round isn't on.");
@@ -133,20 +141,14 @@ export const ticTacToe: GameDefinition<TttState, TttOp, TttView, TttConfig> = {
         sitDown(state, actor, op.seat, () => ({ wins: 0 }));
         if (bothSeated(state) && state.status !== "playing") startRound(state, ctx);
         return;
-      case "leave": {
-        const seat = requireSeat(state, actor) as Mark;
-        if (state.status === "playing") endRound(state, { winner: (1 - seat) as Mark, line: null, forfeit: true }, ctx);
-        standUp(state, actor);
-        // The result stays up; the next round starts when someone takes the empty seat.
-        setTimer(state.timers, "nextRound", null);
-        return;
-      }
+      case "leave":
+        return leave(state, actor, ctx);
       case "place":
         return place(state, actor, op.cell, ctx);
     }
   },
   view(state, viewer) {
-    const { timers, ...rest } = state;
+    const { timers, away: _away, ...rest } = state;
     const seat = seatOf(state, viewer);
     return {
       ...structuredClone(rest),
@@ -156,6 +158,7 @@ export const ticTacToe: GameDefinition<TttState, TttOp, TttView, TttConfig> = {
     };
   },
   players: seatedPlayers,
+  removePlayer: leave,
   waitingOn: (state) => (state.status === "playing" ? [state.seats[state.turn]!.playerId] : []),
   legalOps(state, player) {
     const seat = seatOf(state, player);
@@ -169,7 +172,11 @@ export const ticTacToe: GameDefinition<TttState, TttOp, TttView, TttConfig> = {
   onDeadline(state, ctx) {
     const due = takeDueTimer(state.timers, ctx.now);
     if (due === "turn" && state.status === "playing") {
-      endRound(state, { winner: (1 - state.turn) as Mark, line: null, forfeit: true }, ctx);
+      // Out of time: you forfeit the round and give up your seat, so nobody racks up wins
+      // against an empty chair (and a table nobody's at stops playing itself).
+      const late = state.seats[state.turn]!.playerId;
+      leave(state, late, ctx);
+      ctx.announce(`${ctx.nameOf(late)} ran out of time and left the table.`);
     } else if (due === "nextRound") {
       if (bothSeated(state)) startRound(state, ctx);
       else state.status = "waiting";

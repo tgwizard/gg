@@ -42,6 +42,11 @@ export interface BotRecord extends BotSetup {
   error?: string;
   /** Moves the Easy bot made for an AI bot, and why the last one was. */
   standIns?: { count: number; lastWhy: string; lastAt: string };
+  /**
+   * You removed it, and it's leaving the room. The record (with the bot's secret) is kept
+   * until the room confirms, so a removal made offline still happens later.
+   */
+  removing?: true;
 }
 
 const KEY = "gg.bots";
@@ -149,8 +154,13 @@ function clean(setup: BotSetup): BotSetup {
   };
 }
 
-/** Forget a bot. Whichever tab runs it notices, takes it out of the room and stops it. */
+/** Take a bot out of the room for good. Whichever tab runs it does that, then forgets it. */
 export function removeBot(id: string) {
+  patchBot(id, { removing: true });
+}
+
+/** The room has let the bot go: forget it. */
+export function forgetBot(id: string) {
   save(getBots().filter((b) => b.id !== id));
 }
 

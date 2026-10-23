@@ -47,15 +47,39 @@ describe("tic-tac-toe", () => {
   });
 
   it("forfeits on timeout or leaving mid-round, and keeps scores across re-seating", () => {
-    const { state, ctx } = setup(10);
+    const { state, ctx, announcements } = setup(10);
     game.onDeadline!(state, ctx(10_000));
     expect(state.result).toMatchObject({ winner: 1, forfeit: true });
-    game.onDeadline!(state, ctx(10_000 + NEXT_ROUND_DELAY_MS));
+    // Running out of time gives up the seat: no next round until someone takes it.
+    expect(announcements.at(-1)).toBe("x ran out of time and left the table.");
+    expect(game.players(state)).toEqual(["o"]);
+    expect(game.nextDeadline!(state)).toBeNull();
+    game.apply(state, "x", { type: "sit", seat: 0 }, ctx(15_000));
     game.apply(state, "x", { type: "leave" }, ctx(20_000)); // o opens round 2, x leaves: o wins again
     expect(state.seats[1]!.wins).toBe(2);
     game.apply(state, "o", { type: "leave" }, ctx(20_000));
     game.apply(state, "o", { type: "sit", seat: 0 }, ctx(20_000));
     expect(state.seats[0]!.wins).toBe(2);
     expect(game.players(state)).toEqual(["o"]);
+  });
+
+  it("doesn't play on by itself when nobody's moving", () => {
+    const { state, ctx } = setup(1);
+    for (let t = 1; t < 100 && game.nextDeadline!(state) !== null; t++) game.onDeadline!(state, ctx(game.nextDeadline!(state)!));
+    expect(state.round).toBe(1);
+    expect(game.nextDeadline!(state)).toBeNull();
+  });
+
+  it("removes a player for good like leaving, and keeps only so many who left", () => {
+    const { state, ctx } = setup();
+    game.removePlayer(state, "x", ctx());
+    expect(game.players(state)).toEqual(["o"]);
+    expect(state.result).toMatchObject({ winner: 1, forfeit: true });
+    for (let i = 0; i < 100; i++) {
+      game.apply(state, `p${i}`, { type: "sit", seat: 0 }, ctx());
+      game.removePlayer(state, `p${i}`, ctx());
+    }
+    expect(Object.keys(state.away)).toHaveLength(32);
+    expect(game.view(state, "o")).not.toHaveProperty("away");
   });
 });

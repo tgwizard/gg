@@ -53,13 +53,14 @@ export const finnsISjon: GameDefinition<FishState, FishOp, FishView, FishConfig>
       case "sitIn":
         return setSittingOut(state, actor, false, ctx);
       case "start":
-        return start(state, ctx);
+        return start(state, actor, ctx);
       case "ask":
         return ask(state, actor, op.target, op.rank, ctx);
     }
   },
   view: viewFor,
   players: seatedPlayers,
+  removePlayer: (state, player, ctx) => leave(state, player, ctx),
   waitingOn: (state) => {
     const p = currentPlayer(state);
     return p ? [p.playerId] : [];

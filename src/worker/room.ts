@@ -51,10 +51,12 @@ import {
   ipChatBucket,
   ipOpsBucket,
   MAX_MEMBERS,
+  MAX_MESSAGE_LENGTH,
   MAX_SOCKETS_PER_IP,
   MAX_SOCKETS_PER_PLAYER,
   MAX_SOCKETS_PER_ROOM,
   MAX_VIOLATIONS,
+  newBotBucket,
   newMemberBucket,
   opsBucket,
   ROOM_IDLE_TTL_MS,
@@ -124,6 +126,7 @@ export class Room extends DurableObject<Env> {
   private limits = new WeakMap<WebSocket, Limits>();
   private ipLimits = new Map<string, Buckets>();
   private newMembers = new Map<string, TokenBucket>();
+  private newBots = new Map<string, TokenBucket>();
   private lastTouch = 0;
   /** What members are up to (e.g. a bot thinking). In memory only: it's gone after hibernation, which is fine. */
   private activities = new Map<string, string>();
@@ -189,7 +192,11 @@ export class Room extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
-    if (typeof raw !== "string") return;
+    // Size first: parsing is the expensive part, so oversized messages never get that far.
+    if (typeof raw !== "string" || raw.length > MAX_MESSAGE_LENGTH) {
+      if (!this.allow(ws, "ops")) return;
+      return this.send(ws, { type: "error", code: "bad_message", message: "Message too large." });
+    }
     let msg: ClientMessage;
     try {
       msg = ClientMessage.parse(JSON.parse(raw));
@@ -215,7 +222,8 @@ export class Room extends DurableObject<Env> {
       case "renameRoom":
         return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onRenameRoom(playerId, msg.name)));
       case "leaveRoom":
-        return this.onLeaveRoom(ws, playerId, msg.cid);
+        this.onLeaveRoom(ws, playerId, msg.cid);
+        return this.scheduleAlarm();
       case "chat":
         return this.ack(ws, msg.cid, this.onChat(playerId, msg.cid, msg.text));
       case "selectGame":
@@ -246,22 +254,7 @@ export class Room extends DurableObject<Env> {
       const expiresAt = this.expiresAt();
       if (expiresAt !== null && expiresAt <= now) return this.expire();
     }
-    if (this.game) {
-      const def = this.definition();
-      const announcements: string[] = [];
-      let state = this.game.state;
-      let changed = false;
-      // Several deadlines can be due at once (e.g. after the DO was evicted for a while).
-      for (let i = 0; i < 20; i++) {
-        const due = def.nextDeadline?.(state);
-        if (due == null || due > now || !def.onDeadline) break;
-        const next = structuredClone(state);
-        def.onDeadline(next, this.gameContext(announcements, now));
-        state = next;
-        changed = true;
-      }
-      if (changed) this.commitGame(state, announcements);
-    }
+    this.runDueDeadlines(now);
     this.sweep(now);
     await this.scheduleAlarm(true);
   }
@@ -287,15 +280,23 @@ export class Room extends DurableObject<Env> {
     const existing = this.getMember(playerId);
     const owner = ownerId ? this.getMember(ownerId) : null;
     if (!existing) {
-      if (ownerId && this.botsOf(ownerId) >= MAX_BOTS_PER_PLAYER) {
-        return this.refuse(ws, RATE_LIMITED, `You can have up to ${MAX_BOTS_PER_PLAYER} bots in a room.`, 60_000);
-      }
-      // A member's bots are already capped; anyone else counts as a new player from this network.
-      if (!owner && !this.bucket(this.newMembers, att.ip, newMemberBucket).take(now)) {
+      if (ownerId) {
+        // Bots belong to a person in the room (never to another bot), who can have a few,
+        // added at a bounded rate. People are limited per network instead.
+        if (owner?.kind !== "human") return this.refuse(ws, "no_owner", "A bot's owner must be in the room.", 60_000);
+        if (this.botsOf(ownerId) >= MAX_BOTS_PER_PLAYER) {
+          return this.refuse(ws, RATE_LIMITED, `You can have up to ${MAX_BOTS_PER_PLAYER} bots in a room.`, 60_000);
+        }
+        if (!this.bucket(this.newBots, ownerId, newBotBucket).take(now)) {
+          return this.refuse(ws, RATE_LIMITED, "You've added a lot of bots just now. Try again in a minute.", 60_000);
+        }
+      } else if (!this.bucket(this.newMembers, att.ip, newMemberBucket).take(now)) {
         return this.refuse(ws, RATE_LIMITED, "Too many new players from your network just now.", 60_000);
       }
       this.makeRoomForMember();
     }
+    // What someone is was settled when they first joined: a person can't turn into a bot.
+    const bot = existing ? existing.kind === "bot" : !!ownerId;
     const wasOnline = this.isOnline(playerId);
 
     this.sql.exec(
@@ -304,9 +305,9 @@ export class Room extends DurableObject<Env> {
       playerId,
       name,
       msg.color ?? 0,
-      ownerId ? "bot" : "human",
+      bot ? "bot" : "human",
       ownerId,
-      ownerId ? JSON.stringify(msg.bot ?? { level: "easy" }) : null,
+      bot ? JSON.stringify(msg.bot ?? { level: "easy" }) : null,
       now,
       now,
     );
@@ -316,7 +317,7 @@ export class Room extends DurableObject<Env> {
 
     let joinMessage: ChatMessage | null = null;
     if (!existing) {
-      const text = ownerId ? `${owner?.name ?? "Someone"} added a bot, ${name}.` : `${name} joined the room.`;
+      const text = bot ? `${owner?.name ?? "Someone"} added a bot, ${name}.` : `${name} joined the room.`;
       joinMessage = this.insertChat("system", null, null, text);
     }
 
@@ -329,7 +330,7 @@ export class Room extends DurableObject<Env> {
       members: this.getMembers(),
       chat: messages,
       chatReset: reset,
-      game: this.game ? this.snapshotFor(playerId, !!ownerId) : null,
+      game: this.game ? this.snapshotFor(playerId, bot) : null,
       serverTime: now,
     });
 
@@ -378,11 +379,16 @@ export class Room extends DurableObject<Env> {
     return { ok: true };
   }
 
-  /** A bot leaving for good: forget it and close its connections, so it can't come back. */
+  /**
+   * A bot leaving for good: it gives up its place in the game, then it's forgotten and
+   * its connections closed, so it can't come back. All in one step, so a removed bot
+   * never keeps a seat.
+   */
   private onLeaveRoom(ws: WebSocket, playerId: string, cid: string) {
     const member = this.getMember(playerId);
     if (member && member.kind !== "bot") return this.ack(ws, cid, fail("not_a_bot", "Only bots leave a room for good."));
     if (member) {
+      this.removeFromGame(playerId);
       this.activities.delete(playerId);
       this.sql.exec(`DELETE FROM members WHERE id = ?`, playerId);
       const owner = member.ownerId ? this.getMember(member.ownerId) : null;
@@ -450,11 +456,14 @@ export class Room extends DurableObject<Env> {
 
   private onGameOp(playerId: string, instanceId: string, rawOp: unknown, ifVersion: number | undefined): AckResult {
     if (!this.game || this.game.instanceId !== instanceId) return fail("no_such_game", "That game is no longer running.");
-    if (ifVersion !== undefined && ifVersion !== this.game.version)
-      return fail("stale", "The game changed just before your move. Have another look.");
     const def = this.definition();
     const parsed = def.opSchema.safeParse(rawOp);
     if (!parsed.success) return fail("bad_op", "Invalid move.");
+    // Time runs out on the server's clock, not when the alarm gets round to it: a move
+    // after its deadline finds the timeout already applied (and so the game changed).
+    this.runDueDeadlines(Date.now());
+    if (ifVersion !== undefined && ifVersion !== this.game.version && !def.concurrentOp?.(parsed.data))
+      return fail("stale", "The game changed just before your move. Have another look.");
 
     const announcements: string[] = [];
     const next = structuredClone(this.game.state);
@@ -492,6 +501,42 @@ export class Room extends DurableObject<Env> {
     };
   }
 
+  /** Apply the game's deadlines that are due by `now`, if any. */
+  private runDueDeadlines(now: number) {
+    if (!this.game) return;
+    const def = this.definition();
+    const announcements: string[] = [];
+    let state = this.game.state;
+    let changed = false;
+    // Several deadlines can be due at once (e.g. after the DO was evicted for a while).
+    for (let i = 0; i < 20; i++) {
+      const due = def.nextDeadline?.(state);
+      if (due == null || due > now || !def.onDeadline) break;
+      const next = structuredClone(state);
+      def.onDeadline(next, this.gameContext(announcements, now));
+      state = next;
+      changed = true;
+    }
+    if (changed) this.commitGame(state, announcements);
+  }
+
+  /** Take someone out of the running game for good (a removed bot). */
+  private removeFromGame(playerId: string) {
+    if (!this.game) return;
+    const def = this.definition();
+    if (!def.players(this.game.state).includes(playerId)) return;
+    const announcements: string[] = [];
+    const next = structuredClone(this.game.state);
+    try {
+      def.removePlayer(next, playerId, this.gameContext(announcements, Date.now()));
+    } catch (e) {
+      // A bug in the game mustn't keep the member around; the game state stays as it was.
+      console.error("removePlayer failed", e);
+      return;
+    }
+    this.commitGame(next, announcements);
+  }
+
   /** Persist a new game state, then fan out views and announcements. */
   private commitGame(state: unknown, announcements: string[]) {
     const game = this.game!;
@@ -517,6 +562,7 @@ export class Room extends DurableObject<Env> {
       view: def.view(game.state, playerId),
       players: def.players(game.state),
       waitingOn: def.waitingOn(game.state),
+      deadline: def.nextDeadline?.(game.state) ?? null,
       ...(bot ? { legalOps: def.legalOps(game.state, playerId) } : {}),
     };
   }

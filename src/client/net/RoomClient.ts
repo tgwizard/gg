@@ -9,7 +9,10 @@
  *     reconnect, un-acked messages are resent; the server dedupes by cid. Game ops
  *     carry the game version they were made against (`ifVersion`), so a click
  *     never applies to a situation the player hasn't seen, first send or resend.
- *   - Chat typed while offline is queued and shown as pending.
+ *   - Chat typed while offline is queued and shown as pending. It's also kept in the
+ *     tab's sessionStorage, so it still goes out after a refresh (with the same cid,
+ *     so it's never posted twice); after an hour it's dropped, as the server's memory
+ *     of what it already applied doesn't reach that far back.
  *   - Server limits are explained, not hidden: a refused connection carries a
  *     message and a retry-after, which wins over the normal backoff.
  *
@@ -93,6 +96,7 @@ const HEARTBEAT_TIMEOUT_MS = 8_000;
 const CONNECT_TIMEOUT_MS = 10_000;
 const MAX_BACKOFF_MS = 10_000;
 const MAX_CHAT = 500;
+const PENDING_CHAT_MAX_AGE_MS = 60 * 60 * 1000;
 
 export class RoomClient {
   private ws: WebSocket | null = null;
@@ -139,6 +143,7 @@ export class RoomClient {
   start() {
     if (!this.stopped) return;
     this.stopped = false;
+    this.restorePendingChat();
     window.addEventListener("online", this.onOnline);
     window.addEventListener("offline", this.onOffline);
     document.addEventListener("visibilitychange", this.onVisible);
@@ -205,7 +210,42 @@ export class RoomClient {
       devLog(this.roomId, this.who(), `status ${patch.status}`, patch.attempt ? { attempt: patch.attempt } : undefined);
     }
     this.snapshot = { ...this.snapshot, ...patch };
+    if (patch.pendingChat) this.savePendingChat();
     for (const l of this.listeners) l();
+  }
+
+  // --- pending chat across refreshes ---------------------------------------
+
+  /** Only your own chat is kept (a bot's is of the moment). */
+  private pendingKey(): string | null {
+    return this.owner ? null : `gg.pendingChat.${this.roomId}`;
+  }
+
+  private savePendingChat() {
+    const key = this.pendingKey();
+    if (!key) return;
+    try {
+      if (this.snapshot.pendingChat.length) sessionStorage.setItem(key, JSON.stringify(this.snapshot.pendingChat));
+      else sessionStorage.removeItem(key);
+    } catch {
+      // Storage unavailable: it's still sent if this page stays open.
+    }
+  }
+
+  /** Chat this tab queued before a refresh (or before leaving the room and coming back). */
+  private restorePendingChat() {
+    const key = this.pendingKey();
+    if (!key || this.snapshot.pendingChat.length) return;
+    let saved: PendingChat[] = [];
+    try {
+      const parsed: unknown = JSON.parse(sessionStorage.getItem(key) ?? "[]");
+      if (Array.isArray(parsed)) saved = parsed as PendingChat[];
+    } catch {
+      return;
+    }
+    const fresh = saved.filter((p) => typeof p?.cid === "string" && typeof p.text === "string" && Date.now() - p.ts < PENDING_CHAT_MAX_AGE_MS);
+    this.update({ pendingChat: fresh });
+    for (const p of fresh) void this.enqueue({ type: "chat", cid: p.cid, text: p.text }, "chat").catch(() => {});
   }
 
   // --- public actions ------------------------------------------------------
@@ -251,11 +291,15 @@ export class RoomClient {
     return this.request({ type: "leaveRoom", cid: crypto.randomUUID() }, "room");
   }
 
-  /** A move, made against the game as you see it now (or as of `ifVersion`). */
-  sendGameOp(op: unknown, ifVersion?: number) {
+  /**
+   * A move, made against the game as you see it now, or as of `at` (what a bot looked at
+   * before deciding): it's refused if that game has ended or changed since.
+   */
+  sendGameOp(op: unknown, at?: { instanceId: string; version: number }) {
     const game = this.snapshot.game;
-    if (!game) return Promise.reject(new RequestError("no_game", "No game is running."));
-    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId: game.instanceId, op, ifVersion: ifVersion ?? game.version }, "game");
+    const { instanceId, version } = at ?? game ?? {};
+    if (!instanceId) return Promise.reject(new RequestError("no_game", "No game is running."));
+    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId, op, ifVersion: version }, "game");
   }
 
   // --- outbox --------------------------------------------------------------

@@ -12,8 +12,10 @@ tic-tac-toe.
 - **Names** (and colors) are set once per browser and used in every room. Change
   them, or delete everything gg keeps in your browser, at `/settings`.
 - **Resilient**: reconnects automatically, catches up on chat and game state, and
-  survives refreshes, flaky networks and sleeping laptops without losing or
-  duplicating actions.
+  survives refreshes, flaky networks and sleeping laptops without duplicating
+  actions. Chat typed offline is sent when you're back, even after a refresh;
+  moves need a connection, so one made while offline is refused rather than
+  played into a game you haven't seen.
 - **Private hands**: each player only ever receives their own view of the game.
 - **Bots**: add one from the members panel and it takes a free seat in any game.
   Easy bots need no AI. AI bots use your own Anthropic, OpenAI or Meta (Muse) key

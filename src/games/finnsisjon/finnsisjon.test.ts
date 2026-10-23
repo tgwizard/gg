@@ -12,6 +12,7 @@ import {
   leave,
   nextDeadline,
   onDeadline,
+  LOG_KEEP,
   setSittingOut,
   sit,
   start,
@@ -26,7 +27,7 @@ function setup(n: number, opts: { seed?: number; turnSeconds?: number } = {}) {
   const state = createState({ turnSeconds: opts.turnSeconds ?? 30 });
   const ids = ["a", "b", "c", "d", "e", "f"].slice(0, n);
   ids.forEach((id, i) => sit(state, id, i));
-  start(state, ctx());
+  start(state, "a", ctx());
   return { state, ctx, announcements, ids };
 }
 
@@ -53,7 +54,7 @@ describe("dealing", () => {
   it("needs two players who aren't away", () => {
     const state = createState({ turnSeconds: 30 });
     sit(state, "a", 0);
-    expect(() => start(state, setup(2).ctx())).toThrow(/two players/);
+    expect(() => start(state, "a", setup(2).ctx())).toThrow(/two players/);
   });
 });
 
@@ -126,8 +127,45 @@ describe("away players and leaving", () => {
     ask(state, "b", "a", "9", ctx(11_000));
     expect(turnOf(state)).toBe("a");
     expect(nextDeadline(state)).toBe(11_000 + AUTO_PLAY_DELAY_MS);
+    // Back: what's left of the turn, which began at 11s.
     setSittingOut(state, "a", false, ctx(12_000));
-    expect(nextDeadline(state)).toBe(12_000 + 10_000);
+    expect(nextDeadline(state)).toBe(11_000 + 10_000);
+  });
+
+  it("never extends a turn by going away and coming back", () => {
+    const { state, ctx } = setup(2, { turnSeconds: 45 });
+    const a = turnOf(state)!;
+    const ends = nextDeadline(state)!;
+    expect(() => setSittingOut(state, a, false, ctx(44_000))).toThrow(/already/);
+    for (let t = 1_000; t < 40_000; t += 2_000) {
+      setSittingOut(state, a, true, ctx(t));
+      expect(nextDeadline(state)).toBe(t + AUTO_PLAY_DELAY_MS);
+      setSittingOut(state, a, false, ctx(t + 1_000));
+      expect(nextDeadline(state)).toBe(ends);
+    }
+  });
+
+  it("only lets players at the table deal", () => {
+    const state = createState({ turnSeconds: 30 });
+    sit(state, "a", 0);
+    sit(state, "b", 1);
+    expect(() => start(state, "spectator", setup(2).ctx())).toThrow(/not seated/);
+    start(state, "a", setup(2).ctx());
+    expect(state.phase).toBe("playing");
+  });
+
+  it("keeps a bounded history however long play goes round in circles", () => {
+    const { state, ctx } = setup(3);
+    // Ten ranks are booked already; nobody holds what's asked for, and the lake is empty.
+    rig(state, { a: ["Ah", "Ad", "Kh", "Kd"], b: ["As", "Ac", "Qh", "Qd"], c: ["Ks", "Kc", "Qs", "Qc"] }, [], "a");
+    state.players[0]!.books = ["2", "3", "4", "5", "6", "7", "8", "9", "T", "J"];
+    for (let i = 0; i < 700; i++) {
+      ask(state, "a", "c", "A", ctx());
+      ask(state, "b", "a", "Q", ctx());
+      ask(state, "c", "b", "K", ctx());
+    }
+    expect(turnOf(state)).toBe("a");
+    expect(state.log).toHaveLength(LOG_KEEP);
   });
 
   it("returns a leaver's hand to the lake, and ends a two-player game", () => {

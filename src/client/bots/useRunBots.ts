@@ -4,8 +4,8 @@ import { getBots, subscribeBots } from "./store";
 
 /**
  * Play your bots for this room while it's open: new ones join, renamed ones tell the
- * room, removed ones leave it (in whichever tab is playing them), and closing the
- * room stops them.
+ * room, removed ones leave it (in whichever tab is playing them, which then forgets
+ * them), and closing the room stops them.
  */
 export function useRunBots(roomId: string, ownerSecret: string) {
   useEffect(() => {
@@ -25,7 +25,7 @@ export function useRunBots(roomId: string, ownerSecret: string) {
       for (const [id, player] of players) {
         if (bots.some((b) => b.id === id)) continue;
         players.delete(id);
-        void player.remove();
+        player.stop();
       }
     };
     sync();

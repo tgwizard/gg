@@ -14,7 +14,10 @@
  *     starting) are built from `kit/lobby` and handled for every game alike; the
  *     game's bot only picks among its own moves.
  *   - `nextDeadline`/`onDeadline` drive timers (turn clocks, delays between hands),
- *     backed by a Durable Object alarm.
+ *     backed by a Durable Object alarm. A deadline that has passed is applied before
+ *     any later op, so a move can't beat its clock by arriving before the alarm.
+ *   - `removePlayer` takes someone out for good (a removed bot), so nobody holds a
+ *     seat in a game they've left.
  *
  * `apply` and `onDeadline` receive a private copy of the state and may mutate it
  * freely; throwing a GameError rejects the op and discards the mutations. State
@@ -69,6 +72,17 @@ export interface GameDefinition<State = unknown, Op = unknown, View = unknown, C
   view(state: State, viewer: string): View;
   /** Player ids taking part (e.g. seated). The room lets these, or the game's starter, end the game. */
   players(state: State): string[];
+  /**
+   * `player` is gone for good: give up their place as if they'd left the table. Called
+   * only for someone in `players`; afterwards they must no longer be.
+   */
+  removePlayer(state: State, player: string, ctx: GameContext): void;
+  /**
+   * Ops that only change the actor's own part of the game (arranging your own fleet),
+   * so they needn't be made against the latest version: the room accepts them even if
+   * someone else moved in the meantime. `apply` still checks they're allowed now.
+   */
+  concurrentOp?(op: Op): boolean;
   /** Player ids the game is waiting on (turn indicator; later: what bots react to). */
   waitingOn(state: State): string[];
   /**

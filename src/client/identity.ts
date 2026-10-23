@@ -6,29 +6,15 @@
 import { useSyncExternalStore } from "react";
 import { COLOR_COUNT, isColor } from "../shared/colors";
 import { sanitizeName } from "../shared/protocol";
+import { storage } from "./storage";
 
 const SECRET_KEY = "gg.secret";
 const NAME_KEY = "gg.name";
 const COLOR_KEY = "gg.color";
 const PROFILE_EVENT = "gg:profile";
 
-const memory = new Map<string, string>(); // fallback when storage is unavailable
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return memory.get(key) ?? null;
-  }
-}
-
-function write(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    memory.set(key, value);
-  }
-}
+const read = storage.get;
+const write = storage.set;
 
 export function getSecret(): string {
   let secret = read(SECRET_KEY);
@@ -74,14 +60,7 @@ export function saveColor(color: number) {
  * secret behind your player id, so you're still you in rooms you've joined.
  */
 export function deleteLocalData() {
-  try {
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith("gg.") && key !== SECRET_KEY) localStorage.removeItem(key);
-    }
-  } catch {
-    // Storage unavailable: nothing persisted to delete.
-  }
-  for (const key of [...memory.keys()]) if (key !== SECRET_KEY) memory.delete(key);
+  for (const key of storage.keys()) if (key.startsWith("gg.") && key !== SECRET_KEY) storage.remove(key);
 }
 
 function subscribe(cb: () => void) {

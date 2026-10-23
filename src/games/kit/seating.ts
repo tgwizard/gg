@@ -4,9 +4,13 @@
  * A game's state includes `seats` and `away` (spread a `Seating` into it). Seat
  * objects carry whatever per-player data the game needs (a poker stack, a score);
  * when a player stands up that data is kept in `away` and handed back if they sit
- * down again, so standing up is never a way to reset yourself.
+ * down again, so standing up is never a way to reset yourself. Only the most recent
+ * MAX_AWAY are kept, so a long-running game can't grow without bound.
  */
 import { GameError } from "../types";
+
+/** How many players who stood up are remembered. */
+export const MAX_AWAY = 32;
 
 export interface Seat {
   playerId: string;
@@ -59,17 +63,28 @@ export function sitDown<S extends Seat>(t: Seating<S>, playerId: string, seat: n
   return s;
 }
 
-/** Stand a player up, remembering their seat data. Returns the seat they left. */
-export function standUp<S extends Seat>(t: Seating<S>, playerId: string): number {
+/**
+ * Stand a player up, remembering their seat data. Returns the seat they left. When
+ * that makes too many to remember, the longest gone are forgotten, through `forget`
+ * (e.g. their chips leave the table).
+ */
+export function standUp<S extends Seat>(t: Seating<S>, playerId: string, forget?: (data: SeatData<S>) => void): number {
   const seat = requireSeat(t, playerId);
   const { playerId: _id, sittingOut: _out, ...data } = t.seats[seat]!;
   t.away[playerId] = data as SeatData<S>;
   t.seats[seat] = null;
+  // Keys keep insertion order (player ids are never integer-like), so the first are the oldest.
+  for (const id of Object.keys(t.away).slice(0, -MAX_AWAY)) {
+    forget?.(t.away[id]!);
+    delete t.away[id];
+  }
   return seat;
 }
 
+/** Sit out or back in; asking for what's already so is refused (it would change nothing). */
 export function setSittingOut<S extends Seat>(t: Seating<S>, playerId: string, sittingOut: boolean): S {
   const s = t.seats[requireSeat(t, playerId)]!;
+  if (s.sittingOut === sittingOut) throw new GameError("no_change", sittingOut ? "You're already sitting out." : "You're already in.");
   s.sittingOut = sittingOut;
   return s;
 }

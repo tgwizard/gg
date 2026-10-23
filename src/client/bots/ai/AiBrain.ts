@@ -11,8 +11,12 @@
  *
  * One call at a time. The model answers with the `act` tool; moves go through the same
  * path as anyone's, and their result goes back to the model (which can retry a few
- * times). If the model can't be reached, or keeps passing on its own move, the Easy bot
- * plays that move so the table never waits on it.
+ * times). If the model can't be reached, takes too long, or keeps passing on its own
+ * move, the Easy bot plays that move so the table never waits on it.
+ *
+ * Every decision is bound to the game and version it was made from: a new game starts a
+ * new conversation and cancels the call in flight, and an answer that arrives after the
+ * game moved on is never played into it.
  */
 import type { AnyGameDefinition } from "../../../games/types";
 import { clientFor, getConnection } from "../../llm/connections";
@@ -22,8 +26,8 @@ import { ACT, actTool, gameMoves, instructions, parseAct, updateText } from "./p
 
 export interface BrainHost {
   snapshot(): RoomSnapshot;
-  /** A move, made against the game version the bot was looking at. */
-  sendOp(op: unknown, ifVersion?: number): Promise<void>;
+  /** A move, made against the game (and version) the bot was looking at. */
+  sendOp(op: unknown, at: GameAt): Promise<void>;
   say(text: string): void;
   /** The Easy bot's move, when the model can't or won't make one. */
   easyMove(): unknown;
@@ -48,6 +52,12 @@ export interface BrainSetup {
 
 type Reason = "turn" | "chat" | "heartbeat" | "retry";
 
+/** A game and the version of it that a decision was made from. */
+export interface GameAt {
+  instanceId: string;
+  version: number;
+}
+
 const LOBBY = "lobby";
 
 const CHAT_PAUSE_MS = 2_500;
@@ -65,6 +75,10 @@ const MAX_MOVE_CALLS_PER_MINUTE = 30;
 /** How long the Easy bot "thinks" when it stands in, like it does on its own. */
 const STAND_IN_MS: [number, number] = [600, 1500];
 const MAX_ATTEMPTS = 3;
+/** Model calls are given up on after this long; for its own move, before its clock runs out. */
+const CALL_TIMEOUT_MS = 90_000;
+const DEADLINE_MARGIN_MS = 3_000;
+const MIN_MOVE_CALL_MS = 2_000;
 /** Start the conversation over (with recent chat) when it gets this long. */
 const MAX_MESSAGES = 80;
 const RECENT_CHAT = 12;
@@ -73,6 +87,8 @@ export class AiBrain {
   private def: AnyGameDefinition | null = null;
   /** The game instance the conversation is about, or LOBBY between games. */
   private context: string | null = null;
+  /** Bumped whenever the conversation starts over: answers from before are dropped. */
+  private generation = 0;
   private messages: LLMMessage[] = [];
   /** Tool results waiting to open the next update. */
   private results: LLMPart[] = [];
@@ -92,7 +108,8 @@ export class AiBrain {
   private timers = new Map<Reason | "standIn", ReturnType<typeof setTimeout>>();
   private heartbeat = setInterval(() => this.news && this.wake("heartbeat"), HEARTBEAT_MS);
   private client: { connectionId: string; llm: Promise<LLMClient> } | null = null;
-  private abort = new AbortController();
+  /** The model call in flight. */
+  private call: AbortController | null = null;
 
   constructor(
     private setup: BrainSetup,
@@ -110,7 +127,7 @@ export class AiBrain {
 
   stop() {
     this.stopped = true;
-    this.abort.abort();
+    this.call?.abort();
     clearInterval(this.heartbeat);
     for (const t of this.timers.values()) clearTimeout(t);
   }
@@ -152,9 +169,13 @@ export class AiBrain {
     this.host.log("new conversation", { game: game?.gameId ?? "lobby", instance: game?.instanceId });
     this.def = game ? (this.games[game.gameId] ?? null) : null;
     this.context = game?.instanceId ?? LOBBY;
+    this.generation++;
+    this.call?.abort();
     this.messages = [];
     this.results = [];
     this.viewVersion = null;
+    // Versions start over with each game.
+    this.seenVersion = null;
     // A new conversation starts with a little of what was said before.
     const chat = snap.chat;
     this.chatCursor = chat.length > RECENT_CHAT ? chat[chat.length - RECENT_CHAT - 1]!.seq : 0;
@@ -211,6 +232,8 @@ export class AiBrain {
     const you = snap.you?.id;
     if (!you || (game?.instanceId ?? LOBBY) !== this.context || (game && !def)) return;
     if (this.messages.length > MAX_MESSAGES) this.restart(snap);
+    const generation = this.generation;
+    const at = game ? { instanceId: game.instanceId, version: game.version } : null;
 
     const moves = game ? gameMoves(game.legalOps ?? []) : [];
     const chat = snap.chat.filter((m) => m.seq > this.chatCursor && !(m.kind === "user" && m.playerId === you));
@@ -243,6 +266,9 @@ export class AiBrain {
     const started = Date.now();
     this.host.log("wake", { reasons: [...reasons], attempt, model, effort: this.setup.effort ?? "low", messages: this.messages.length, update: text });
     this.host.activity(moves.length ? "Thinking about its move" : reasons.has("chat") ? "Reading the chat" : game ? "Watching the game" : "Thinking");
+    const call = new AbortController();
+    this.call = call;
+    const watchdog = setTimeout(() => call.abort(), this.callTimeout(snap, moves.length > 0));
     try {
       this.calls.push(Date.now());
       answer = await (await this.llm()).generate({
@@ -253,37 +279,41 @@ export class AiBrain {
         messages: this.messages,
         maxOutputTokens: 4000,
         cache: true,
-        signal: this.abort.signal,
+        signal: call.signal,
       });
     } catch (e) {
+      this.host.activity(null);
+      // Stopped, or a new conversation began: this update belonged to the old one.
+      if (this.stopped || generation !== this.generation) return;
       this.messages.pop();
       Object.assign(this, before);
-      this.host.activity(null);
-      if (e instanceof LLMError && e.code === "cancelled") return;
-      const message = e instanceof Error ? e.message : "Couldn't reach the model.";
+      // Otherwise a cancelled call is one that took too long.
+      const tooSlow = call.signal.aborted;
+      const message = tooSlow ? "The model took too long to answer." : e instanceof Error ? e.message : "Couldn't reach the model.";
       this.host.log("model error", { ms: Date.now() - started, message, code: e instanceof LLMError ? e.code : undefined });
       this.host.error(message);
-      if (moves.length) this.standIn(`the model call failed (${message})`);
+      if (moves.length) this.standIn(tooSlow ? "the model took too long" : `the model call failed (${message})`);
       return;
+    } finally {
+      clearTimeout(watchdog);
+      if (this.call === call) this.call = null;
     }
     this.host.activity(null);
     this.host.error(undefined);
     this.host.log("answer", { ms: Date.now() - started, toolCalls: answer.toolCalls, text: answer.text || undefined, usage: answer.usage });
     if (answer.usage) this.host.usage(answer.usage);
+    if (this.stopped || generation !== this.generation) return;
     this.messages.push(answer.message);
-    if (this.stopped) return;
 
-    const [call, ...extra] = answer.toolCalls;
+    const [use, ...extra] = answer.toolCalls;
     for (const c of extra) this.results.push({ type: "tool_result", callId: c.id, content: "Ignored: one act per update.", isError: true });
-    if (!call || call.name !== ACT) {
-      if (call) this.results.push({ type: "tool_result", callId: call.id, content: `Unknown tool; use ${ACT}.`, isError: true });
-      if (!moves.length) return;
-      // Passed on its own move: one nudge, then the Easy bot moves for it.
-      if (attempt < MAX_ATTEMPTS && !reasons.has("retry")) return this.think(new Set(["retry"]), attempt + 1, "It's your move: call act with one of the legal moves.");
-      return this.standIn("the model passed on its own move");
+    if (!use || use.name !== ACT) {
+      if (use) this.results.push({ type: "tool_result", callId: use.id, content: `Unknown tool; use ${ACT}.`, isError: true });
+      if (moves.length) return this.passed(reasons, attempt, at!);
+      return;
     }
 
-    const act = parseAct(def, call.input);
+    const act = parseAct(def, use.input);
     const notes: string[] = [];
     if (act.say) {
       const prompted = reasons.has("turn") || reasons.has("chat") || reasons.has("retry");
@@ -298,26 +328,47 @@ export class AiBrain {
       if (!moves.length) failed = "It isn't your move.";
       else {
         try {
-          await this.host.sendOp(act.op, game!.version);
+          await this.host.sendOp(act.op, at!);
           notes.unshift("Move made.");
         } catch (e) {
           failed = e instanceof RequestError ? e.message : "The move didn't go through.";
-          if (e instanceof RequestError && e.code === "stale") {
+          if (e instanceof RequestError && (e.code === "stale" || e.code === "no_such_game")) {
             // The game moved on; the next update shows where things stand.
-            this.results.push({ type: "tool_result", callId: call.id, content: "The game changed before your move landed; see the next update." });
+            if (generation === this.generation) {
+              this.results.push({ type: "tool_result", callId: use.id, content: "The game changed before your move landed; see the next update." });
+            }
             return;
           }
         }
       }
     }
+    if (generation !== this.generation) return;
     this.host.log("act", { op: act.op, say: act.say, failed, notes });
     if (failed) {
-      this.results.push({ type: "tool_result", callId: call.id, content: [`Not accepted: ${failed}`, ...notes].join(" "), isError: true });
+      this.results.push({ type: "tool_result", callId: use.id, content: [`Not accepted: ${failed}`, ...notes].join(" "), isError: true });
       if (moves.length && attempt < MAX_ATTEMPTS) return this.think(new Set(["retry"]), attempt + 1);
       if (moves.length) this.standIn(`its moves weren't accepted (${failed})`);
       return;
     }
-    this.results.push({ type: "tool_result", callId: call.id, content: notes.join(" ") || "Passed." });
+    this.results.push({ type: "tool_result", callId: use.id, content: notes.join(" ") || "Passed." });
+    // Chat alone (or nothing) on its own move is passing on it.
+    if (moves.length && act.op === undefined) return this.passed(reasons, attempt, at!);
+  }
+
+  /** It passed on its own move: one nudge, then the Easy bot moves for it (if that's still the move). */
+  private passed(reasons: Set<Reason>, attempt: number, at: GameAt): Promise<void> | void {
+    const game = this.host.snapshot().game;
+    if (game?.instanceId !== at.instanceId || game.version !== at.version) return;
+    if (attempt < MAX_ATTEMPTS && !reasons.has("retry")) return this.think(new Set(["retry"]), attempt + 1, "It's your move: call act with one of the legal moves.");
+    this.standIn("the model passed on its own move");
+  }
+
+  /** How long a model call may take: for its own move, less than what's left on its clock. */
+  private callTimeout(snap: RoomSnapshot, move: boolean): number {
+    const deadline = snap.game?.deadline ?? null;
+    if (!move || deadline === null) return CALL_TIMEOUT_MS;
+    const left = deadline - (Date.now() + snap.clockOffset);
+    return Math.max(MIN_MOVE_CALL_MS, Math.min(CALL_TIMEOUT_MS, left - DEADLINE_MARGIN_MS));
   }
 
   /** Its own move right now, as far as it can tell. */
@@ -331,18 +382,20 @@ export class AiBrain {
    * owner can see that it did and why.
    */
   private standIn(why: string) {
-    const version = this.host.snapshot().game?.version;
-    this.host.log("stand-in", { why, version });
+    const game = this.host.snapshot().game;
+    if (!game) return;
+    const at = { instanceId: game.instanceId, version: game.version };
+    this.host.log("stand-in", { why, ...at });
     this.host.standIn(why);
     this.host.activity("Playing without AI");
     const [min, max] = STAND_IN_MS;
     const timer = setTimeout(() => {
       this.timers.delete("standIn");
       this.host.activity(null);
-      const game = this.host.snapshot().game;
-      if (this.stopped || game?.version !== version) return;
+      const now = this.host.snapshot().game;
+      if (this.stopped || now?.instanceId !== at.instanceId || now.version !== at.version) return;
       const op = this.host.easyMove();
-      if (op != null) void this.host.sendOp(op, version).catch(() => {});
+      if (op != null) void this.host.sendOp(op, at).catch(() => {});
     }, min + Math.floor(Math.random() * (max - min)));
     this.timers.set("standIn", timer);
   }

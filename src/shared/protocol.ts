@@ -96,6 +96,8 @@ export interface GameSnapshot<V = unknown> {
   players: string[];
   /** Player ids the game is currently waiting on. */
   waitingOn: string[];
+  /** When the game's next timer runs out (server time), e.g. the current turn's clock; null if none. */
+  deadline: number | null;
   /** Only sent to bots: the ops they can make right now (the game's `legalOps`). */
   legalOps?: unknown[];
 }

@@ -23,7 +23,7 @@ export const pokerBot: GameBot<PokerView, PokerOp> = {
     if (good && raise && rand(4) === 0) return raise; // the smallest raise comes first
     if (actions.canCheck) return passive;
     // Facing a bet: weak hands fold to anything bigger than about a third of the pot.
-    const cheap = actions.toCall <= Math.max(hand.bb * 2, hand.pot / 3);
+    const cheap = actions.toCall <= Math.max(view.config.bigBlind * 2, hand.pot / 3);
     if (good || cheap || rand(5) === 0) return passive;
     return find("fold")!;
   },
