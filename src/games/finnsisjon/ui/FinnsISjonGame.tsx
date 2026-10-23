@@ -110,6 +110,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         disabled={busy || !connected}
       />
 
+      {!(view.phase === "over" && view.you.seat !== null) && (
       <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fish-tray">
         {mine && view.phase === "playing" ? (
           <div className="fish-me" data-testid="fish-me">
@@ -157,6 +158,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
           <Status view={view} />
         )}
       </ActionTray>
+      )}
 
       <TableFooter
         log={

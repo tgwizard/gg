@@ -76,6 +76,11 @@ interface RoomInfo {
   createdAt: number;
   /** Display name; rooms are still only joined by code. */
   name?: string | null;
+  /**
+   * A practice room: its game can be replaced with a set-up position (a scenario
+   * from /try). Fixed when the room is created, so a real game can never be.
+   */
+  practice?: boolean;
 }
 
 interface StoredGame {
@@ -150,12 +155,12 @@ export class Room extends DurableObject<Env> {
 
   // --- RPC (called by the worker) ------------------------------------------
 
-  async create(id: string, name: string | null = null): Promise<{ created: boolean; info: RoomInfo }> {
+  async create(id: string, name: string | null = null, practice = false): Promise<{ created: boolean; info: RoomInfo }> {
     const existing = this.getKv<RoomInfo>("room");
     if (existing) return { created: false, info: existing };
     this.migrate();
     this.ready = true;
-    const info: RoomInfo = { id, createdAt: Date.now(), name: sanitizeRoomName(name ?? "") };
+    const info: RoomInfo = { id, createdAt: Date.now(), name: sanitizeRoomName(name ?? ""), ...(practice ? { practice: true } : {}) };
     this.setKv("room", info);
     // Schedules expiry, so rooms nobody ever opens are cleaned up too.
     await this.scheduleAlarm();
@@ -164,6 +169,39 @@ export class Room extends DurableObject<Env> {
 
   async info(): Promise<RoomInfo | null> {
     return this.getKv<RoomInfo>("room");
+  }
+
+  /**
+   * Replace a practice room's game with a set-up position (a scenario from /try), as
+   * if it had just been started. The state is built in the browser, so it's only taken
+   * in practice rooms, from a person in the room, about people in the room, and only if
+   * the game can work with it.
+   */
+  async loadScenario(playerId: string, gameId: string, state: unknown, scenario: string): Promise<{ status: number; error?: string }> {
+    const room = this.getKv<RoomInfo>("room");
+    if (!room) return { status: 404, error: "not_found" };
+    if (!room.practice) return { status: 403, error: "not_practice" };
+    if (this.getMember(playerId)?.kind !== "human") return { status: 403, error: "not_a_member" };
+    const def = games[gameId];
+    if (!def) return { status: 400, error: "unknown_game" };
+    const now = Date.now();
+    try {
+      def.checkInvariants?.(state);
+      const players = def.players(state);
+      const members = new Set(this.getMembers().map((m) => m.id));
+      if (!players.every((id) => members.has(id))) throw new Error("players who aren't in the room");
+      for (const id of [...players, ""]) JSON.stringify([def.view(state, id), def.legalOps(state, id)]);
+      def.waitingOn(state);
+      const due = def.nextDeadline?.(state);
+      if (due != null && due < now - 60_000) throw new Error("a timer long overdue");
+    } catch {
+      return { status: 400, error: "bad_state" };
+    }
+    this.touch();
+    this.game = { instanceId: crypto.randomUUID(), gameId, version: 0, startedAt: now, startedBy: playerId, state };
+    this.commitGame(state, [`${this.nameOf(playerId)} set up ${def.meta.name}: ${sanitizeChat(scenario).slice(0, 80)}.`]);
+    await this.scheduleAlarm();
+    return { status: 200 };
   }
 
   // --- WebSocket lifecycle -------------------------------------------------

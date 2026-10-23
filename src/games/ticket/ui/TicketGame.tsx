@@ -777,7 +777,7 @@ function Controls({ view, connected, busy, send }: { view: TtrView; connected: b
   if (!s) return null;
   return (
     <>
-      {view.canStart && (
+      {view.canStart && view.phase !== "over" && (
         <button className="btn primary" disabled={disabled} onClick={() => send({ type: "start" })} data-testid="ttr-start">
           {view.game === 0 ? "Start" : "Play again"}
         </button>

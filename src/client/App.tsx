@@ -1,10 +1,14 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { normalizeRoomCode } from "../shared/roomCode";
 import { HomePage } from "./pages/Home";
 import { RoomPage } from "./pages/Room";
 import { SettingsPage } from "./pages/Settings";
 import { StyleGuidePage } from "./pages/StyleGuide";
 import { usePath } from "./router";
+
+// Brings every game's rules, so it loads on demand.
+// Dev builds only: production builds leave the page out entirely.
+const TryPage = import.meta.env.DEV ? lazy(() => import("./pages/Try").then((m) => ({ default: m.TryPage }))) : null;
 
 export function App() {
   const path = usePath();
@@ -17,5 +21,7 @@ export function App() {
   if (code) return <RoomPage key={code} roomId={code} />;
   if (path === "/ui") return <StyleGuidePage />;
   if (path === "/settings") return <SettingsPage />;
+  // Practice rooms are for local development only (the server refuses them elsewhere).
+  if (TryPage && /^\/try(\/|$)/.test(path)) return <Suspense fallback={null}><TryPage path={path} /></Suspense>;
   return <HomePage />;
 }

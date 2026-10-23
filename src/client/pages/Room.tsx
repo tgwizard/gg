@@ -20,6 +20,7 @@ import { noAutofill } from "../noAutofill";
 import { ModeToggle } from "../components/ModeToggle";
 import { SoundToggle } from "../components/SoundToggle";
 import { TopbarSlotProvider } from "../components/TopbarSlot";
+import { PracticeTag } from "../components/PracticeTag";
 
 export function RoomPage({ roomId }: { roomId: string }) {
   const name = useName();
@@ -132,6 +133,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
                 {roomId}
               </span>
               <InviteButton />
+              <PracticeTag roomId={roomId} />
             </span>
             <div className="topbar-game" ref={setGameSlot} />
             <div className="spacer" />

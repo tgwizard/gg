@@ -25,6 +25,8 @@ export const newBotBucket = () => new TokenBucket(MAX_BOTS_PER_PLAYER, 1 / 30);
 export const MAX_MESSAGE_LENGTH = 16_384;
 /** Request bodies (a new room's name) are read up to this many bytes. */
 export const MAX_BODY_BYTES = 2_048;
+/** A scenario's game state (a late Coast to Coast game is about 15 KB). */
+export const MAX_SCENARIO_BYTES = 128 * 1024;
 /** Refused messages after which a flooding socket is disconnected; forgiven at 1 per second. */
 export const MAX_VIOLATIONS = 50;
 export const FLOOD_RETRY_MS = 30_000;

@@ -390,11 +390,6 @@ function Controls(props: { view: ChessView; busy: boolean; connected: boolean; s
   return (
     <div className="chess-controls">
       <span className="row">
-        {view.phase === "over" && view.you.seat !== null && view.canRematch && (
-          <button className="btn primary" disabled={disabled} onClick={() => send({ type: "rematch" })} data-testid="chess-rematch">
-            Play again
-          </button>
-        )}
         {view.phase === "over" && view.you.seat !== null && !view.canRematch && <span className="muted">Waiting for an opponent to sit down.</span>}
         {view.phase === "over" && view.you.seat === null && openSeat !== undefined && (
           <button className="btn" disabled={disabled} onClick={() => send({ type: "sit", seat: openSeat })}>

@@ -87,7 +87,7 @@ await snap(a, "chess-2-check");
 await snap(b, "chess-2-check-mobile");
 await b.getByTestId("chess-resign").click();
 await b.getByTestId("chess-resign-yes").click();
-await a.getByTestId("chess-rematch").waitFor();
+await a.getByTestId("chess-result").waitFor();
 await a.waitForTimeout(300);
 await snap(a, "chess-3-over");
 await a.getByRole("button", { name: "Hide chat" }).click();

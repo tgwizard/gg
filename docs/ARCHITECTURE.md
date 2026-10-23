@@ -36,6 +36,11 @@ one Worker, Workers Assets for the SPA, and one Durable Object per room.
   one hit about every 50 years.
 - A room can have a **name** (`POST /api/rooms {name}`, or `renameRoom` from
   anyone in it). It's only for display: rooms are still joined by code or link.
+- A **practice room** (`POST /api/rooms {practice: true}`, made by `/try`) is one whose
+  game can be set up in a given position; see "Practice rooms and scenarios" under
+  Games. Only practice rooms take that, and a room can't become one later. They're
+  for local development only: the worker makes them (and answers `/scenario`) only
+  when served on localhost or a `.test` host, and `/try` is only in dev builds.
 - The DO stores everything in its SQLite database (`kv`, `members`, `chat`, `ops`),
   so it can be evicted or hibernate at any time and come back intact.
 
@@ -238,6 +243,38 @@ hands per run, with people joining, leaving and sitting out mid-hand.
   round in circles indefinitely once the lake is empty).
 - Games can post to room chat via `ctx.announce()`. Chat is shared by the room and
   the game.
+
+**Practice rooms and scenarios (`/try`).** To try a game (or check its end screens)
+without playing it through, `/try` lists **scenarios**: a game set up at an
+interesting moment, mostly the move before the end and the end itself (mate in one,
+the last book, an all-in on the river, Coast to Coast's last round and final
+scores). Each game has a `scenarios.ts` (`kit/scenario.ts` has the type and a seeded
+`playUntil` that plays moves by policy or the Easy bot; `scenarios.ts` collects
+them). A scenario's `build(players, ctx)` makes its state through the game's own
+`create` and `apply` (seating everyone with real ops, then playing or editing it
+into shape), with its own seeded randomness, so it's the same position every time;
+`scenarios.test.ts` builds each one with different ids and checks invariants, JSON
+and that determinism. `/try/<game>/<scenario>` (`pages/Try.tsx`, loaded on demand)
+then:
+
+1. creates a **practice room** (`POST /api/rooms {practice: true}`; the usual room
+   limits apply). Practice is fixed when a room is created and shows as a small
+   *Practice* tag by the room code;
+2. joins it (your saved name, or "You"), adds the Easy bots the scenario needs the
+   same way *Add a bot* does, and waits for them to join;
+3. builds the state with the real member ids and sends it to
+   `POST /api/rooms/:code/scenario {secret, gameId, name, state}`;
+4. goes to the room, where the bots play from your tab as usual.
+
+The room is still game-agnostic about it: it takes the state as JSON and starts it
+like a new game (new instance, version bumped, views broadcast, timers scheduled,
+"You set up Chess: Mate in one." in the chat). Because the state comes from a
+browser, it's only taken in a practice room (403 for any other room, so no real
+game can be tampered with), from a person in the room, and only if the game's
+`checkInvariants` pass, everyone in it is a member, every view and `legalOps` can be
+built, and no timer is long overdue. The worst a bad state can do is break its own
+practice room. `pnpm scenario [game] [scenario] [--open] [--base URL]` prints (or
+opens) the links.
 
 ### Tic-tac-toe (`src/games/tictactoe`)
 
@@ -516,6 +553,7 @@ e2e test for exactly that). All values are in `src/worker/limits.ts` and
 | new bots | DO, per owner | 4 at once, then 1 per 30 s (and 4 at a time) | adding a few bots |
 | message size | DO, before parsing | 16,384 characters | a full chat message is ~2,000 |
 | room creation body | worker, while reading | 2 KB | a room name |
+| scenario state (practice rooms) | worker, per IP (connection limit) and while reading | 120/min, 128 KB | a late Coast to Coast game is ~15 KB |
 | sustained flooding | DO | 50 refused messages (forgiven at 1/s) → disconnect for 30s | only scripts get here |
 | connections per player | DO | newest 6 kept; older tabs pause | refreshing on a bad connection can leave dead sockets behind |
 | connections per IP per room | DO | 20 | |

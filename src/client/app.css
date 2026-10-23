@@ -441,6 +441,13 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .game-settings-pop dt { color: var(--text-2); font-size: 14px; }
 .game-settings-pop dd { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
 
+/* ---------- /try ---------- */
+.try-game { display: flex; align-items: center; gap: 12px; font-size: 1.6rem; }
+.try-game img { border-radius: 50%; background: var(--badge); }
+a.try-card { text-decoration: none; transition: translate 120ms ease; }
+a.try-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
+.try-step { gap: 12px; }
+
 /* ---------- /settings ---------- */
 .settings-back { color: var(--on-brand-2); font-weight: 800; font-size: 14px; text-decoration: none; }
 .settings-back:hover { color: var(--on-brand); }

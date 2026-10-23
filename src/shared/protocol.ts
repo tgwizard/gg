@@ -158,6 +158,21 @@ export const ClientMessage = z.discriminatedUnion("type", [
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
+/**
+ * `POST /api/rooms/:code/scenario`: replace a practice room's game with a set-up
+ * position (a scenario from /try). Only practice rooms accept it, and only from a
+ * person in the room.
+ */
+export const LoadScenario = z.object({
+  secret: z.string().min(16).max(128),
+  gameId: z.string().max(64),
+  /** The scenario's name, for the chat. */
+  name: z.string().max(80),
+  /** The whole game state, built by the scenario in the browser. */
+  state: z.unknown(),
+});
+export type LoadScenario = z.infer<typeof LoadScenario>;
+
 export type ServerMessage =
   | {
       type: "welcome";

@@ -27,6 +27,12 @@ node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Coast to
 node test/e2e/screens-chess.ts http://localhost:5311 ./screens        # Chess, light + dark
 ```
 
+End screens and late-game situations, without playing a whole game (local dev server
+only; not on gg.tgwizard.com): `/try` (linked from the home page footer in dev) sets up a practice room in a chosen position with
+Easy bots, e.g. `http://localhost:5311/try/chess/checkmate`. `pnpm scenario` lists
+every link (`pnpm scenario coast game-over --open` opens one; `--base` for another
+server). Each opens a new room, so it's also a quick way to get a fresh table.
+
 ## 2. Manual scenarios
 
 Use separate browser profiles or incognito windows for separate players (each
@@ -162,6 +168,12 @@ these through the browser and reports back.
 - [ ] Edit it: tokens used so far; change model or effort and it uses them from its next move.
 - [ ] Remove the key in settings (or use a bad one): the bot shows *AI problem* and the Easy bot plays its moves, so the game never waits.
 - [ ] *?* in a game's header shows How to play.
+
+### End screens (via `/try`)
+- [ ] Every game's "won"/"game over" scenario: the result reads right, winners are marked, *Play again* (or *Start*) works, in light and dark mode and on a phone.
+- [ ] The "last move" scenarios: make the move, and the end comes up live (animations, chat announcements), as it would in a real game.
+- [ ] Coast to Coast *Last round*: claiming with your last trains announces the last round; the bots take their turns and the score table shows tickets done and failed.
+- [ ] A practice room shows *Practice* by the room code; a normal room doesn't.
 
 ### Lifecycle & layout
 - [ ] The gear next to *End game* shows the running game's settings (turn timer, and for poker chips and blinds).

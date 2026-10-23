@@ -117,7 +117,7 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
         )}
       </div>
 
-      {view.phase !== "waiting" && (
+      {view.phase !== "waiting" && !(view.phase === "over" && mySeat !== null) && (
         <ActionTray testId="bs-tray" aside={<TrayAside view={view} mySeat={mySeat} busy={busy} connected={connected} send={send} />}>
           {placing ? (
             myBoard!.ready ? (

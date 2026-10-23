@@ -169,6 +169,21 @@ export function HomePage() {
         >
           Settings
         </a>
+        {import.meta.env.DEV && (
+          <>
+            {" "}
+            ·{" "}
+            <a
+              href="/try"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/try");
+              }}
+            >
+              Try a game in a set-up position
+            </a>
+          </>
+        )}
       </footer>
     </div>
   );
