@@ -196,3 +196,22 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
 @media (prefers-reduced-motion: reduce) {
   .game-over.live, .game-over.live .game-over-card, .game-over.live .game-over-crown, .game-over.live .game-over-player { animation: none; }
 }
+
+/* A game clock (chess, Othello); the running one is lit, and turns red when low. */
+.game-clock {
+  display: grid;
+  place-items: center end;
+  min-width: 86px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.game-clock.running { color: var(--on-brand); background: var(--brand); border-color: var(--brand-line); box-shadow: 0 0 0 3px var(--gold); }
+.game-clock.running.low { background: var(--danger); border-color: var(--danger); color: #fffaf2; }
+.game-clock.flagged { color: var(--danger); }

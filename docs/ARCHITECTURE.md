@@ -207,6 +207,8 @@ can once none of its players are online).
   player), and the game's own buttons (play again). A game that ends while you watch
   gets a sound, and confetti if you won; "See the board" tucks it into a bar. Tic-tac-toe
   (short rounds that restart on their own) and Texas Hold'em (hands, no end) don't use it.
+  `Clock` is a two-player game clock (chess, Othello) from a view's `{w|b ms, since,
+  running}`, counting down between server ticks.
 
 **Whose turn, and sound.** The game header (in the top bar) shows "Your turn" or
 "Bob's turn" for every game from the snapshot's `waitingOn`, chimes when it becomes
@@ -358,6 +360,26 @@ Standard chess for two, with chess clocks.
   shows at once and is taken back if the server refuses it. Pieces are Cburnett's
   SVGs (BSD) in `public/pieces`; square colors are tokens (`--board-*`).
 
+### Othello (`src/games/othello`)
+
+Othello for two, built like chess (the two share the seating, colors swapping every
+game, calling the game off if you leave before moving, and Fischer clocks).
+- **The rules** (`rules.ts`) work on the board as a 64-character string ("b", "w",
+  "."), a1 at the top left as Othello boards are written: what a disc would turn
+  over, the legal moves, playing one. The browser uses the same code for the hints.
+- **Passing** is never a choice: after a move, if the other side has no move but the
+  mover does, the server records a pass for them and it's the mover's turn again, so
+  the game only waits on someone who can move. When neither can, it's over: most discs
+  wins, equal is a draw. Moves record what they turned over, and the view has the last
+  disc set down (`lastMove`, with `flipped`) and who passed after it (`passed`).
+- **The board** (`ui/Board.tsx`): your legal squares get a faint disc; pointing at one
+  shows your disc and marks what it would turn over; click to play (shown at once,
+  taken back if refused). A new disc drops in and the trapped ones flip in 3D (two
+  faces back to back), outward from it one step at a time, live moves only. Colors are
+  tokens (`--othello-*`, `--disc-*`).
+- **The Easy bot** weighs squares the classic way (corners high, the squares next to
+  an empty corner low), likes leaving few replies, and avoids opening a corner.
+
 ### Coast to Coast (`src/games/ticket`)
 
 Ticket to Ride's rules on its North American map, under our own name: fan-made,
@@ -469,7 +491,8 @@ A bot is just another member of the room, played from its owner's browser:
   Finns i sjön asks for what it holds most of and remembers some asks, Battleship
   places at random and hunts around hits, Coast to Coast keeps its cheapest
   tickets and claims routes on the cheapest path to them, chess looks one move ahead
-  (mates, material, no free pieces for the other side) with some randomness. It decides from the view
+  (mates, material, no free pieces for the other side) with some randomness, Othello
+  weighs squares (corners, edges) and the replies it leaves. It decides from the view
   only, so it can't cheat. The conformance suite seats a table of Easy bots in every game and
   fails if the game ever waits on a bot that has no move.
 - **Where it runs.** While the owner has the room open. One tab plays each bot

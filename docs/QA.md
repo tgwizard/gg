@@ -25,6 +25,7 @@ node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
 node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battleship, light + dark
 node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Coast to Coast, light + dark
 node test/e2e/screens-chess.ts http://localhost:5311 ./screens        # Chess, light + dark
+node test/e2e/screens-othello.ts http://localhost:5311 ./screens      # Othello (from /try), light + dark
 ```
 
 End screens and late-game situations, without playing a whole game (local dev server
@@ -134,6 +135,17 @@ these through the browser and reports back.
 - [ ] Against an Easy bot: it answers within a couple of seconds and rarely leaves a piece to be taken for free.
 - [ ] Laptop (1440×900 and 1280×800): board, players, clocks and moves fit without scrolling. Phone: opponent above the board, you below, moves in a strip.
 
+### Othello
+- [ ] Setup: the presets fill in minutes and increment; *No clock* hides the clocks.
+- [ ] Nobody seated: a "Take a seat" prompt over a greyed board; the second player sitting starts the game; seat 0 has Black, who moves first.
+- [ ] On your move the playable squares show a faint disc; pointing at one shows your disc and rings the discs it would turn over (the rest of the time, nothing). Out of turn nothing is marked and clicks do nothing.
+- [ ] A move: the disc drops in with a soft click and the trapped discs flip one after another outward from it; the last disc has a small dot. The panel says it in words ("Bob played f5 and turned over 3 discs."), the score bar and the counts under each name follow.
+- [ ] Passing (`/try/othello/pass`): the panel says "Bob has no move: your turn again.", the move list shows the pass, and it stays your turn.
+- [ ] The last square (`/try/othello/last-move`): filling it ends the game; the end screen shows the discs. *Play again* swaps colors.
+- [ ] Clocks: only the side to move runs, the increment is added per move; running out loses. *Resign* asks first. Leaving before your first move calls the game off; after, it's a loss.
+- [ ] Against an Easy bot: it answers within a couple of seconds and grabs corners when it can.
+- [ ] Laptop (1440×900): board, players, clocks and panel fit without scrolling. Phone: opponent above the board, you below. Both modes: discs, hints and coordinates readable.
+
 ### Coast to Coast
 - [ ] Two to five sit down; *Start* deals 4 cards and offers 3 tickets to each. Hovering a ticket points out its cities on the map; *Keep* needs at least 2. Others only see "choosing tickets".
 - [ ] Draw two cards: face up or from the deck. A face-up locomotive ends the draw and can't be the second card. Three locomotives face up are replaced (the log says so). Only you see what you drew blind ("From the deck last turn").
@@ -150,7 +162,7 @@ these through the browser and reports back.
 ### Turns, sound and the end of a game
 - [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
 - [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
-- [ ] End screens (Coast to Coast, chess, Battleship, Finns i sjön): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
+- [ ] End screens (Coast to Coast, chess, Othello, Battleship, Finns i sjön): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
 
 ### Bots
 - [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.

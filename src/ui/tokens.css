@@ -91,6 +91,12 @@
   --board-selected: rgb(91 138 74 / 0.55);
   --board-hint: rgb(47 74 58 / 0.42);
   --board-check: radial-gradient(circle, rgb(214 60 40 / 0.95) 0, rgb(214 60 40 / 0.55) 35%, transparent 72%);
+  /* an Othello board: green baize ruled in dark lines, and black and cream discs */
+  --othello-felt: #3a7a52;
+  --othello-line: #1f4a31;
+  --othello-coord: rgb(255 244 228 / 0.78);
+  --disc-black: radial-gradient(circle at 35% 30%, #57504a, #26211d 55%, #151210);
+  --disc-white: radial-gradient(circle at 35% 30%, #fffdf7, #f1e8d6 55%, #d8cab0);
 
   /* type & shape */
   --font-body: "Nunito Variable", system-ui, sans-serif;
@@ -163,6 +169,9 @@
   --board-light: #d9c29a;
   --board-dark: #93673f;
   --board-last: rgb(236 190 92 / 0.42);
+  --othello-felt: #2f6545;
+  --othello-line: #173826;
+  --othello-coord: rgb(255 244 228 / 0.55);
 
   color-scheme: dark;
 }

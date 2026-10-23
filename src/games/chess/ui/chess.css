@@ -175,24 +175,6 @@
   border-radius: var(--radius);
 }
 
-.chess-clock {
-  display: grid;
-  place-items: center end;
-  min-width: 86px;
-  padding: 6px 12px;
-  border-radius: var(--radius);
-  font-size: 24px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-}
-.chess-clock.running { color: var(--on-brand); background: var(--brand); border-color: var(--brand-line); box-shadow: 0 0 0 3px var(--gold); }
-.chess-clock.running.low { background: var(--danger); border-color: var(--danger); color: #fffaf2; }
-.chess-clock.flagged { color: var(--danger); }
-
 /* ---------- moves, status and controls ---------- */
 .chess-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
 .chess-moves {
