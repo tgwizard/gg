@@ -290,3 +290,26 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .game-settings-pop .setting { display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; }
 .game-settings-pop dt { color: var(--text-2); font-size: 14px; }
 .game-settings-pop dd { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+
+/* ---------- /settings ---------- */
+.settings-back { color: var(--on-brand-2); font-weight: 800; font-size: 14px; text-decoration: none; }
+.settings-back:hover { color: var(--on-brand); }
+.settings-main { max-width: 760px; }
+.settings-h2 { font-size: 1.6rem; }
+.settings-text { margin: 0; }
+.settings-delete { align-self: flex-start; --btn-fg: var(--danger); }
+.settings-pick { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 12px; }
+.settings .panel { padding: 26px 22px 22px; gap: 14px; }
+.ai-row { display: flex; gap: 10px; }
+.ai-row input { flex: 1; min-width: 0; }
+.ai-row .btn, .ai-row select { flex-shrink: 0; }
+/* Hide the key without type=password (see AI.tsx). */
+.ai-secret:not(:placeholder-shown) { -webkit-text-security: disc; text-security: disc; }
+.ai-error { margin: 0; font-size: 13px; font-weight: 700; color: var(--danger); }
+.ai-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-output { margin: 0; padding: 12px 14px; white-space: pre-wrap; background: var(--surface-2); border-radius: var(--radius-sm); }
+.settings textarea { resize: vertical; }
+@media (max-width: 560px) {
+  .ai-row { flex-wrap: wrap; }
+  .settings-pick { grid-template-columns: 1fr; }
+}

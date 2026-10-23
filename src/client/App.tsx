@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { normalizeRoomCode } from "../shared/roomCode";
 import { HomePage } from "./pages/Home";
 import { RoomPage } from "./pages/Room";
+import { SettingsPage } from "./pages/Settings";
 import { StyleGuidePage } from "./pages/StyleGuide";
 import { usePath } from "./router";
 
@@ -15,5 +16,6 @@ export function App() {
   }, [code, raw]);
   if (code) return <RoomPage key={code} roomId={code} />;
   if (path === "/ui") return <StyleGuidePage />;
+  if (path === "/settings") return <SettingsPage />;
   return <HomePage />;
 }

@@ -55,6 +55,10 @@ color around the palette (`assignColors`). Members carry their resolved `color`,
 and the UI uses it everywhere: avatars, names in chat, nameplates, tic-tac-toe
 marks (via `PlayerColorsProvider` / `usePlayerColors` in `src/ui/players.tsx`).
 
+`/settings` edits the profile, holds the AI connections (below), and can delete
+everything gg keeps in the browser (`deleteLocalData`): every `gg.*` key except
+`gg.secret`, so the player stays the same person in rooms they've joined.
+
 ## Protocol (`src/shared/protocol.ts`)
 
 Client → server messages are validated with zod. Every mutation carries a
@@ -241,26 +245,51 @@ pots with odd chips going clockwise from the button, uncalled bets returned, dea
 money from players who leave, street-by-street all-in runouts, a turn clock
 (auto check/fold, then sit out), rebuys, and automatic next hands.
 
+## LLM connections (`src/client/llm`)
+
+Model credentials never touch gg's server. A player pastes an API key on
+`/settings`, it's kept in their browser's localStorage, and requests go straight from
+the tab to the provider. That works because Anthropic, OpenAI and Meta all allow
+cross-origin requests with an API key (`access-control-allow-origin: *`; Anthropic
+needs its `anthropic-dangerous-direct-browser-access` opt-in, which its SDK sends).
+
+- **`LLMClient`** (`types.ts`) is the provider-neutral surface: `listModels()` and
+  `generate({ model, instructions, messages, maxOutputTokens, effort, onText })`,
+  with errors mapped to `LLMError` codes (`auth`, `rate_limit`, `refused`, …).
+  `clientFor(connection)` (`connections.ts`) picks the adapter and loads its SDK on
+  first use, so the provider SDKs stay out of the main bundle.
+- **Adapters:** `openai.ts` (Responses API, official SDK) serves an OpenAI key and a
+  Meta Model API key (Muse models; the same API at `api.meta.ai/v1`); `anthropic.ts`
+  (Messages API, official SDK) serves an Anthropic key. A provider that speaks the
+  Responses API is a base URL and a model filter; anything else is another adapter.
+  Either way, plus a `Provider` entry.
+- **Not supported: Sign in with ChatGPT** (running models on a ChatGPT plan). We
+  tried it (2026-10-22). OpenAI only accepts a loopback redirect, which a website
+  can work around by having the player paste the address back. But with a ChatGPT
+  token, `api.openai.com` only sends CORS headers to OpenAI's own origins, so a
+  browser on gg's origin can't read the replies, and the alternative is proxying
+  the token through our server. OpenAI also offers plan usage only to local apps,
+  with hosted apps going through an interest form.
+
 ## Bots (planned)
 
-Bots are designed to be just another kind of room member:
+Bots are designed to be just another kind of room member, run from their owner's
+browser with the owner's LLM connection:
 
-1. **Members have a `kind`** (`human` | `bot`) already. A bot gets an id like
-   `bot:<uuid>`, plus an `owner` (the player who added it).
-2. **Adding a bot** is a room op. The owner supplies a provider credential (an API
-   key, or an OAuth token from "sign in with ChatGPT"). It's stored encrypted
-   in the room DO (key from a Worker secret) and never sent to clients.
-3. **Driving.** After every commit, the DO checks `waitingOn(state)` for bot ids.
-   For each one, it builds the bot's own redacted `view`, asks the game's
-   `describeForBot(view)` for a prompt and the legal ops, and calls the LLM
-   (`ctx.waitUntil` / an alarm, with a timeout). The answer is parsed with the
-   game's `opSchema` and submitted through the same `apply` path as a human,
-   with a cid, so retries are idempotent.
-4. **Same rules as humans:** same view redaction (bots can't see your cards),
+1. **Members have a `kind`** (`human` | `bot`) already. A bot gets its own identity
+   (a secret generated and kept in the owner's browser, like a player's), plus an
+   `owner`.
+2. **Driving.** The owner's tab holds a second connection per bot. When the bot's
+   view says it's its turn, the tab asks the game's `describeForBot(view)` for a
+   prompt and the legal ops, calls the model, parses the answer with the game's
+   `opSchema`, and submits it like any player (with a cid, so retries are
+   idempotent).
+3. **Same rules as humans:** the bot only gets its own redacted view, plays on the
    same turn clock (a slow model times out), and the chat transcript can go into
-   the prompt so bots can banter.
+   the prompt so bots can banter. A bot plays while its owner's tab is open; after
+   that it's just a disconnected player.
 
-Nothing in the protocol needs to change for this. Bots are server-side actors.
+Nothing in the protocol needs to change for this, and no credential reaches the server.
 
 ## Limits
 

@@ -64,6 +64,21 @@ export function saveColor(color: number) {
   window.dispatchEvent(new Event(PROFILE_EVENT));
 }
 
+/**
+ * Forget everything gg keeps in this browser (profile, light/dark, AI keys), except the
+ * secret behind your player id, so you're still you in rooms you've joined.
+ */
+export function deleteLocalData() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("gg.") && key !== SECRET_KEY) localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage unavailable: nothing persisted to delete.
+  }
+  for (const key of [...memory.keys()]) if (key !== SECRET_KEY) memory.delete(key);
+}
+
 function subscribe(cb: () => void) {
   // "storage" fires when another tab changes the name.
   window.addEventListener("storage", cb);
