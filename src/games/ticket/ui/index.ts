@@ -7,7 +7,7 @@ import { TicketSetup } from "./TicketSetup";
 
 export const ticketUI: GameUI = {
   meta: ticketMeta,
-  icon: "/icons/ticket.jpg",
+  icon: "/icons/coast.jpg",
   Game: TicketGame,
   Setup: TicketSetup,
   settings: ({ config, bothTracks, phase }: TtrView) => [

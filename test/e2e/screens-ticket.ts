@@ -1,5 +1,5 @@
 /**
- * Not a test: screenshots of Ticket to Ride for visual QA, in light and dark mode.
+ * Not a test: screenshots of Coast to Coast for visual QA, in light and dark mode.
  *   node test/e2e/screens-ticket.ts <baseURL> <outDir>
  */
 import { chromium, devices, type Page } from "@playwright/test";
@@ -37,7 +37,7 @@ await b.getByLabel("Your name").fill("Bob");
 await b.getByRole("button", { name: "Join room" }).click();
 await b.getByText("Connected").waitFor();
 
-await a.getByRole("button", { name: /Ticket to Ride/ }).click();
+await a.getByRole("button", { name: /Coast to Coast/ }).click();
 await a.screenshot({ path: `${out}/ttr-0-setup.png` });
 await a.getByRole("button", { name: "Open the table" }).click();
 await a.getByTestId("ttr-seat-0").getByRole("button", { name: "Sit here" }).click();

@@ -5,7 +5,7 @@ Live at <https://gg.tgwizard.com>.
 
 Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSockets,
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
-Games so far: Ticket to Ride (the North American map), no-limit Texas Hold'em,
+Games so far: Coast to Coast (a fan-made take on Ticket to Ride), no-limit Texas Hold'em,
 Battleship, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
 
 - **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.

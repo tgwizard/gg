@@ -1,5 +1,6 @@
 /**
- * Ticket to Ride (the standard North American map), as a pure state machine.
+ * Coast to Coast: Ticket to Ride's rules on its standard North American map (fan-made,
+ * not affiliated with Days of Wonder), as a pure state machine.
  *
  * Rules: 2–5 players get 45 trains, 4 train cards and 3 destination tickets each,
  * keeping at least 2 of the tickets. Five cards lie face up. On your turn you do one

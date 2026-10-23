@@ -23,7 +23,7 @@ pnpm dev --port 5311 &
 node test/e2e/screens.ts http://localhost:5311 ./screens        # rooms + poker
 node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
 node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battleship, light + dark
-node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Ticket to Ride, light + dark
+node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Coast to Coast, light + dark
 ```
 
 ## 2. Manual scenarios
@@ -106,7 +106,7 @@ these through the browser and reports back.
 - [ ] Leaving while placing calls the game off; leaving while firing forfeits.
 - [ ] Phone: while placing, your sea and the dock fit with the other side as just a nameplate; while firing, the sea you aim at comes first.
 
-### Ticket to Ride
+### Coast to Coast
 - [ ] Two to five sit down; *Start* deals 4 cards and offers 3 tickets to each. Hovering a ticket points out its cities on the map; *Keep* needs at least 2. Others only see "choosing tickets".
 - [ ] Draw two cards: face up or from the deck. A face-up locomotive ends the draw and can't be the second card. Three locomotives face up are replaced (the log says so). Only you see what you drew blind ("From the deck last turn").
 - [ ] On your turn, routes you can pay for are outlined; clicking one opens a bubble by the route (the rest of the board dims) with every way to pay (color, with or without locomotives); Cancel, Escape or a click elsewhere on the map backs out. Claimed routes show the player's trains (taller, with windows), distinct from the printed board in both modes.

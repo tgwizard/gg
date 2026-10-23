@@ -62,7 +62,7 @@
   --card-back-line: #e9d8b4;
   --card-shadow: 0 2px 4px rgb(0 0 0 / 0.22);
   --badge: #efe6d5;
-  /* a printed game board (Ticket to Ride's map): land, water, ink, and the eight train colors */
+  /* a printed game board (Coast to Coast's map): land, water, ink, and the eight train colors */
   --map-land: #f1e6cc;
   --map-land-2: #e6d6b4;
   --map-water: #a9cbd8;

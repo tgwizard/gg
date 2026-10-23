@@ -13,7 +13,7 @@ export function TicketSetup({ busy, disabled, onStart }: GameSetupProps<TtrConfi
       }}
     >
       <p className="muted" style={{ margin: 0 }}>
-        Collect train cards, claim routes across North America and connect the cities on your tickets. For 2–5 players.
+        Collect train cards, claim routes across North America and connect the cities on your tickets. For 2–5 players. Based on <em>Ticket to Ride</em> by Days of Wonder; fan-made and not affiliated.
       </p>
       <label className="field">
         <span>

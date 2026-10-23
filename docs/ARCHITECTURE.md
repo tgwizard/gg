@@ -269,7 +269,11 @@ Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firin
 - Leaving while placing calls the game off unscored; leaving while firing
   forfeits. *Play again* starts the next game with the opener alternating.
 
-### Ticket to Ride (`src/games/ticket`)
+### Coast to Coast (`src/games/ticket`)
+
+Ticket to Ride's rules on its North American map, under our own name: fan-made,
+not affiliated with Days of Wonder, and credited as such in its tagline, setup and
+rules. The art (map, cards, icon) is our own.
 
 The standard game on the North American map, for 2–5 players: 45 trains each, 110
 train cards (12 of each of eight colors, 14 locomotives), five face up (three
@@ -374,7 +378,7 @@ A bot is just another member of the room, played from its owner's browser:
   the game's `bot.easy(view, ops, rand)`: tic-tac-toe takes wins and blocks half
   the time, poker plays loose and passive with a rough sense of hand strength,
   Finns i sjön asks for what it holds most of and remembers some asks, Battleship
-  places at random and hunts around hits, Ticket to Ride keeps its cheapest
+  places at random and hunts around hits, Coast to Coast keeps its cheapest
   tickets and claims routes on the cheapest path to them. It decides from the view
   only, so it can't cheat. The conformance suite seats a table of Easy bots in every game and
   fails if the game ever waits on a bot that has no move.

@@ -5,12 +5,12 @@ const routeList = ROUTES.map((r) => `${r.id} ${r.length} ${r.color}`).join(", ")
 const cityList = CITIES.map((c) => `${c.id} ${c.name}`).join(", ");
 
 export const ticketMeta: GameMeta = {
-  id: "ticket",
-  name: "Ticket to Ride",
-  tagline: "Collect train cards, claim railway routes across North America, connect your tickets.",
+  id: "coast",
+  name: "Coast to Coast",
+  tagline: "Claim railway routes across North America and connect your tickets. Based on Ticket to Ride.",
   minPlayers: 2,
   maxPlayers: 5,
-  rules: `Build railways across North America for 2–5 players. Score by claiming routes, completing your destination tickets and having the longest railway.
+  rules: `A fan-made take on Ticket to Ride (by Days of Wonder; not affiliated), on its North American map. Build railways across North America for 2–5 players. Score by claiming routes, completing your destination tickets and having the longest railway.
 - Everyone starts with 45 trains, 4 train cards and 3 destination tickets, and keeps at least 2 of the tickets. Five train cards lie face up.
 - On your turn, do one of three things.
 - Draw train cards: take two, each from the face-up five or blind from the deck. A face-up locomotive counts as both (and can't be your second card). Three face-up locomotives at once and all five are replaced.

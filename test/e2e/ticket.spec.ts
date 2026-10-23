@@ -4,14 +4,14 @@ import { createRoom, joinRoom, newPlayer } from "./helpers";
 /** The tickets offered to a player, as shown to them. */
 const offers = (page: Page) => page.getByTestId("ttr-offer").allTextContents();
 
-test("Ticket to Ride: choose tickets in private, draw cards and claim a route", async ({ browser }) => {
+test("Coast to Coast: choose tickets in private, draw cards and claim a route", async ({ browser }) => {
   const alice = await newPlayer(browser);
   const bob = await newPlayer(browser);
   const url = await createRoom(alice.page, "Alice");
   await joinRoom(bob.page, url, "Bob");
   const pages = [alice.page, bob.page];
 
-  await alice.page.getByRole("button", { name: /Ticket to Ride/ }).click();
+  await alice.page.getByRole("button", { name: /Coast to Coast/ }).click();
   await alice.page.getByRole("button", { name: "Open the table" }).click();
   await alice.page.getByTestId("ttr-seat-0").getByRole("button", { name: "Sit here" }).click();
   await bob.page.getByTestId("ttr-seat-1").getByRole("button", { name: "Sit here" }).click();
