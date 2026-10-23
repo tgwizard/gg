@@ -39,10 +39,11 @@
   border: 5px solid #fffaf0;
   box-shadow: 0 3px 0 rgb(0 0 0 / 0.15), 0 14px 30px rgb(0 0 0 / 0.35);
 }
-.hero-token.t0 { left: 18px; top: 52px; rotate: -10deg; z-index: 2; }
-.hero-token.t1 { left: 130px; top: 0; rotate: 6deg; z-index: 1; width: 140px; height: 140px; }
-.hero-token.t2 { left: 228px; top: 74px; rotate: 12deg; z-index: 3; width: 156px; height: 156px; }
-.hero-token.t3 { left: 120px; top: 120px; rotate: -4deg; z-index: 0; width: 120px; height: 120px; }
+/* Four tokens: two either side, one behind at the top, one in front at the bottom, all in sight. */
+.hero-token.t0 { left: 0; top: 46px; rotate: -10deg; z-index: 2; }
+.hero-token.t1 { left: 126px; top: 0; rotate: 6deg; z-index: 1; width: 138px; height: 138px; }
+.hero-token.t2 { left: 246px; top: 42px; rotate: 12deg; z-index: 2; width: 150px; height: 150px; }
+.hero-token.t3 { left: 136px; top: 112px; rotate: -4deg; z-index: 3; width: 128px; height: 128px; }
 .home-main { flex: 1; width: 100%; max-width: 1040px; margin: 0 auto; padding: 52px 24px 32px; display: flex; flex-direction: column; gap: 40px; }
 /* Profile on the left; starting and joining stacked on the right. */
 .home-forms {

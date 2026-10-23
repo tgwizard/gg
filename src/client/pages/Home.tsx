@@ -198,13 +198,14 @@ function Bubble({ text }: { text: string }) {
   );
 }
 
-/** The games in the box, as a little pile of round tokens. */
+/** Four of the games in the box, as a little pile of round tokens (one per spot). */
+const HERO_GAMES = ["coast", "othello", "poker", "battleship"];
+
 function HeroGames() {
-  const games = Object.values(gameUIs);
   return (
     <div className="hero-games" aria-hidden>
-      {games.map((g, i) => (
-        <img key={g.meta.id} className={`hero-token t${i % 4}`} src={g.icon} alt="" width={168} height={168} />
+      {HERO_GAMES.map((id, i) => (
+        <img key={id} className={`hero-token t${i}`} src={gameUIs[id]!.icon} alt="" width={168} height={168} />
       ))}
     </div>
   );
