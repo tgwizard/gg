@@ -15,6 +15,9 @@
 .log-street { display: block; margin: 6px 0 2px; color: var(--text); }
 
 /* actions */
+.poker-holding { width: 100%; margin-bottom: 10px; font-size: 14px; }
+.poker-holding .label { margin-right: 6px; color: var(--text-2); }
+.poker-holding strong { color: var(--gold); }
 .poker .actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; width: 100%; }
 .poker .raise { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 280px; }
 .poker .presets { display: flex; gap: 6px; }

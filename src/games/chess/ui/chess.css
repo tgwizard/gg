@@ -142,8 +142,7 @@
 /* ---------- the players ---------- */
 .chess-side { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
 .chess-side .plate { flex: 1; width: auto; min-width: 0; padding: 8px 12px; }
-/* Tags (you, winner) wrap under a long name rather than squeezing it. */
-.chess-side .plate-name { justify-content: flex-start; flex-wrap: wrap; row-gap: 3px; }
+.chess-side .plate-name { justify-content: flex-start; }
 .chess-side .plate-name .name { flex: 0 1 auto; }
 .chess-side .plate .activity-bubble {
   position: static;

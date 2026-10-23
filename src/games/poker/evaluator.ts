@@ -88,3 +88,10 @@ export function bestHand(cards: Card[]): HandValue {
   if (!best) throw new Error("bestHand needs at least 5 cards");
   return { ...best, name: describeScore(best.score) };
 }
+
+/** What your cards make so far: the best five once there are five, before that a pair or your high card. */
+export function describeHolding(cards: Card[]): string {
+  if (cards.length >= 5) return bestHand(cards).name;
+  const values = cards.map(rankValue).sort((a, b) => b - a);
+  return values[0] === values[1] ? `Pair of ${many(values[0])}` : `High Card, ${one(values[0])}`;
+}

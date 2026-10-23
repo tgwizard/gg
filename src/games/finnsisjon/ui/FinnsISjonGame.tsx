@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { hash2 } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
 import { CardTable, PondSurface, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
+import { arrivalStyle, FLIGHT_SECONDS, type FlightPlan, Flights, rectOf, reducedMotion, seatRect, useFlights } from "../../kit/ui/Flights";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -34,6 +35,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
   };
 
   const playing = view.phase !== "lobby";
+  const motion = useFishMotion(view, me);
   const seats: TableSeat[] = view.seats.map((seat, i) => {
     const p = playing ? view.players.find((x) => x.seat === i && !x.left) : undefined;
     const isMe = (p?.playerId ?? seat?.playerId) === me;
@@ -52,6 +54,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
           selected={target === p.playerId}
           onSelect={() => setPicked({ rank, target: p.playerId })}
           serverNow={serverNow}
+          bookAt={(r) => motion.books.get(`${p.playerId}:${r}`)}
         />
       ) : seat ? (
         <PlayerPlate
@@ -66,7 +69,8 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
             {seat.sittingOut ? " · away" : view.phase === "playing" ? " · next game" : ""}
           </div>
         </PlayerPlate>
-      ) : (
+      ) : playing && view.you.seat !== null ? null : (
+        // Once a game is on, open seats only matter to someone who could take one.
         <div className="seat-open">
           {view.you.seat === null ? (
             <button className="btn small" disabled={!connected} onClick={() => send({ type: "sit", seat: i })}>
@@ -86,7 +90,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         seats={seats}
         center={
           playing ? (
-            <Lake count={view.lakeCount} />
+            <Lake count={view.lakeCount} splash={motion.splash} />
           ) : (
             <div className="fish-center-msg">
               <p className="display">Finns i sjön</p>
@@ -102,18 +106,25 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         {mine && view.phase === "playing" ? (
           <div className="fish-me" data-testid="fish-me">
             <div className="fish-hand">
-              {mine.hand!.map((c) => (
-                <button
-                  key={c}
-                  className="fish-card"
-                  disabled={!ask || busy}
-                  onClick={() => setPicked({ rank: c[0]!, target })}
-                  aria-label={`${rankName(c[0]!)} of ${c[1]}`}
-                  aria-pressed={rank === c[0]}
-                  data-card={c}
-                >
-                  <PlayingCard card={c} picked={rank === c[0]} />
-                </button>
+              {groupByRank(mine.hand!).map((group) => (
+                // Cards of a rank sit together; three of a kind is one card short of a book.
+                <div key={group[0]} className={`fish-group ${group.length === 3 ? "close" : ""}`}>
+                  {group.length === 3 && <span className="fish-group-note">one more!</span>}
+                  {group.map((c) => (
+                    <button
+                      key={c}
+                      className="fish-card"
+                      disabled={!ask || busy}
+                      onClick={() => setPicked({ rank: c[0]!, target })}
+                      aria-label={`${rankName(c[0]!)} of ${c[1]}`}
+                      aria-pressed={rank === c[0]}
+                      data-card={c}
+                      style={arrivalStyle(motion.cards.get(c))}
+                    >
+                      <PlayingCard card={c} picked={rank === c[0]} />
+                    </button>
+                  ))}
+                </div>
               ))}
               {mine.hand!.length === 0 && <span className="muted">No cards in hand.</span>}
             </div>
@@ -151,6 +162,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         }
         actions={<SeatActions view={view} connected={connected} busy={busy} send={send} />}
       />
+      <Flights flights={motion.flights} onLand={motion.land} />
     </div>
   );
 }
@@ -169,6 +181,8 @@ function InGamePlate(props: {
   selected: boolean;
   onSelect(): void;
   serverNow: number;
+  /** When a book that's on its way lands, in seconds. */
+  bookAt(rank: string): number | undefined;
 }) {
   const { p, view } = props;
   const turn = view.turn === p.seat && view.phase === "playing";
@@ -193,19 +207,19 @@ function InGamePlate(props: {
         className={props.isMe ? undefined : "fish-opp"}
         tags={away && <span className="tag">away</span>}
       >
-        <Books ranks={p.books} />
+        <Books ranks={p.books} arriving={props.bookAt} />
         {turn && <TurnTimer deadline={view.turnDeadline} totalMs={awayOrClock(view, p.seat)} serverNow={props.serverNow} />}
       </PlayerPlate>
     </div>
   );
 }
 
-function Books({ ranks }: { ranks: string[] }) {
+function Books({ ranks, arriving }: { ranks: string[]; arriving(rank: string): number | undefined }) {
   if (!ranks.length) return <div className="plate-line status">no books yet</div>;
   return (
     <div className="fish-books" title={`${ranks.length} ${ranks.length === 1 ? "book" : "books"}`}>
       {ranks.map((r) => (
-        <span key={r} className="fish-book num">
+        <span key={r} className="fish-book num" data-rank={r} style={bookPop(arriving(r))}>
           {rankLabel(r)}
         </span>
       ))}
@@ -214,7 +228,7 @@ function Books({ ranks }: { ranks: string[] }) {
 }
 
 /** A pond with face-down cards floating in it, scattered the same way every render. */
-function Lake({ count }: { count: number }) {
+function Lake({ count, splash }: { count: number; splash: { key: number; at: number } | null }) {
   const shown = Math.min(count, 14);
   return (
     <div className="fish-lake" data-testid="fish-lake">
@@ -229,6 +243,7 @@ function Lake({ count }: { count: number }) {
           </div>
         );
       })}
+      {splash && <div key={splash.key} className="fish-splash" style={{ animationDelay: `${splash.at}s` }} aria-hidden />}
       <div className="fish-lake-label label">{count ? `Sjön · ${count} cards` : "The lake is empty"}</div>
     </div>
   );
@@ -378,4 +393,97 @@ function SeatActions({ view, connected, busy, send }: { view: FishView; connecte
       </button>
     </>
   );
+}
+
+// --- motion ------------------------------------------------------------------
+
+const SUIT_ORDER = ["s", "h", "d", "c"];
+
+/** Your hand (sorted by rank) in runs of one rank. */
+function groupByRank(hand: Card[]): Card[][] {
+  const groups: Card[][] = [];
+  for (const c of hand) {
+    if (groups.at(-1)?.[0]![0] === c[0]) groups.at(-1)!.push(c);
+    else groups.push([c]);
+  }
+  return groups;
+}
+
+/** A book that's on its way pops into place when it lands. */
+const bookPop = (at: number | undefined) => (at === undefined ? undefined : { animation: `book-pop 420ms cubic-bezier(.3,1.6,.5,1) ${at}s both` });
+
+/**
+ * Animates the events since the last view, one after the other, live only (a refresh
+ * shows the table as it is): the deal, cards handed over after an ask, catches from
+ * the lake (a splash for "Finns i sjön!"), and books laid down. What's coming to your
+ * hand, and new books, show up as they land.
+ */
+function useFishMotion(view: FishView, me: string) {
+  const { flights, launch, land } = useFlights();
+  const [state, setState] = useState<{ cards: Map<Card, number>; books: Map<string, number>; splash: { key: number; at: number } | null }>({
+    cards: new Map(),
+    books: new Map(),
+    splash: null,
+  });
+  const before = useRef<{ game: number; logged: number } | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const prev = before.current;
+    before.current = { game: view.game, logged: view.logged };
+    if (!prev || view.phase === "lobby" || reducedMotion()) return;
+    const lake = rectOf('[data-testid="fish-lake"]');
+    const hand = rectOf('[data-testid="fish-me"] .fish-hand');
+    const seat = (id: string) => view.players.find((p) => p.playerId === id && !p.left)?.seat;
+    const at = (id: string) => (id === me ? hand : seat(id) === undefined ? null : seatRect(seat(id)!));
+    const myCard = (c: Card) => rectOf(`[data-testid="fish-me"] [data-card="${c}"]`) ?? hand;
+    const mine = view.players.find((p) => p.playerId === me && !p.left);
+    const cards = new Map<Card, number>();
+    const books = new Map<string, number>();
+    const plans: (FlightPlan | null)[] = [];
+    let splash: { key: number; at: number } | null = null;
+    let t = 0;
+    const fly = (node: ReactNode, from: DOMRect | null, to: DOMRect | null, delay: number, card?: Card) => {
+      plans.push(from && to ? { node, from, to, delay, duration: FLIGHT_SECONDS } : null);
+      if (card && from && to) cards.set(card, delay + FLIGHT_SECONDS);
+    };
+
+    if (prev.game !== view.game) {
+      // The deal: round after round from the lake, at most a few cards each.
+      const dealt = view.players.filter((p) => !p.left);
+      dealt.forEach((p, k) => {
+        const yours = p.playerId === me ? (mine?.hand ?? []) : [];
+        for (let i = 0; i < Math.min(p.cardCount, 7); i++) {
+          const delay = (i * dealt.length + k) * 0.06;
+          if (yours[i]) fly(<CardBack size="sm" />, lake, myCard(yours[i]!), delay, yours[i]);
+          else fly(<CardBack size="sm" />, lake, at(p.playerId), delay);
+        }
+      });
+    } else if (view.logged > prev.logged) {
+      for (const e of view.log.slice(-Math.min(view.logged - prev.logged, view.log.length))) {
+        if (e.type === "ask" && e.got > 0) {
+          // Handed over in plain view.
+          e.cards.forEach((c, i) => fly(<PlayingCard card={c} size="sm" />, at(e.to), e.from === me ? myCard(c) : at(e.from), t + i * 0.08, e.from === me ? c : undefined));
+          t += 0.35 + e.cards.length * 0.08;
+        } else if (e.type === "ask") {
+          splash = { key: view.logged, at: t };
+          t += 0.3;
+        } else if (e.type === "fish" || e.type === "draw") {
+          // Your own catch you see; someone else's only when it was what they asked for.
+          const card = e.who === me ? (mine?.lastDrawn ?? null) : e.type === "fish" && e.lucky ? e.card : null;
+          fly(card ? <PlayingCard card={card} size="sm" /> : <CardBack size="sm" />, lake, e.who === me && card ? myCard(card) : at(e.who), t, e.who === me && card ? card : undefined);
+          t += 0.45;
+        } else if (e.type === "book") {
+          const to = seat(e.who) === undefined ? null : rectOf(`[data-seat="${seat(e.who)}"] .fish-book[data-rank="${e.rank}"]`);
+          SUIT_ORDER.forEach((suit, i) => fly(<PlayingCard card={`${e.rank}${suit}`} size="xs" />, at(e.who), to, t + i * 0.06));
+          if (to) books.set(`${e.who}:${e.rank}`, t + 0.18 + FLIGHT_SECONDS);
+          t += 0.6;
+        }
+      }
+    }
+    launch(plans);
+    setState({ cards, books, splash });
+    // Only new events matter; the rest of the view is read as it is now.
+  }, [view.game, view.logged]);
+
+  return { flights, land, ...state };
 }

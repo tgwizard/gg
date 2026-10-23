@@ -67,6 +67,9 @@ these through the browser and reports back.
 - [ ] Bust out → *Rebuy* appears between hands.
 - [ ] *Fold & leave seat* mid-hand: you fold, your blind stays in the pot, and the hand carries on.
 - [ ] Sitting down mid-hand: you're dealt in on the next hand.
+- [ ] Motion: dealing sends cards from the middle to each seat in turn; when a betting round ends the bets slide into the pot; new board cards (and hands shown at the showdown) turn over; the pot flies to the winner. A refresh mid-hand shows the table still. Nothing moves with reduced motion.
+- [ ] *Your hand* in the tray names what you hold so far ("Pair of Nines", "Two Pair, Kings and Nines"), only to you, while you're in the hand.
+- [ ] Once the game's going, seated players don't see open-seat boxes; someone watching still sees *Sit here*.
 
 ### Secrets
 - [ ] DevTools → Network → WS → Messages on player A: no card codes from B's hand ever appear before showdown, and no `deck`.
@@ -89,6 +92,8 @@ these through the browser and reports back.
 - [ ] *Leave game* mid-game: your cards go back to the lake and the others play on (with two players, the other wins).
 - [ ] Play to the end: all 13 books down, winner(s) announced, *Play again* deals a new game with whoever's seated.
 - [ ] Phone layout: opponents, lake, news line and your hand all fit, and cards are tappable.
+- [ ] Motion: the deal flies from the lake to each seat (into your hand for you); cards handed over after an ask fly from one player to the other; "Finns i sjön!" splashes the lake and the catch flies to whoever fished (face up only for them, or for everyone when it was the rank asked for); a book's four cards fly to its badge, which pops in. Nothing moves with reduced motion.
+- [ ] Your hand groups cards of a rank together; three of a kind is marked "one more!". Once the game's going, seated players don't see open-seat boxes.
 
 ### Tic-tac-toe
 - [ ] Entering with no side picked: the board is greyed out with a "Pick a side" prompt (buttons in your color); seated alone, it says you're waiting for an opponent; watching a full game, the board is live and the status says you're watching.

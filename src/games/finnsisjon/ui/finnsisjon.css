@@ -36,6 +36,30 @@
   border-radius: var(--pill);
   padding: 5px 12px 4px;
 }
+/* "Finns i sjön!": rings spreading on the water. */
+.fish-splash {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 30%;
+  aspect-ratio: 1.6;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 3px solid rgb(255 255 255 / 0.8);
+  box-shadow: 0 0 0 10px rgb(255 255 255 / 0.25);
+  pointer-events: none;
+  animation: splash 900ms ease-out both;
+}
+@keyframes splash {
+  0% { scale: 0.1; opacity: 0; }
+  15% { opacity: 1; }
+  100% { scale: 1.6; opacity: 0; }
+}
+@keyframes book-pop {
+  0% { scale: 0; opacity: 0; }
+  100% { scale: 1; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .fish-splash { display: none; } }
 .fish-center-msg { display: flex; flex-direction: column; gap: 8px; color: var(--on-brand); }
 .fish-center-msg .display { font-size: 2.4rem; color: var(--gold); }
 
@@ -48,7 +72,25 @@
 
 /* your hand */
 .fish-me { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-.fish-hand { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 12px; }
+.fish-hand { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 12px; }
+/* Cards of one rank overlap a little; three of a kind is marked as one short of a book. */
+.fish-group { position: relative; display: flex; }
+.fish-group .fish-card + .fish-card { margin-left: -14px; }
+.fish-group.close { padding: 4px; margin: -4px; border-radius: 10px; background: rgb(243 199 122 / 0.22); box-shadow: inset 0 0 0 1px rgb(243 199 122 / 0.6); }
+.fish-group-note {
+  position: absolute;
+  left: 50%;
+  top: -11px;
+  translate: -50% 0;
+  z-index: 2;
+  padding: 1px 7px;
+  border-radius: var(--pill);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: #3a2e24;
+  background: var(--gold);
+}
 .fish-card { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--radius-card); }
 .fish-card:disabled { cursor: default; }
 .fish-card:not(:disabled):hover .pcard:not(.picked) { translate: 0 -4px; }

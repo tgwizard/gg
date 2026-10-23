@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { playerStyle, usePlayerColors } from "../../../ui";
+import { Flights, useFlights } from "../../kit/ui/Flights";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -8,7 +9,6 @@ import { AUTO_PLAY_DELAY_MS, type Hand, type PlayerScore, type TicketView, type 
 import { routeOpen } from "../graph";
 import { CARD_COLORS, type CardColor, cityName, ROUTE_POINTS, ROUTES, type Route, routeById, routeName, type Ticket, ticketById, TRAIN_COLORS } from "../map";
 import type { TtrOp } from "../index";
-import { type Flight, Flights } from "./Flights";
 import { TRACKS, VIEWBOX } from "./geometry";
 import { TicketMap } from "./TicketMap";
 import { cardName, DeckPile, TrainCard } from "./TrainCards";
@@ -188,7 +188,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
           actions={<SeatActions view={view} connected={connected} busy={busy} send={send} />}
         />
       </div>
-      <Flights flights={flights.flying} onDone={flights.land} />
+      <Flights flights={flights.flights} onLand={flights.land} />
     </div>
   );
 }
@@ -198,10 +198,9 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
  * Watches your hand: whatever it gains (in the same game) is a card you took.
  */
 function useCardFlights(game: number, hand: Hand | null) {
-  const [flying, setFlying] = useState<Flight[]>([]);
+  const { flights, launch, land } = useFlights();
   const from = useRef<{ rect: DOMRect; at: number } | null>(null);
   const before = useRef<{ game: number; hand: Hand } | null>(null);
-  const nextId = useRef(0);
 
   useLayoutEffect(() => {
     const prev = before.current;
@@ -209,22 +208,23 @@ function useCardFlights(game: number, hand: Hand | null) {
     if (!hand || !prev || prev.game !== game) return;
     const gained = CARD_COLORS.flatMap((c) => Array<CardColor>(Math.max(0, hand[c] - prev.hand[c])).fill(c));
     // Only draws (one or two cards); a new deal or anything bigger isn't animated.
-    if (!gained.length || gained.length > 2 || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!gained.length || gained.length > 2) return;
     const deck = document.querySelector('[data-testid="ttr-deck"]');
     const start = from.current && Date.now() - from.current.at < 5000 ? from.current.rect : deck?.getBoundingClientRect();
     from.current = null;
     if (!start) return;
-    const added = gained.flatMap((color, i) => {
-      const to = document.querySelector(`[data-testid="ttr-hand"] [data-color="${color}"]`)?.getBoundingClientRect();
-      return to ? [{ id: nextId.current++, color, from: start, to, delay: i * 0.12 }] : [];
-    });
-    if (added.length) setFlying((f) => [...f, ...added]);
+    launch(
+      gained.map((color, i) => {
+        const to = document.querySelector(`[data-testid="ttr-hand"] [data-color="${color}"]`)?.getBoundingClientRect();
+        return to ? { node: <TrainCard color={color} />, from: start, to, delay: i * 0.12, duration: 0.62 } : null;
+      }),
+    );
   }, [game, hand]);
 
   return {
-    flying,
+    flights,
     takeFrom: (el: Element) => (from.current = { rect: el.getBoundingClientRect(), at: Date.now() }),
-    land: (id: number) => setFlying((f) => f.filter((x) => x.id !== id)),
+    land,
   };
 }
 

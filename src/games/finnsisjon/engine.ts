@@ -74,6 +74,8 @@ export interface FishState extends Seating<FishSeat> {
   turn: number | null;
   /** The most recent events (LOG_KEEP of them). */
   log: FishEvent[];
+  /** Events so far this game, so a view can tell which are new once the log is full. */
+  logged: number;
   result: { winners: string[]; books: Record<string, number> } | null;
   /** When the current turn's clock runs out (null: no clock), whatever happens to "turn". */
   turnEndsAt: number | null;
@@ -95,6 +97,7 @@ export function createState(config: FishConfig): FishState {
     lake: [],
     turn: null,
     log: [],
+    logged: 0,
     result: null,
     turnEndsAt: null,
     timers: {},
@@ -119,6 +122,7 @@ function opponentsWithCards(state: FishState, p: FishPlayer) {
 
 function logEvent(state: FishState, e: FishEvent) {
   state.log.push(e);
+  state.logged = (state.logged ?? 0) + 1;
   if (state.log.length > LOG_KEEP) state.log.splice(0, state.log.length - LOG_KEEP);
 }
 
@@ -198,6 +202,7 @@ export function start(state: FishState, actor: string, ctx: GameContext) {
   state.game++;
   state.phase = "playing";
   state.log = [];
+  state.logged = 0;
   state.result = null;
   for (const p of state.players) layBooks(state, p, ctx);
   beginTurn(state, ctx, dealer, false);
@@ -358,6 +363,8 @@ export interface FishView {
   turn: number | null;
   turnDeadline: number | null;
   log: FishEvent[];
+  /** Events so far this game (more than `log` holds once it's long). */
+  logged: number;
   result: FishState["result"];
   canStart: boolean;
   you: { seat: number | null; inGame: boolean; ask: { targets: string[]; ranks: string[] } | null };
@@ -395,6 +402,7 @@ export function viewFor(state: FishState, viewer: string): FishView {
           { type: "ask", from: e.from, to: e.to, rank: e.rank, got: e.got, cards: [...e.cards] }
         : { ...e },
     ),
+    logged: state.logged ?? state.log.length,
     result: state.result,
     canStart: canStart(state),
     you: { seat: seat < 0 ? null : seat, inGame: !!playerOf(state, viewer), ask: askOptions(state, viewer) },

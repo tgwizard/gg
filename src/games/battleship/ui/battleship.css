@@ -1,7 +1,8 @@
 .bs { display: flex; flex-direction: column; gap: 16px; }
 
 /* What just happened: a fixed height so the boards don't jump as shots come in. */
-.bs-news { min-height: 64px; }
+/* Room for two lines of news, so the boards below don't shift as it fills. */
+.bs-news { min-height: 68px; }
 .bs-news .herald-text { gap: 3px; }
 .bs-latest { font-weight: 700; }
 .bs-latest.hit, .bs-latest.sunk { color: var(--accent-text); }
@@ -13,7 +14,8 @@
 .bs-boards.idle { filter: grayscale(0.9); opacity: 0.45; pointer-events: none; }
 .bs-side { flex: 1 1 320px; max-width: 370px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 /* The same height with or without a timer in it, so the two seas line up. */
-.bs-side .plate { width: 100%; max-width: 200px; min-height: 66px; justify-content: center; }
+/* Tall enough for the turn timer, so a board doesn't drop when its player's turn comes. */
+.bs-side .plate { width: 100%; max-width: 200px; min-height: 70px; justify-content: center; }
 .bs-board-wrap { position: relative; width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .bs-caption { text-align: center; }
 

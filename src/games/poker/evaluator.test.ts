@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestHand, compareScores, evaluate5 } from "./evaluator";
+import { bestHand, compareScores, describeHolding, evaluate5 } from "./evaluator";
 
 const score = (hand: string) => evaluate5(hand.split(" "));
 const best = (cards: string) => bestHand(cards.split(" "));
@@ -26,6 +26,15 @@ describe("evaluate5", () => {
     expect(compareScores(score("As Ad Kh 7c 3s"), score("Ah Ac Qh Jc Ts"))).toBeGreaterThan(0);
     expect(compareScores(score("As Ad Kh 7c 3s"), score("Ah Ac Kc 7d 3h"))).toBe(0);
     expect(compareScores(score("Ks Kd 2h 2c As"), score("Qh Qc Jh Jc Ad"))).toBeGreaterThan(0);
+  });
+});
+
+describe("describeHolding", () => {
+  it("names two cards, and the best five once there are", () => {
+    expect(describeHolding(["9h", "9d"])).toBe("Pair of Nines");
+    expect(describeHolding(["Ah", "9d"])).toBe("High Card, Ace");
+    expect(describeHolding("Ah 9d 9s 4c Kd".split(" "))).toBe("Pair of Nines");
+    expect(describeHolding("Ah 9d 9s 4c Kd Ks".split(" "))).toBe("Two Pair, Kings and Nines");
   });
 });
 

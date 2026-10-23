@@ -4,7 +4,7 @@ import "./table.css";
 
 export interface TableSeat {
   key: string | number;
-  /** The seat itself (usually a PlayerPlate, maybe with cards). */
+  /** The seat itself (usually a PlayerPlate, maybe with cards); null leaves the spot empty. */
   node: ReactNode;
   className?: string;
   testId?: string;
@@ -48,17 +48,16 @@ export function CardTable({
           const side = sideOf(theta);
           return (
             <div key={seat.key} className="table-spot">
-              {seat.bet && (
-                <div className="table-bet" style={at(0.66)}>
-                  {seat.bet}
-                </div>
-              )}
+              {/* Always there (empty without a bet), so chips have somewhere to fly from. */}
+              <div className="table-bet" style={at(0.66)} data-bet-spot={i}>
+                {seat.bet}
+              </div>
               {seat.marker && (
                 <div className={`table-marker side-${side}`} style={at(0.8)}>
                   {seat.marker}
                 </div>
               )}
-              <div className={`table-seat side-${side} ${seat.className ?? ""}`} style={at(1)} data-testid={seat.testId}>
+              <div className={`table-seat side-${side} ${seat.className ?? ""}`} style={at(1)} data-testid={seat.testId} data-seat={i}>
                 {seat.node}
               </div>
             </div>

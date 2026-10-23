@@ -190,7 +190,13 @@ can once none of its players are online).
   around it, you at the bottom, bets and a dealer button in front of seats, content
   in the middle), `PlayerPlate` (nameplate), `Cards` (faces, backs, slots, fans),
   `Chips`/`Pot`/`DealerButton`, `TurnTimer`, and `Herald`/`ActionTray`/`GameLog`
-  for the strip, tray and history under the table.
+  for the strip, tray and history under the table. `Flights` moves things across
+  the table (dealt cards, chips, a catch from the lake): a game compares the new
+  view with the last one, measures both ends on screen (`CardTable` marks seats with
+  `data-seat` and bet spots with `data-bet-spot`), launches flights, and hides what's
+  arriving until it lands (`arrivalStyle`). Only changes that arrive live animate,
+  never a first view or a refresh, and nothing moves with reduced motion. Coast to
+  Coast, Texas Hold'em and Finns i sjön use it.
 - `testing.ts`: a seeded RNG for tests.
 
 **Conformance (`src/games/conformance.test.ts`).** Every registered game is

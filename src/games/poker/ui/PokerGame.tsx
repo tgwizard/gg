@@ -1,14 +1,16 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Member } from "../../../shared/protocol";
 import { useNarrow } from "../../../ui";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
+import { arrivalStyle, Flights, rectOf, reducedMotion, seatRect, useFlights } from "../../kit/ui/Flights";
 import { ActionTray, GameLog, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
-import type { HandPlayerView, PokerSeat, PokerView } from "../engine";
+import type { HandPlayerView, HandView, PokerSeat, PokerView } from "../engine";
+import { describeHolding } from "../evaluator";
 import type { PokerOp } from "../index";
 
 type Props = GameUIProps<PokerView, PokerOp>;
@@ -22,6 +24,7 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
   const bestSeats = new Set(hand?.result?.pots.flatMap((p) => p.winners) ?? []);
   const showdownCards = new Set<string>();
   for (const seat of bestSeats) for (const c of hand?.result?.hands[seat]?.cards ?? []) showdownCards.add(c);
+  const motion = usePokerMotion(hand, view.seats.length);
 
   const seats: TableSeat[] = view.seats.map((seat, i) => {
     const hp = seat && hand ? hand.players.find((p) => p.seat === i && p.playerId === seat.playerId) : undefined;
@@ -32,7 +35,8 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
       className: ["seat", isMe && "me", !seat && "empty"].filter(Boolean).join(" "),
       bet: hp && hp.bet > 0 ? <Bet amount={hp.bet} /> : undefined,
       marker: seat && hand?.button === i ? <DealerButton /> : undefined,
-      node: (
+      // Once the game's going, open seats only matter to someone who could take one.
+      node: !seat && view.started && view.you.seat !== null ? null : (
         <SeatView
           index={i}
           seat={seat}
@@ -44,6 +48,7 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
           serverNow={serverNow}
           winningCards={winningCards}
           narrow={narrow}
+          motion={motion.state}
           onSit={() => sendOp({ type: "sit", seat: i })}
         />
       ),
@@ -61,7 +66,14 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
               {[0, 1, 2, 3, 4].map((i) => {
                 const card = hand?.board[i];
                 const size = narrow ? "sm" : "md";
-                return card ? <PlayingCard key={i} card={card} size={size} highlight={showdownCards.has(card)} /> : <CardSlot key={i} size={size} />;
+                if (!card) return <CardSlot key={i} size={size} />;
+                const m = motion.state;
+                const flip = m?.hand === hand!.id && m.boardFrom !== undefined && i >= m.boardFrom;
+                return (
+                  <span key={i} className={flip ? "flip-in" : undefined} style={flip ? { animationDelay: `${m.boardDelay + (i - m.boardFrom!) * 0.14}s` } : undefined}>
+                    <PlayingCard card={card} size={size} highlight={showdownCards.has(card)} />
+                  </span>
+                );
               })}
             </div>
             {hand && <Pot amount={hand.pot} />}
@@ -85,6 +97,7 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
         }
         actions={<SeatActions view={view} connected={connected} sendOp={sendOp} />}
       />
+      <Flights flights={motion.flights} onLand={motion.land} />
     </div>
   );
 }
@@ -100,6 +113,7 @@ function SeatView(props: {
   serverNow: number;
   winningCards: Set<string>;
   narrow: boolean;
+  motion: Motion | null;
   onSit(): void;
 }) {
   const { index, seat, hp, view, isMe, member, connected, serverNow } = props;
@@ -129,19 +143,26 @@ function SeatView(props: {
   else if (!hp && seat.sittingOut) status = "Sitting out";
   if (won) status = `Wins ${won.toLocaleString("en-US")}`;
   const cardSize = isMe && !props.narrow ? "md" : "sm";
+  const m = props.motion?.hand === hand?.id ? props.motion : null;
+  const arriving = m?.deal?.get(index);
+  const flip = m?.reveal?.has(index) ? { animationDelay: `${m.revealDelay}s` } : null;
 
   return (
     <div className="seat-body">
       <div className="seat-cards">
         {hp &&
           (hp.cards
-            ? hp.cards.map((c) => <PlayingCard key={c} card={c} size={cardSize} dim={hp.folded} highlight={!!won && props.winningCards.has(c)} />)
-            : !hp.folded && (
-                <>
+            ? hp.cards.map((c, i) => (
+                <span key={c} className={flip ? "flip-in" : undefined} style={flip ?? arrivalStyle(arriving?.[i])}>
+                  <PlayingCard card={c} size={cardSize} dim={hp.folded} highlight={!!won && props.winningCards.has(c)} />
+                </span>
+              ))
+            : !hp.folded &&
+              [0, 1].map((i) => (
+                <span key={i} style={arrivalStyle(arriving?.[i])}>
                   <CardBack size={cardSize} />
-                  <CardBack size={cardSize} />
-                </>
-              ))}
+                </span>
+              )))}
       </div>
       <PlayerPlate
         playerId={seat.playerId}
@@ -216,6 +237,10 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
   };
   const disabled = busy || !connected;
 
+  // Your cards so far, named: "Pair of Nines".
+  const mine = hand?.players.find((p) => p.seat === mySeat && p.playerId === me?.playerId);
+  const holding = handLive && mine?.cards && !mine.folded ? describeHolding([...mine.cards, ...hand.board]) : null;
+
   let main: ReactNode;
   if (actions && hand) {
     const potAfterCall = hand.pot + actions.toCall;
@@ -285,6 +310,8 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     main = <span className="muted">Dealing…</span>;
   } else if (mySeat === null) {
     main = <span className="muted">Pick an open seat to join the game.</span>;
+  } else if (hand && view.nextHandAt !== null) {
+    main = <span className="muted">Hand over. The next one is dealt in a moment.</span>;
   }
 
   return (
@@ -309,6 +336,11 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
         </>
       }
     >
+      {holding && (
+        <div className="poker-holding" data-testid="poker-holding">
+          <span className="label">Your hand</span> <strong>{holding}</strong>
+        </div>
+      )}
       {main}
     </ActionTray>
   );
@@ -340,4 +372,88 @@ function SeatActions({ view, connected, sendOp }: { view: PokerView; connected: 
       </button>
     </>
   );
+}
+
+// --- motion ------------------------------------------------------------------
+
+/** What's moving in the hand on screen: dealt cards on their way, cards turning over. */
+interface Motion {
+  hand: number;
+  /** When each seat's two cards land, in seconds from now. */
+  deal?: Map<number, number[]>;
+  /** Board cards from this index on turn over, the first after `boardDelay` seconds. */
+  boardFrom?: number;
+  boardDelay: number;
+  /** Seats whose cards are turned over at the showdown, after `revealDelay`. */
+  reveal?: Set<number>;
+  revealDelay: number;
+}
+
+const DEAL_SECONDS = 0.42;
+
+/**
+ * Animates what changed since the last view, live only (a refresh or reconnect shows
+ * the table as it is): dealing, bets swept into the pot when a betting round ends,
+ * board cards and showdown hands turning over, and the pot going to the winners.
+ */
+function usePokerMotion(hand: HandView | null, seatCount: number) {
+  const { flights, launch, land } = useFlights();
+  const [state, setState] = useState<Motion | null>(null);
+  /** The hand in the last view: undefined before the first view (nothing to animate from), null between games. */
+  const before = useRef<HandView | null | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const prev = before.current;
+    before.current = hand;
+    if (!hand || prev === undefined || reducedMotion()) return;
+    const board = rectOf('[data-testid="board"]');
+    if (prev?.id !== hand.id) {
+      // Two rounds, one card at a time, starting left of the button.
+      const order = [...hand.players].sort((a, b) => ((a.seat - hand.button + seatCount - 1) % seatCount) - ((b.seat - hand.button + seatCount - 1) % seatCount));
+      const deal = new Map<number, number[]>();
+      const plans = order.flatMap((p, k) =>
+        [0, 1].map((round) => {
+          const delay = (round * order.length + k) * 0.08;
+          deal.set(p.seat, [...(deal.get(p.seat) ?? []), delay + DEAL_SECONDS]);
+          const to = seatRect(p.seat, ".seat-cards");
+          return board && to ? { node: <CardBack size="sm" />, from: board, to, delay, duration: DEAL_SECONDS, scale: [0.8, 1] as [number, number] } : null;
+        }),
+      );
+      launch(plans);
+      setState({ hand: hand.id, deal, boardDelay: 0, revealDelay: 0 });
+      return;
+    }
+
+    if (!prev) return;
+    const pot = rectOf('[data-testid="pot"]');
+    let t = 0;
+    // A betting round ended: what was bet goes into the pot.
+    if (pot && (prev.street !== hand.street || (prev.status !== "complete" && hand.status === "complete"))) {
+      t = launch(
+        prev.players
+          .filter((p) => p.bet > 0)
+          .map((p, i) => {
+            const from = rectOf(`[data-bet-spot="${p.seat}"]`);
+            return from ? { node: <Bet amount={p.bet} />, from, to: pot, delay: i * 0.05, duration: 0.42 } : null;
+          }),
+      );
+    }
+    const boardFrom = hand.board.length > prev.board.length ? prev.board.length : undefined;
+    const boardDone = t + (boardFrom === undefined ? 0 : (hand.board.length - boardFrom) * 0.14 + 0.38);
+    const reveal = new Set(hand.players.filter((p) => p.cards && !prev.players.find((q) => q.seat === p.seat)?.cards).map((p) => p.seat));
+    if (boardFrom !== undefined || reveal.size) setState({ hand: hand.id, boardFrom, boardDelay: t, reveal, revealDelay: boardDone });
+    // The hand is over: the pot goes to whoever won it, once the cards are seen.
+    if (pot && hand.result && prev.status !== "complete" && hand.status === "complete") {
+      const delay = boardDone + (reveal.size ? 0.5 : 0.1);
+      launch(
+        Object.entries(hand.result.payouts).map(([seat, amount]) => {
+          const to = seatRect(Number(seat));
+          return to && amount ? { node: <Chips amount={amount} className="bet" />, from: pot, to, delay, duration: 0.6 } : null;
+        }),
+      );
+    }
+    // A hand's views are set up once each; seatCount only changes between games.
+  }, [hand]);
+
+  return { flights, land, state };
 }

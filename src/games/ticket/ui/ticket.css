@@ -378,5 +378,3 @@
 }
 
 /* ---------- cards in flight ---------- */
-.ttr-flights { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
-.ttr-flying { position: absolute; left: 0; top: 0; filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.35)); }
