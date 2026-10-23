@@ -1,5 +1,5 @@
 import { expect, type Route, test } from "@playwright/test";
-import { chat, createRoom, newPlayer } from "./helpers";
+import { chat, createRoom, joinRoom, newPlayer } from "./helpers";
 
 /**
  * An AI bot against a fake Meta Model API (an OpenAI-style Responses API): the fake
@@ -160,4 +160,48 @@ test("when the model fails, the Easy bot moves for it, after a moment, and the o
   await page.getByRole("button", { name: "Edit Glitch" }).click();
   await expect(page.getByTestId("bot-stand-ins")).toContainText("The Easy bot made 1 move for it");
   await expect(page.getByTestId("bot-stand-ins")).toContainText("Model is overloaded");
+
+  // It comes back, still an AI bot, after a refresh.
+  await page.reload();
+  const glitch = page.getByTestId("member").filter({ hasText: "Glitch" });
+  await expect(glitch).toHaveClass(/online/);
+  await expect(glitch).toContainText("AI bot");
+  await expect(page.getByTestId("ttt-seat-1")).toContainText("Glitch");
+});
+
+test("other people see that a bot is an AI bot, which model it runs, and whose browser it plays from", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const bob = await newPlayer(browser);
+  await alice.context.addInitScript(() => {
+    if (localStorage.getItem("gg.llm.connections")) return;
+    localStorage.setItem(
+      "gg.llm.connections",
+      JSON.stringify([{ id: "meta1", provider: "meta", label: "Meta key", addedAt: "2026-10-23T09:00:00Z", apiKey: "fake-key", model: "muse-spark-1.3", models: ["muse-spark-1.3", "muse-spark-1.3-contributor"] }]),
+    );
+  });
+  const url = await createRoom(alice.page, "Alice");
+  await joinRoom(bob.page, url, "Bob");
+  await alice.page.getByRole("button", { name: "+ Add a bot" }).click();
+  const dialog = alice.page.getByRole("dialog", { name: "Add a bot" });
+  await dialog.getByLabel("Bot's name").fill("Luna");
+  await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });
+  await dialog.getByLabel("Effort").selectOption("medium");
+  await dialog.getByRole("button", { name: "Add bot" }).click();
+
+  const luna = bob.page.getByTestId("member").filter({ hasText: "Luna" });
+  await expect(luna).toContainText("AI bot");
+  await expect(luna).not.toContainText("×");
+  await luna.getByRole("button", { name: "About Luna" }).click();
+  const about = bob.page.getByRole("dialog", { name: "About Luna" });
+  await expect(about).toContainText("muse-spark-1.3-contributor");
+  await expect(about).toContainText("medium");
+  await expect(about).toContainText("Meta");
+  await expect(about).toContainText("Alice added it, and it plays from Alice's browser, with Alice's own AI key.");
+
+  // Switching it to Easy shows up for everyone.
+  await alice.page.getByRole("button", { name: "Edit Luna" }).click();
+  const edit = alice.page.getByRole("dialog", { name: "Edit Luna" });
+  await edit.getByLabel("Plays").selectOption("easy");
+  await edit.getByRole("button", { name: "Save" }).click();
+  await expect(luna.locator(".tag.brand")).toHaveText("bot");
 });

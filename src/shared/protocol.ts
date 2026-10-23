@@ -41,12 +41,24 @@ export const ROOM_FULL = "room_full";
 
 export type MemberKind = "human" | "bot";
 
+/** What a bot says about itself, for everyone to see. */
+export const BotInfo = z.object({
+  level: z.enum(["easy", "ai"]),
+  /** For AI bots: the model, e.g. "muse-spark-1.3-contributor", and its provider. */
+  model: z.string().max(80).optional(),
+  provider: z.string().max(40).optional(),
+  effort: z.enum(["low", "medium", "high"]).optional(),
+});
+export type BotInfo = z.infer<typeof BotInfo>;
+
 export interface Member {
   id: string;
   name: string;
   kind: MemberKind;
   /** For bots: the player whose browser runs it. */
   ownerId: string | null;
+  /** For bots: how it plays. */
+  bot?: BotInfo;
   /** Index into PLAYER_COLORS: their preference, unless someone who joined earlier has it. */
   color: number;
   online: boolean;
@@ -111,8 +123,15 @@ export const ClientMessage = z.discriminatedUnion("type", [
     chatCursor: z.number().int().nullable(),
     /** Set when a bot connects: its owner's secret (the bot has its own). */
     owner: z.string().min(16).max(128).optional(),
+    bot: BotInfo.optional(),
   }),
-  z.object({ type: z.literal("setProfile"), name: z.string().max(200), color: z.number().int().min(0).max(COLOR_COUNT - 1) }),
+  z.object({
+    type: z.literal("setProfile"),
+    name: z.string().max(200),
+    color: z.number().int().min(0).max(COLOR_COUNT - 1),
+    /** Bots: how it plays now. */
+    bot: BotInfo.optional(),
+  }),
   z.object({ type: z.literal("renameRoom"), cid, name: z.string().max(200) }),
   /** What you're up to right now (null when done); shown to everyone. */
   z.object({ type: z.literal("activity"), text: z.string().max(200).nullable() }),

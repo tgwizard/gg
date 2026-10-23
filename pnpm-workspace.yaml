@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+  workerd: true
+minimumReleaseAgeExclude:
+  - '@anthropic-ai/sdk@1.1.0'
+  - openai@7.42.0

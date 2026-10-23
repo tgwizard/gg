@@ -22,6 +22,7 @@ import { type AnyGameDefinition, type GameContext, GameError } from "../games/ty
 import { assignColors } from "../shared/colors";
 import {
   type AckError,
+  type BotInfo,
   type ChatKind,
   type ChatMessage,
   ClientMessage,
@@ -208,7 +209,7 @@ export class Room extends DurableObject<Env> {
 
     switch (msg.type) {
       case "setProfile":
-        return this.onSetProfile(playerId, msg.name, msg.color);
+        return this.onSetProfile(playerId, msg.name, msg.color, msg.bot);
       case "activity":
         return this.setActivity(playerId, msg.text === null ? "" : sanitizeActivity(msg.text));
       case "renameRoom":
@@ -262,7 +263,7 @@ export class Room extends DurableObject<Env> {
       if (changed) this.commitGame(state, announcements);
     }
     this.sweep(now);
-    await this.scheduleAlarm();
+    await this.scheduleAlarm(true);
   }
 
   // --- handlers ------------------------------------------------------------
@@ -298,13 +299,14 @@ export class Room extends DurableObject<Env> {
     const wasOnline = this.isOnline(playerId);
 
     this.sql.exec(
-      `INSERT INTO members (id, name, color, kind, owner_id, joined_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = excluded.color, last_seen_at = excluded.last_seen_at`,
+      `INSERT INTO members (id, name, color, kind, owner_id, bot_info, joined_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = excluded.color, bot_info = excluded.bot_info, last_seen_at = excluded.last_seen_at`,
       playerId,
       name,
       msg.color ?? 0,
       ownerId ? "bot" : "human",
       ownerId,
+      ownerId ? JSON.stringify(msg.bot ?? { level: "easy" }) : null,
       now,
       now,
     );
@@ -333,7 +335,10 @@ export class Room extends DurableObject<Env> {
 
     if (joinMessage) this.broadcast({ type: "chat", messages: [joinMessage] }, ws);
     const members = this.getMembers();
-    const changed = existing && (existing.name !== name || members.some((m) => m.id === playerId && m.color !== existing.color));
+    const changed =
+      existing &&
+      (existing.name !== name ||
+        members.some((m) => m.id === playerId && (m.color !== existing.color || JSON.stringify(m.bot) !== JSON.stringify(existing.bot))));
     if (!wasOnline || !existing || changed) this.broadcast({ type: "members", members: this.getMembers() }, ws);
     // The hello-timeout check for this socket is no longer needed.
     await this.scheduleAlarm();
@@ -346,11 +351,14 @@ export class Room extends DurableObject<Env> {
     this.broadcast({ type: "members", members: this.getMembers() });
   }
 
-  private onSetProfile(playerId: string, raw: string, color: number) {
+  private onSetProfile(playerId: string, raw: string, color: number, bot: BotInfo | undefined) {
     const name = sanitizeName(raw);
     const before = this.sql.exec<MemberRow>(`SELECT * FROM members WHERE id = ?`, playerId).toArray()[0];
-    if (!before || (before.name === name && before.color === color)) return;
-    this.sql.exec(`UPDATE members SET name = ?, color = ? WHERE id = ?`, name, color, playerId);
+    if (!before) return;
+    // Only bots describe how they play.
+    const botInfo = before.kind === "bot" && bot ? JSON.stringify(bot) : before.bot_info;
+    if (before.name === name && before.color === color && before.bot_info === botInfo) return;
+    this.sql.exec(`UPDATE members SET name = ?, color = ?, bot_info = ? WHERE id = ?`, name, color, botInfo, playerId);
     if (before.name !== name) {
       const msg = this.insertChat("system", null, null, `${before.name} is now known as ${name}.`);
       this.broadcast({ type: "chat", messages: [msg] });
@@ -530,7 +538,8 @@ export class Room extends DurableObject<Env> {
     }
   }
 
-  private async scheduleAlarm() {
+  /** `fromAlarm`: called by the alarm handler itself, which must always set the next one. */
+  private async scheduleAlarm(fromAlarm = false) {
     const now = Date.now();
     let next = Infinity;
     if (this.game) {
@@ -550,6 +559,10 @@ export class Room extends DurableObject<Env> {
       return;
     }
     next = Math.max(next, now);
+    // An alarm that's already due is left alone, even if nothing needs it that early any
+    // more (e.g. a move just beat a turn timer): moving it would cancel a run that's on
+    // its way. It runs, finds nothing due, and schedules the next one itself.
+    if (!fromAlarm && current !== null && current <= now) return;
     if (current === null || Math.abs(current - next) > 1000) await this.ctx.storage.setAlarm(next);
   }
 
@@ -704,6 +717,7 @@ export class Room extends DurableObject<Env> {
       name: row.name,
       kind: row.kind as Member["kind"],
       ownerId: row.owner_id ?? null,
+      ...(row.bot_info ? { bot: JSON.parse(row.bot_info) as BotInfo } : {}),
       color,
       online: online.has(row.id),
       ...(this.activities.has(row.id) ? { activity: this.activities.get(row.id)! } : {}),
@@ -830,6 +844,7 @@ export class Room extends DurableObject<Env> {
       color INTEGER NOT NULL DEFAULT 0,
       kind TEXT NOT NULL,
       owner_id TEXT,
+      bot_info TEXT,
       joined_at INTEGER NOT NULL,
       last_seen_at INTEGER NOT NULL
     )`);
@@ -857,10 +872,20 @@ export class Room extends DurableObject<Env> {
   private upgrade() {
     const columns = this.sql.exec<{ name: string }>(`SELECT name FROM pragma_table_info('members')`).toArray();
     if (!columns.some((c) => c.name === "owner_id")) this.sql.exec(`ALTER TABLE members ADD COLUMN owner_id TEXT`);
+    if (!columns.some((c) => c.name === "bot_info")) this.sql.exec(`ALTER TABLE members ADD COLUMN bot_info TEXT`);
   }
 }
 
-type MemberRow = { id: string; name: string; color: number; kind: string; owner_id: string | null; joined_at: number; last_seen_at: number };
+type MemberRow = {
+  id: string;
+  name: string;
+  color: number;
+  kind: string;
+  owner_id: string | null;
+  bot_info: string | null;
+  joined_at: number;
+  last_seen_at: number;
+};
 type ChatRow = { seq: number; ts: number; kind: string; player_id: string | null; name: string | null; text: string; cid: string | null };
 
 function toChat(r: ChatRow): ChatMessage {

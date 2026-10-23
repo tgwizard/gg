@@ -26,14 +26,14 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works (including bot
 ## Development
 
 ```sh
-npm install
-npm run dev            # http://localhost:5173 (Vite + the Worker in workerd)
-npm run test:all       # typecheck, unit, integration (workerd) and e2e (Playwright)
+pnpm install
+pnpm dev               # http://localhost:5173 (Vite + the Worker in workerd)
+pnpm test:all          # typecheck, unit, integration (workerd) and e2e (Playwright)
 ```
 
-Other scripts: `npm run test:unit`, `npm run test:integration`, `npm run test:e2e`,
-`npm run typecheck`, `npm run build`, `npm run cf-typegen` (after changing
-`wrangler.jsonc`). E2E tests need `npx playwright install chromium` once.
+Other scripts: `pnpm test:unit`, `pnpm test:integration`, `pnpm test:e2e`,
+`pnpm typecheck`, `pnpm build`, `pnpm cf-typegen` (after changing
+`wrangler.jsonc`). E2E tests need `pnpm exec playwright install chromium` once.
 
 ## Adding a game
 
@@ -46,17 +46,17 @@ Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
 2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`, and `icon`
    artwork in `public/icons/`). Build it from `src/games/kit/ui` (table, cards, plates)
    and `src/ui` (buttons, panels; see `/ui`). Register it in `src/games/ui-registry.ts`.
-3. `npm test`: the conformance suite fuzzes every registered game automatically,
+3. `pnpm test`: the conformance suite fuzzes every registered game automatically,
    and has a table of its bots play it.
    Add rule tests for the engine, and redaction tests if it has hidden information.
 
 ## Deploying
 
 ```sh
-npm run deploy         # vite build && wrangler deploy
+pnpm run deploy        # vite build && wrangler deploy (not `pnpm deploy`: that is a pnpm command)
 ```
 
-This needs `npx wrangler login` once. The custom domain `gg.tgwizard.com` is set in
+This needs `pnpm exec wrangler login` once. The custom domain `gg.tgwizard.com` is set in
 `wrangler.jsonc`; Cloudflare manages its DNS record and certificate.
 
 ## License

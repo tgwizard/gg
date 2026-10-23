@@ -70,7 +70,9 @@ export async function playOutHand(pages: Page[]) {
       const actions = page.getByTestId("actions");
       if (await actions.isVisible()) {
         const check = actions.getByRole("button", { name: "Check" });
-        await ((await check.isVisible()) ? check : actions.getByRole("button", { name: /^Call/ })).click();
+        // The other player's move can end the round between looking and clicking, and then
+        // the button is gone: give up on it quickly and look again.
+        await ((await check.isVisible()) ? check : actions.getByRole("button", { name: /^Call/ })).click({ timeout: 1_000 }).catch(() => {});
         // The same player may act again (e.g. the big blind opens the flop heads-up); let the update land.
         await page.waitForTimeout(250);
       }

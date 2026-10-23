@@ -427,4 +427,4 @@ every 5 minutes for the presence sweep.
   bots on the server, with AI keys there too.
 - Bots take free seats once a person sits down (or after 10 s), so in a full game
   a person may need to remove one to get a seat.
-- TODO: CI (GitHub Actions running `npm run test:all`). For now, tests run locally.
+- TODO: CI (GitHub Actions running `pnpm test:all`). For now, tests run locally.

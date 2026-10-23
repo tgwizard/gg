@@ -11,7 +11,9 @@
  */
 import { botMove, tableMove } from "../../games/kit/bot";
 import type { AnyGameDefinition } from "../../games/types";
+import type { BotInfo } from "../../shared/protocol";
 import { devLog } from "../devlog";
+import { getConnection, PROVIDERS } from "../llm/connections";
 import { RequestError, RoomClient } from "../net/RoomClient";
 import { AiBrain } from "./ai/AiBrain";
 import { gameMoves } from "./ai/prompt";
@@ -46,19 +48,32 @@ export class BotPlayer {
   ) {}
 
   start() {
-    const play = () =>
-      new Promise<void>((release) => {
+    // Held until stop(). A player stopped before (or just as) the lock comes through
+    // must let go of it at once, or the bot's next player waits forever: React mounts
+    // the room twice in dev, and leaving the room can race the lock too.
+    const play = () => {
+      if (this.stopped) return Promise.resolve();
+      this.log("playing from this tab");
+      return new Promise<void>((release) => {
         this.releaseLock = release;
         void this.connect();
       });
-    if (navigator.locks) navigator.locks.request(`gg.bot.${this.bot.id}`, { signal: this.lock.signal }, play).catch(() => {});
-    else void play();
+    };
+    if (!navigator.locks) return void play();
+    void navigator.locks.query().then((state) => {
+      if (!this.stopped && state.held?.some((l) => l.name === this.lockName())) this.log("waiting for its lock (held by another tab, or a moment ago by this page)");
+    });
+    navigator.locks.request(this.lockName(), { signal: this.lock.signal }, play).catch(() => {});
+  }
+
+  private lockName() {
+    return `gg.bot.${this.bot.id}`;
   }
 
   /** Its setup changed (name, color, AI connection, persona). */
   update(bot: BotRecord) {
     this.bot = bot;
-    this.client?.setProfile(bot.name, bot.color);
+    this.client?.setProfile(bot.name, bot.color, botInfo(bot));
     if (this.client) this.setBrain();
   }
 
@@ -100,9 +115,9 @@ export class BotPlayer {
   private async connect() {
     // Game rules are only needed once you have a bot, so they load separately.
     this.games ??= (await import("../../games/registry")).games;
-    if (this.stopped) return;
+    if (this.stopped) return this.releaseLock?.();
     const { roomId, secret, name, color } = this.bot;
-    const client = new RoomClient(roomId, secret, name, color, this.ownerSecret);
+    const client = new RoomClient(roomId, secret, name, color, this.ownerSecret, botInfo(this.bot));
     this.client = client;
     this.setBrain();
     client.subscribe(() => this.onChange());
@@ -201,4 +216,17 @@ function connected(client: RoomClient, timeoutMs: number): Promise<void> {
     }, timeoutMs);
     check();
   });
+}
+
+/** What the room is told about how a bot plays. */
+function botInfo(bot: BotRecord): BotInfo {
+  if (bot.level !== "ai" || !bot.connectionId) return { level: "easy" };
+  const connection = getConnection(bot.connectionId);
+  const model = bot.model ?? connection?.model;
+  return {
+    level: "ai",
+    ...(model ? { model } : {}),
+    ...(connection ? { provider: PROVIDERS[connection.provider].short } : {}),
+    effort: bot.effort ?? "low",
+  };
 }

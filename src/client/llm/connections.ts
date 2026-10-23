@@ -9,11 +9,11 @@ import type { Connection, Effort, LLMClient, LLMModel, Provider } from "./types"
 const KEY = "gg.llm.connections";
 const EVENT = "gg:llm";
 
-export const PROVIDERS: Record<Provider, { name: string; billing: string; cheapest(ids: string[]): string | undefined }> = {
+export const PROVIDERS: Record<Provider, { name: string; short: string; billing: string; cheapest(ids: string[]): string | undefined }> = {
   // Model lists come newest first, so these pick the newest of the cheapest line.
-  openai: { name: "OpenAI API", billing: "Billed to your OpenAI API account.", cheapest: (ids) => ids.find((id) => id.endsWith("-luna")) ?? ids.find((id) => id.includes("nano")) },
-  anthropic: { name: "Anthropic API", billing: "Billed to your Anthropic API account.", cheapest: (ids) => ids.find((id) => id.includes("haiku")) },
-  meta: { name: "Meta Model API", billing: "Billed to your Meta developer account.", cheapest: (ids) => ids.find((id) => id.endsWith("-contributor")) },
+  openai: { name: "OpenAI API", short: "OpenAI", billing: "Billed to your OpenAI API account.", cheapest: (ids) => ids.find((id) => id.endsWith("-luna")) ?? ids.find((id) => id.includes("nano")) },
+  anthropic: { name: "Anthropic API", short: "Anthropic", billing: "Billed to your Anthropic API account.", cheapest: (ids) => ids.find((id) => id.includes("haiku")) },
+  meta: { name: "Meta Model API", short: "Meta", billing: "Billed to your Meta developer account.", cheapest: (ids) => ids.find((id) => id.endsWith("-contributor")) },
 };
 
 /** How hard the model thinks. Lower is faster and cheaper, which suits most game moves. */

@@ -199,6 +199,35 @@ describe("bots", () => {
     await gone;
   });
 
+  it("tells everyone how a bot plays, which only the bot can change", async () => {
+    const room = await createRoom();
+    const { client: alice, welcome: aw } = await TestClient.join(room, secret("alice"), "Alice");
+    const bot = await TestClient.connect(room);
+    const welcome = bot.next("welcome");
+    bot.send({
+      type: "hello",
+      protocol: PROTOCOL_VERSION,
+      secret: secret("luna"),
+      name: "Luna",
+      color: 2,
+      chatCursor: null,
+      owner: secret("alice"),
+      bot: { level: "ai", model: "muse-spark-1.3", provider: "Meta", effort: "low" },
+    });
+    const luna = (await welcome).you;
+    expect(luna.bot).toEqual({ level: "ai", model: "muse-spark-1.3", provider: "Meta", effort: "low" });
+
+    const switched = alice.next("members", (m) => m.members.find((x) => x.id === luna.id)?.bot?.level === "easy");
+    bot.send({ type: "setProfile", name: "Luna", color: 2, bot: { level: "easy" } });
+    await switched;
+
+    // People don't get bot info, whatever they send.
+    alice.send({ type: "setProfile", name: "Alice", color: 0, bot: { level: "ai", model: "fake" } });
+    alice.send({ type: "setProfile", name: "Alicia", color: 0 });
+    const renamed = await alice.next("members", (m) => m.members.some((x) => x.name === "Alicia"));
+    expect(renamed.members.find((x) => x.id === aw.you.id)).not.toHaveProperty("bot");
+  });
+
   it("caps how many bots one player can add", async () => {
     const room = await createRoom();
     await TestClient.join(room, secret("alice"), "Alice");

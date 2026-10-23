@@ -23,7 +23,11 @@ export function devLog(room: string, source: string, event: string, data?: unkno
   timer ??= setTimeout(flush, FLUSH_MS);
 }
 
+// A reload or closing tab would otherwise drop the last batch.
+if (import.meta.env.DEV && typeof window !== "undefined") window.addEventListener("pagehide", () => flush());
+
 function flush() {
+  clearTimeout(timer);
   timer = undefined;
   const batch = queue;
   queue = [];

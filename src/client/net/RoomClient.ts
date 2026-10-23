@@ -16,6 +16,7 @@
  * State is exposed as an immutable snapshot for React's useSyncExternalStore.
  */
 import {
+  type BotInfo,
   type ChatMessage,
   type ClientMessage,
   CloseCode,
@@ -127,8 +128,10 @@ export class RoomClient {
     private readonly secret: string,
     private name: string,
     private color: number,
-    /** For a bot's connection: its owner's secret. */
+    /** For a bot's connection: its owner's secret, */
     private readonly owner?: string,
+    /** and how it plays. */
+    private bot?: BotInfo,
   ) {}
 
   // --- lifecycle -----------------------------------------------------------
@@ -216,11 +219,12 @@ export class RoomClient {
     return this.enqueue({ type: "chat", cid, text }, "chat");
   }
 
-  setProfile(name: string, color: number) {
-    if (name === this.name && color === this.color) return;
+  setProfile(name: string, color: number, bot?: BotInfo) {
+    if (name === this.name && color === this.color && JSON.stringify(bot) === JSON.stringify(this.bot)) return;
     this.name = name;
     this.color = color;
-    if (this.welcomed) this.sendRaw({ type: "setProfile", name, color });
+    this.bot = bot;
+    if (this.welcomed) this.sendRaw({ type: "setProfile", name, color, ...(bot ? { bot } : {}) });
   }
 
   /** What you're up to (null when done). Only sent while connected: it's of the moment. */
@@ -321,6 +325,7 @@ export class RoomClient {
         color: this.color,
         chatCursor: lastSeq,
         ...(this.owner ? { owner: this.owner } : {}),
+        ...(this.bot ? { bot: this.bot } : {}),
       });
     };
     ws.onmessage = (e) => {

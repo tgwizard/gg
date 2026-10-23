@@ -7,7 +7,7 @@ covers poorly: real browsers, real network weirdness, and how things look.
 ## 1. Automated (always)
 
 ```sh
-npm run test:all        # typecheck + unit + integration + e2e
+pnpm test:all           # typecheck + unit + integration + e2e
 ```
 
 | layer | where | what it covers |
@@ -19,7 +19,7 @@ npm run test:all        # typecheck + unit + integration + e2e
 Visual snapshot of the main screens (desktop and mobile), for eyeballing layout changes:
 
 ```sh
-npm run dev -- --port 5311 &
+pnpm dev --port 5311 &
 node test/e2e/screens.ts http://localhost:5311 ./screens        # rooms + poker
 node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
 node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battleship, light + dark

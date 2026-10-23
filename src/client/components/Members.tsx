@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { MAX_BOTS_PER_PLAYER, type Member } from "../../shared/protocol";
-import { ActivityBubble, Avatar, Panel, PlayerName } from "../../ui";
+import { ActivityBubble, Avatar, Panel, PlayerName, playerStyle } from "../../ui";
 import { addBot, type BotRecord, type BotSetup, removeBot, suggestBot, updateBot } from "../bots/store";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { BotForm } from "./BotForm";
@@ -24,16 +24,18 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
               {m.activity && <ActivityBubble text={m.activity} compact />}
               {bot ? (
                 <EditBot bot={bot} member={m} members={snapshot.members} />
+              ) : m.kind === "bot" ? (
+                <AboutBot member={m} owner={names.get(m.ownerId ?? "") ?? "Someone"} you={m.ownerId === snapshot.you?.id} />
               ) : (
                 <>
-                  <Avatar name={m.name} color={m.color} online={m.online} bot={m.kind === "bot"} size="sm" />
+                  <Avatar name={m.name} color={m.color} online={m.online} size="sm" />
                   <PlayerName name={m.name} color={m.color} className="member-name" />
                 </>
               )}
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
               {m.kind === "bot" && (
-                <span className="tag brand" title={bot ? "Your bot, playing from this browser" : `${names.get(m.ownerId ?? "") ?? "Someone"}'s bot`}>
-                  {bot?.level === "ai" ? "AI bot" : "bot"}
+                <span className="tag brand" title={botSummary(m, bot ? "you" : (names.get(m.ownerId ?? "") ?? "Someone"))}>
+                  {(m.bot?.level ?? bot?.level) === "ai" ? "AI bot" : "bot"}
                 </span>
               )}
               {bot?.error && (
@@ -54,10 +56,67 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
       <div className="members-foot">
         <AddBot roomId={roomId} members={snapshot.members} disabled={!connected || bots.length >= MAX_BOTS_PER_PLAYER} />
         <span className="muted small">
-          {bots.length >= MAX_BOTS_PER_PLAYER ? `Up to ${MAX_BOTS_PER_PLAYER} bots each.` : "Easy, no AI. Plays from this tab."}
+          {bots.length >= MAX_BOTS_PER_PLAYER ? `Up to ${MAX_BOTS_PER_PLAYER} bots each.` : "Easy, or AI with your own key. Plays from this tab."}
         </span>
       </div>
     </Panel>
+  );
+}
+
+/** "AI bot (muse-spark-1.3, low effort, Meta), playing from Adam's browser." */
+function botSummary(m: Member, owner: string): string {
+  const where = owner === "you" ? "playing from this browser" : `playing from ${owner}'s browser`;
+  if (m.bot?.level !== "ai") return `Easy bot, no AI, ${where}.`;
+  const how = [m.bot.model, m.bot.effort && `${m.bot.effort} effort`, m.bot.provider].filter(Boolean).join(", ");
+  return `AI bot${how ? ` (${how})` : ""}, ${where}.`;
+}
+
+/** Someone else's bot: what it is, and whose browser it plays from. */
+function AboutBot({ member, owner, you }: { member: Member; owner: string; you: boolean }) {
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const ai = member.bot?.level === "ai";
+  const whose = you ? "your" : `${owner}'s`;
+  return (
+    <>
+      <button ref={button} className="member-edit" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`About ${member.name}`} title={`About ${member.name}`}>
+        <Avatar name={member.name} color={member.color} online={member.online} bot size="sm" />
+        <PlayerName name={member.name} color={member.color} className="member-name" />
+      </button>
+      {open && button.current && (
+        <Popover anchor={button.current} label={`About ${member.name}`} onClose={() => setOpen(false)}>
+          <div className="profile-form">
+            <div className="profile-preview">
+              <Avatar name={member.name} color={member.color} online={member.online} bot size="lg" />
+              <div className="profile-preview-text">
+                <strong className="name" style={playerStyle(member.color)}>
+                  {member.name}
+                </strong>
+                <span className="muted small">{ai ? "AI bot" : "Easy bot · no AI"}</span>
+              </div>
+            </div>
+            {ai && (
+              <dl className="bot-about">
+                <dt>Model</dt>
+                <dd>{member.bot?.model ?? "unknown"}</dd>
+                <dt>Effort</dt>
+                <dd>{member.bot?.effort ?? "low"}</dd>
+                {member.bot?.provider && (
+                  <>
+                    <dt>Provider</dt>
+                    <dd>{member.bot.provider}</dd>
+                  </>
+                )}
+              </dl>
+            )}
+            <p className="muted small bot-form-note">
+              {owner === "Someone" ? "It" : `${owner} added it, and it`} plays from {whose} browser{ai ? `, with ${whose} own AI key` : ""}.{" "}
+              {member.online ? "It's here now." : `It's away until ${you ? "you're" : `${owner} is`} back in the room.`}
+            </p>
+          </div>
+        </Popover>
+      )}
+    </>
   );
 }
 

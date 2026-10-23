@@ -17,7 +17,7 @@ export default defineConfig({
     ...devices["Desktop Chrome"],
   },
   webServer: {
-    command: `npx vite dev --port ${PORT} --strictPort`,
+    command: `pnpm exec vite dev --port ${PORT} --strictPort`,
     env: { GG_DEV_LOGS: "0" },
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
