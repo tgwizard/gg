@@ -38,7 +38,9 @@ export type ConnectionStatus =
   | "not_found"
   | "outdated"
   /** Too many tabs of this room open; this one was closed in favour of a newer one. */
-  | "replaced";
+  | "replaced"
+  /** A bot that was removed from the room. */
+  | "left";
 
 export interface PendingChat {
   cid: string;
@@ -124,6 +126,8 @@ export class RoomClient {
     private readonly secret: string,
     private name: string,
     private color: number,
+    /** For a bot's connection: its owner's secret. */
+    private readonly owner?: string,
   ) {}
 
   // --- lifecycle -----------------------------------------------------------
@@ -224,6 +228,11 @@ export class RoomClient {
     return this.request({ type: "endGame", cid: crypto.randomUUID(), instanceId: game.instanceId }, "room");
   }
 
+  /** For bots: leave the room for good. The connection then closes as "left". */
+  leaveRoom() {
+    return this.request({ type: "leaveRoom", cid: crypto.randomUUID() }, "room");
+  }
+
   sendGameOp(op: unknown) {
     const game = this.snapshot.game;
     if (!game) return Promise.reject(new RequestError("no_game", "No game is running."));
@@ -267,7 +276,7 @@ export class RoomClient {
 
   private isTerminal() {
     const s = this.snapshot.status;
-    return s === "not_found" || s === "outdated" || s === "replaced";
+    return s === "not_found" || s === "outdated" || s === "replaced" || s === "left";
   }
 
   private connect() {
@@ -288,7 +297,15 @@ export class RoomClient {
     ws.onopen = () => {
       if (this.ws !== ws) return;
       const lastSeq = this.snapshot.chat.at(-1)?.seq ?? null;
-      this.sendRaw({ type: "hello", protocol: PROTOCOL_VERSION, secret: this.secret, name: this.name, color: this.color, chatCursor: lastSeq });
+      this.sendRaw({
+        type: "hello",
+        protocol: PROTOCOL_VERSION,
+        secret: this.secret,
+        name: this.name,
+        color: this.color,
+        chatCursor: lastSeq,
+        ...(this.owner ? { owner: this.owner } : {}),
+      });
     };
     ws.onmessage = (e) => {
       if (this.ws !== ws) return;
@@ -304,6 +321,7 @@ export class RoomClient {
       if (this.ws !== ws) return;
       if (e.code === CloseCode.RoomNotFound) return this.terminate("not_found");
       if (e.code === CloseCode.Outdated) return this.terminate("outdated");
+      if (e.code === CloseCode.Left) return this.terminate("left");
       if (e.code === CloseCode.Replaced) {
         // Keep queued chat: it goes out if the user takes this tab back.
         this.dropSocket();
@@ -313,7 +331,7 @@ export class RoomClient {
     };
   }
 
-  private terminate(status: "not_found" | "outdated") {
+  private terminate(status: "not_found" | "outdated" | "left") {
     this.dropSocket();
     this.update({ status, nextRetryAt: null });
     for (const cid of [...this.outbox.keys()]) this.settle(cid, new RequestError(status, "Disconnected."));

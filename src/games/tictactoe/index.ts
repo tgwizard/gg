@@ -4,6 +4,7 @@
  * pause between rounds). There's no hidden information, so the view is the state.
  */
 import { z } from "zod";
+import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { emptySeating, requireSeat, type Seat, type Seating, seatedPlayers, seatOf, sitDown, standUp } from "../kit/seating";
 import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
 import { type GameContext, type GameDefinition, GameError } from "../types";
@@ -54,8 +55,8 @@ const MARK = ["X", "O"] as const;
 const configSchema = z.object({ turnSeconds: z.number().int().min(0).max(600).default(30) });
 
 export const tttOp = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("sit"), seat: z.union([z.literal(0), z.literal(1)]) }),
-  z.object({ type: z.literal("leave") }),
+  lobbyOps.sit(2),
+  lobbyOps.leave,
   z.object({ type: z.literal("place"), cell: z.number().int().min(0).max(8) }),
 ]);
 export type TttOp = z.infer<typeof tttOp>;
@@ -158,9 +159,8 @@ export const ticTacToe: GameDefinition<TttState, TttOp, TttView, TttConfig> = {
   waitingOn: (state) => (state.status === "playing" ? [state.seats[state.turn]!.playerId] : []),
   legalOps(state, player) {
     const seat = seatOf(state, player);
-    if (seat < 0) return state.seats.flatMap((s, i) => (s ? [] : [{ type: "sit" as const, seat: i as Mark }]));
-    const ops: TttOp[] = [{ type: "leave" }];
-    if (state.status === "playing" && state.turn === seat) {
+    const ops: TttOp[] = legalLobbyOps(state, player);
+    if (seat >= 0 && state.status === "playing" && state.turn === seat) {
       state.board.forEach((c, cell) => c === null && ops.push({ type: "place", cell }));
     }
     return ops;
@@ -174,6 +174,17 @@ export const ticTacToe: GameDefinition<TttState, TttOp, TttView, TttConfig> = {
       if (bothSeated(state)) startRound(state, ctx);
       else state.status = "waiting";
     }
+  },
+  bot: {
+    // Takes a win when it sees one and blocks about half the time, so it's beatable.
+    easy(view, ops, rand) {
+      const cells = ops.flatMap((op) => (op.type === "place" ? [op.cell] : []));
+      const me = view.you.seat;
+      if (!cells.length || me === null) return null;
+      const completes = (mark: Mark) => cells.find((c) => LINES.some((l) => l.includes(c) && l.every((x) => x === c || view.board[x] === mark)));
+      const cell = completes(me) ?? (rand(2) === 0 ? completes((1 - me) as Mark) : undefined) ?? cells[rand(cells.length)]!;
+      return { type: "place", cell };
+    },
   },
   checkInvariants(state) {
     const x = state.board.filter((c) => c === 0).length;

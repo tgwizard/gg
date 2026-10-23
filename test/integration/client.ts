@@ -58,10 +58,10 @@ export class TestClient {
   }
 
   /** Connect and say hello; resolves with the welcome message. */
-  static async join(roomId: string, secret: string, name: string, chatCursor: number | null = null, color = 0) {
+  static async join(roomId: string, secret: string, name: string, chatCursor: number | null = null, color = 0, owner?: string) {
     const c = await TestClient.connect(roomId);
     const welcome = c.next("welcome");
-    c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret, name, color, chatCursor });
+    c.send({ type: "hello", protocol: PROTOCOL_VERSION, secret, name, color, chatCursor, owner });
     return { client: c, welcome: await welcome };
   }
 

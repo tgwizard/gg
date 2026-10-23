@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers, seatOf } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import {
@@ -26,6 +27,7 @@ import {
   viewFor,
   waitingOn,
 } from "./engine";
+import { battleshipBot } from "./bot";
 import { battleshipMeta } from "./meta";
 
 const configSchema = z.object({
@@ -43,8 +45,8 @@ const shipSchema = z.object({
 });
 
 export const bsOp = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("sit"), seat: z.union([z.literal(0), z.literal(1)]) }),
-  z.object({ type: z.literal("leave") }),
+  lobbyOps.sit(2),
+  lobbyOps.leave,
   /** Your layout so far (placing a ship, picking one up, clearing). */
   z.object({ type: z.literal("arrange"), ships: z.array(shipSchema).max(FLEET.length) }),
   /** A random full layout, chosen by the server. */
@@ -87,8 +89,8 @@ export const battleship: GameDefinition<BsState, BsOp, BsView, BsConfig> = {
   waitingOn,
   legalOps(state, player) {
     const seat = seatOf(state, player);
-    if (seat < 0) return state.seats.flatMap((s, i) => (s ? [] : [{ type: "sit" as const, seat: i as 0 | 1 }]));
-    const ops: BsOp[] = [{ type: "leave" }];
+    const ops: BsOp[] = legalLobbyOps(state, player);
+    if (seat < 0) return ops;
     const fleet = state.fleets[seat];
     if (state.phase === "placing" && fleet) {
       if (fleet.ready) ops.push({ type: "unready" });
@@ -105,5 +107,6 @@ export const battleship: GameDefinition<BsState, BsOp, BsView, BsConfig> = {
   },
   nextDeadline,
   onDeadline,
+  bot: battleshipBot,
   checkInvariants,
 };

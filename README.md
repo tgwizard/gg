@@ -15,11 +15,13 @@ tic-tac-toe.
   survives refreshes, flaky networks and sleeping laptops without losing or
   duplicating actions.
 - **Private hands**: each player only ever receives their own view of the game.
+- **Bots**: add one from the members panel and it takes a free seat in any game.
+  Easy bots need no AI and play from your tab while you have the room open.
 - **AI connections** (`/settings`): paste an Anthropic, OpenAI or Meta (Muse) key,
-  for the coming bots. Kept in your browser; gg's server never sees them.
+  for the coming AI bots. Kept in your browser; gg's server never sees them.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works (including the
-planned LLM bots) and [docs/QA.md](docs/QA.md) for the test and QA playbook.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works (including bots
+and the planned AI ones) and [docs/QA.md](docs/QA.md) for the test and QA playbook.
 
 ## Development
 
@@ -38,13 +40,14 @@ Other scripts: `npm run test:unit`, `npm run test:integration`, `npm run test:e2
 Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
 
 1. `src/games/<id>/index.ts`: a `GameDefinition` (config + op schemas, `create`,
-   `apply`, `view`, `players`, `waitingOn`, `legalOps`, optional timers and
-   invariants). Use `src/games/kit` for seats and timers. Register it in
-   `src/games/registry.ts`.
+   `apply`, `view`, `players`, `waitingOn`, `legalOps`, an Easy `bot`, optional
+   timers and invariants). Use `src/games/kit` for seats, table moves (`lobby.ts`)
+   and timers. Register it in `src/games/registry.ts`.
 2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`, and `icon`
    artwork in `public/icons/`). Build it from `src/games/kit/ui` (table, cards, plates)
    and `src/ui` (buttons, panels; see `/ui`). Register it in `src/games/ui-registry.ts`.
-3. `npm test`: the conformance suite fuzzes every registered game automatically.
+3. `npm test`: the conformance suite fuzzes every registered game automatically,
+   and has a table of its bots play it.
    Add rule tests for the engine, and redaction tests if it has hidden information.
 
 ## Deploying

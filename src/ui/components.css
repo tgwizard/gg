@@ -238,6 +238,7 @@ details.log li:nth-child(odd) { background: var(--surface-2); }
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
 }
 .avatar.sm { width: 20px; height: 20px; font-size: 10.5px; }
+.avatar .bot-icon { width: 66%; height: 66%; }
 .avatar.lg { width: 40px; height: 40px; font-size: 17px; }
 .avatar-status {
   position: absolute;

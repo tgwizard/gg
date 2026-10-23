@@ -240,7 +240,7 @@ function describe(e: FishEvent, nameOf: (id: string) => string): string {
   switch (e.type) {
     case "ask":
       return e.got > 0
-        ? `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)} and got ${e.cards ? e.cards.map(cardLabel).join(" ") : e.got === 1 ? "one" : e.got}.`
+        ? `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)} and got ${e.cards.map(cardLabel).join(" ")}.`
         : `${who(e.from)} asked ${whom(e.to)} for ${rankName(e.rank, true)}. Finns i sjön!`;
     case "fish":
       return e.lucky ? `Lucky catch for ${whom(e.who)}: the ${cardLabel(e.card!)}! Another turn.` : `${who(e.who)} fished from the lake.`;
@@ -263,7 +263,7 @@ function Story({ e, nameOf }: { e: FishEvent; nameOf(id: string): string }) {
       ))}
     </span>
   );
-  if (e.type === "ask" && e.got > 0 && e.cards?.length) {
+  if (e.type === "ask" && e.got > 0) {
     return (
       <>
         {nameOf(e.from)} asked {whom(e.to)} for {rankName(e.rank, true)} and got {cards(e.cards)}

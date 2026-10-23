@@ -3,6 +3,7 @@
  * one into an LLMClient; the provider SDKs load on first use.
  */
 import { useSyncExternalStore } from "react";
+import { storage } from "../storage";
 import type { Connection, LLMClient, LLMModel, Provider } from "./types";
 
 const KEY = "gg.llm.connections";
@@ -20,32 +21,6 @@ export function defaultModel(provider: Provider, models: LLMModel[]): string | u
   const ids = models.map((m) => m.id);
   return PROVIDERS[provider].cheapest(ids) ?? ids[0];
 }
-
-const memory = new Map<string, string>(); // fallback when storage is unavailable
-
-export const storage = {
-  get(key: string): string | null {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return memory.get(key) ?? null;
-    }
-  },
-  set(key: string, value: string) {
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      memory.set(key, value);
-    }
-  },
-  remove(key: string) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      memory.delete(key);
-    }
-  },
-};
 
 // Parsed once per stored value, so useSyncExternalStore sees a stable snapshot.
 let cache: { raw: string | null; list: Connection[] } = { raw: null, list: [] };

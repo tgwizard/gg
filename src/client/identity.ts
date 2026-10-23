@@ -33,11 +33,16 @@ function write(key: string, value: string) {
 export function getSecret(): string {
   let secret = read(SECRET_KEY);
   if (!secret) {
-    const bytes = crypto.getRandomValues(new Uint8Array(24));
-    secret = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+    secret = newSecret();
     write(SECRET_KEY, secret);
   }
   return secret;
+}
+
+/** A fresh random secret (yours, or one of your bots'). */
+export function newSecret(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function getName(): string | null {
@@ -65,7 +70,7 @@ export function saveColor(color: number) {
 }
 
 /**
- * Forget everything gg keeps in this browser (profile, light/dark, AI keys), except the
+ * Forget everything gg keeps in this browser (profile, light/dark, AI keys, bots), except the
  * secret behind your player id, so you're still you in rooms you've joined.
  */
 export function deleteLocalData() {

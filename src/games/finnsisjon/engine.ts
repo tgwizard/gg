@@ -54,7 +54,7 @@ export interface FishPlayer {
 
 export type FishEvent =
   /** `cards` are what changed hands: in state always, in views only for the two players involved. */
-  | { type: "ask"; from: string; to: string; rank: string; got: number; cards: Card[] | null }
+  | { type: "ask"; from: string; to: string; rank: string; got: number; cards: Card[] }
   /** Drew after "Finns i sjön!". The card is only public when it was the rank asked for. */
   | { type: "fish"; who: string; rank: string; lucky: boolean; card: Card | null }
   /** Drew because their hand was empty, or nobody had cards to ask for. */
@@ -371,7 +371,8 @@ export function viewFor(state: FishState, viewer: string): FishView {
     turnDeadline: state.phase === "playing" ? (state.timers.turn ?? null) : null,
     log: state.log.slice(-40).map((e) =>
       e.type === "ask"
-        ? { type: "ask", from: e.from, to: e.to, rank: e.rank, got: e.got, cards: viewer === e.from || viewer === e.to ? [...(e.cards ?? [])] : null }
+        ? // Cards are handed over in plain view, so everyone sees which ones.
+          { type: "ask", from: e.from, to: e.to, rank: e.rank, got: e.got, cards: [...e.cards] }
         : { ...e },
     ),
     result: state.result,

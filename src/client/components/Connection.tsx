@@ -9,6 +9,7 @@ const LABELS: Record<RoomSnapshot["status"], string> = {
   not_found: "Not found",
   outdated: "Outdated",
   replaced: "Open elsewhere",
+  left: "Left",
 };
 
 const LIGHTS: Record<RoomSnapshot["status"], string> = {
@@ -19,6 +20,7 @@ const LIGHTS: Record<RoomSnapshot["status"], string> = {
   not_found: "bad",
   outdated: "bad",
   replaced: "bad",
+  left: "bad",
 };
 
 export function ConnectionPill({ snapshot }: { snapshot: RoomSnapshot }) {

@@ -8,8 +8,13 @@
  *   - `waitingOn` only names `players`;
  *   - timers make progress (no alarm hot-loops);
  *   - the game's own `checkInvariants` hold.
+ *
+ * It also seats a table of Easy bots, which must keep the game going: whenever the
+ * game waits on a bot, the bot has a move, and every move is legal.
  */
 import { describe, expect, it } from "vitest";
+import { botMove } from "./kit/bot";
+import { isLobbyOp } from "./kit/lobby";
 import { seededRandomInt } from "./kit/testing";
 import { games } from "./registry";
 import type { AnyGameDefinition, GameContext } from "./types";
@@ -34,7 +39,58 @@ for (const def of Object.values(games)) {
         }
       }
     });
+
+    it("can be played by a table of Easy bots", () => {
+      for (let seed = 1; seed <= 10; seed++) {
+        try {
+          playBots(def, seed);
+        } catch (e) {
+          throw new Error(`seed ${seed}: ${(e as Error).message}`, { cause: e });
+        }
+      }
+    });
   });
+}
+
+/** Bots play from their views and legal ops, as in the browser; "people" only press start. */
+function playBots(def: AnyGameDefinition, seed: number) {
+  const rand = seededRandomInt(seed);
+  const bots = Array.from({ length: Math.min(def.meta.maxPlayers, 3) }, (_, i) => `bot${i}`);
+  let now = 1_000_000;
+  let announced = 0;
+  let state = def.create(def.configSchema.parse({}), ctxAt(now, rand));
+  const step = (fn: (next: unknown) => void) => {
+    const next = structuredClone(state);
+    fn(next);
+    state = next;
+    def.checkInvariants?.(state);
+  };
+
+  for (let i = 0; i < 2000 && announced < 20; i++) {
+    const moves = bots.map((bot) => ({ bot, op: botMove(def, def.view(state, bot), def.legalOps(state, bot), rand) }));
+    for (const id of def.waitingOn(state)) {
+      if (moves.find((m) => m.bot === id)?.op == null) throw new Error(`the game waits on ${id}, which has no move`);
+    }
+    const ready = moves.filter((m) => m.op != null);
+    const ctx = ctxAt(now, rand, () => announced++);
+    if (ready.length) {
+      const { bot, op } = ready[rand(ready.length)]!;
+      try {
+        step((next) => def.apply(next, bot, def.opSchema.parse(op), ctx));
+      } catch (e) {
+        throw new Error(`${bot}'s move ${JSON.stringify(op)} was rejected: ${(e as Error).message}`);
+      }
+      continue;
+    }
+    const start = bots.flatMap((bot) => def.legalOps(state, bot).filter((op) => isLobbyOp(op) && op.type === "start").map((op) => ({ bot, op })))[0];
+    const deadline = def.nextDeadline?.(state) ?? null;
+    if (start) step((next) => def.apply(next, start.bot, start.op, ctx));
+    else if (deadline !== null) {
+      now = Math.max(now, deadline);
+      step((next) => def.onDeadline!(next, ctxAt(now, rand, () => announced++)));
+    } else break;
+  }
+  if (announced === 0) throw new Error("the bots never got anywhere");
 }
 
 function ctxAt(now: number, randomInt: (n: number) => number, announce: (t: string) => void = () => {}): GameContext {

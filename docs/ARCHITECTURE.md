@@ -146,7 +146,7 @@ interface GameDefinition<State, Op, View, Config> {
   nextDeadline?(state): number | null;       // timers, via the DO alarm
   onDeadline?(state, ctx): void;
   checkInvariants?(state): void;             // e.g. chips are conserved
-  describeForBot?(view): { situation; legalOps };  // future: bots
+  bot: { easy(view, ops, rand): Op | null }; // the no-AI bot (see Bots)
 }
 ```
 
@@ -160,6 +160,11 @@ can once none of its players are online).
 - `seating.ts`: seats with per-player data (a stack, a score) that's kept when a
   player stands up and restored when they return; sitting out; clockwise turn
   order.
+- `lobby.ts`: the table moves games share (`sit`, `leave`, `sitOut`, `sitIn`,
+  `start`), as op schemas to build a game's `opSchema` from and `legalLobbyOps`.
+  Because every game spells them the same way, generic players (bots, the
+  conformance tests) can tell table moves from game moves.
+- `bot.ts`: `botMove`, one decision for any bot in any game (below).
 - `timers.ts`: named deadlines in state (`turn`, `nextRound`, ...).
   `nextDeadline`/`onDeadline` become `nextTimer` plus a switch over
   `takeDueTimer`.
@@ -203,8 +208,9 @@ Go Fish, the Swedish way, for 2–6 players. You ask an opponent for a rank you
 hold. If they have none ("Finns i sjön!"), you draw from the lake and go again
 only if you catch what you asked for. Fours are laid down as books; most books
 wins.
-- **Hidden information:** hands and drawn cards are private; asks and answers are
-  public, as at a real table. A lucky catch is shown, since you have to show it.
+- **Hidden information:** hands and drawn cards are private; asks and answers,
+  including exactly which cards were handed over, are public, as at a real table.
+  A lucky catch is shown, since you have to show it.
 - **Running out of cards:** with an empty hand you draw at the start of your turn.
   If nobody you could ask has cards, you draw and pass. With no cards and an empty
   lake, you're out.
@@ -271,25 +277,60 @@ needs its `anthropic-dangerous-direct-browser-access` opt-in, which its SDK send
   the token through our server. OpenAI also offers plan usage only to local apps,
   with hosted apps going through an interest form.
 
-## Bots (planned)
+## Bots
 
-Bots are designed to be just another kind of room member, run from their owner's
-browser with the owner's LLM connection:
+A bot is just another member of the room, played from its owner's browser:
 
-1. **Members have a `kind`** (`human` | `bot`) already. A bot gets its own identity
-   (a secret generated and kept in the owner's browser, like a player's), plus an
-   `owner`.
-2. **Driving.** The owner's tab holds a second connection per bot. When the bot's
-   view says it's its turn, the tab asks the game's `describeForBot(view)` for a
-   prompt and the legal ops, calls the model, parses the answer with the game's
-   `opSchema`, and submits it like any player (with a cid, so retries are
-   idempotent).
-3. **Same rules as humans:** the bot only gets its own redacted view, plays on the
-   same turn clock (a slow model times out), and the chat transcript can go into
-   the prompt so bots can banter. A bot plays while its owner's tab is open; after
-   that it's just a disconnected player.
+- **Identity.** "Add a bot" (in the members panel) suggests a free name and color,
+  which you can change (then or later, by clicking the bot), makes a secret for
+  the bot and keeps it all with the room code in localStorage (`gg.bots`,
+  `src/client/bots/store.ts`). Renames go to the room like anyone's (`setProfile`).
+  The bot connects with its own `RoomClient` and says hello with that secret plus
+  its owner's (`hello.owner`), so the room records it as `kind: "bot"` with an
+  `ownerId`. Up to 4 per player per room (`MAX_BOTS_PER_PLAYER`).
+- **Playing** (`BotPlayer`). The bot gets only its own redacted view, like
+  anyone, plus `legalOps` (the server adds them to bots' snapshots). After every
+  change it waits a moment, like a person, then makes one move through the same
+  path as a click (with `ifVersion`, so a move against an old situation is refused
+  and it looks again). It plays on the same turn clocks as everyone. Seats are left
+  to people first: bots follow quickly once a person sits down, and otherwise wait
+  10 s before taking one (the snapshot's `players` says who's seated).
+- **One decision for every game** (`kit/bot.ts`, `botMove`). Table moves are the
+  same everywhere: take a free seat, sit back in if it was sat out, stand up when
+  leaving, never start a game (that's for people). The game's own moves are up to
+  the game's `bot.easy(view, ops, rand)`: tic-tac-toe takes wins and blocks half
+  the time, poker plays loose and passive with a rough sense of hand strength,
+  Finns i sjön asks for what it holds most of and remembers some asks, Battleship
+  places at random and hunts around hits. It decides from the view only, so it
+  can't cheat. The conformance suite seats a table of Easy bots in every game and
+  fails if the game ever waits on a bot that has no move.
+- **Where it runs.** While the owner has the room open. One tab plays each bot
+  (a Web Lock per bot); other tabs of the room wait and take over if it closes.
+  When the owner leaves, the bot is a disconnected member, back when they return.
+- **Looks.** Bots' avatars are a robot in their color instead of an initial, in
+  the members list and on every game board (`PlayerPlate` reads who's a bot from
+  `PlayersProvider`).
+- **Removing** a bot (× in the members panel) deletes it from localStorage; the
+  tab playing it gives up its seat and sends `leaveRoom`, which removes the member
+  and closes its connections with `Left` so it doesn't come back.
 
-Nothing in the protocol needs to change for this, and no credential reaches the server.
+**Next: LLM bots.** Same harness, with the owner's AI connection deciding instead
+of `bot.easy`, and nothing leaving the browser but moves and chat. The plan:
+
+- One tool, `act({ op?, say? })`: the move (the game's `opSchema` as JSON Schema)
+  and/or something to say in chat; an empty call passes. Results (accepted, or the
+  game's error) go back to the model, which may retry a few times.
+- An append-only prompt, so it's mostly cache hits: a shared system prompt, the
+  game's rules (one text, also shown in an in-game help box), the tool, then the
+  room chat as it happens (game announcements are already public) and the bot's
+  view plus legal moves at each wake-up. A fresh transcript per game or hand.
+- Woken by events, not a timer: its turn, a change in its view, chat (grouped over
+  a couple of seconds), plus a slow heartbeat when something changed. One call at a
+  time per bot; turn calls first.
+- Replies to people aren't throttled; unprompted chatter is. Bots may talk to each
+  other on a budget that people and game events top up.
+- Difficulty maps to model and effort, plus a persona in the prompt; tokens used
+  are shown to the owner, who pays for them.
 
 ## Limits
 
@@ -350,4 +391,9 @@ every 5 minutes for the presence sweep.
 
 - Chat retention is the last ~1000 messages per room.
 - Multiple tabs with the same identity are the same player (by design). Both can act.
+- A bot runs in its owner's browser, so the owner could read its private view in
+  devtools (e.g. its hole cards). Fine among friends; the alternative is running
+  bots on the server, with AI keys there too.
+- Bots take free seats once a person sits down (or after 10 s), so in a full game
+  a person may need to remove one to get a seat.
 - TODO: CI (GitHub Actions running `npm run test:all`). For now, tests run locally.

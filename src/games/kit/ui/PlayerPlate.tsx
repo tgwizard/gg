@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Avatar, PlayerName, usePlayerColors } from "../../../ui";
+import { Avatar, PlayerName, useIsBot, usePlayerColors } from "../../../ui";
 import "./kit.css";
 
 /**
@@ -26,6 +26,7 @@ export function PlayerPlate(props: {
   children?: ReactNode;
 }) {
   const color = usePlayerColors()(props.playerId);
+  const bot = useIsBot()(props.playerId);
   const classes = [
     "plate box on-brand",
     props.active && "active",
@@ -40,7 +41,7 @@ export function PlayerPlate(props: {
   const body = (
     <>
       <div className="plate-name">
-        <Avatar name={props.name} color={color} online={props.online !== false} size="sm" />
+        <Avatar name={props.name} color={color} online={props.online !== false} bot={bot} size="sm" />
         <PlayerName name={props.name} color={color} />
         {props.you && <span className="tag accent">you</span>}
         {props.winner && <span className="tag gold">winner</span>}

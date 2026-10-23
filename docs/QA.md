@@ -12,9 +12,9 @@ npm run test:all        # typecheck + unit + integration + e2e
 
 | layer | where | what it covers |
 | --- | --- | --- |
-| unit | `src/**/*.test.ts` | game kit, hand evaluator, poker and tic-tac-toe rules, redaction, and the conformance fuzzer every game must pass |
+| unit | `src/**/*.test.ts` | game kit, hand evaluator, poker and tic-tac-toe rules, redaction, and the conformance fuzzer every game must pass (including a table of its Easy bots) |
 | integration | `test/integration` | the real Worker + Room DO in workerd over WebSockets: joining, identity, chat catch-up, idempotency, stale ops, secret redaction on the wire, eviction, alarms, rate limits, room expiry |
-| e2e | `test/e2e/*.spec.ts` | real browsers, multiple players: rooms, chat, refresh, offline, dropped and half-open sockets, a full poker hand, turn timer, how limits look |
+| e2e | `test/e2e/*.spec.ts` | real browsers, multiple players: rooms, chat, refresh, offline, dropped and half-open sockets, a full poker hand, turn timer, how limits look, playing a bot |
 
 Visual snapshot of the main screens (desktop and mobile), for eyeballing layout changes:
 
@@ -103,6 +103,15 @@ these through the browser and reports back.
 - [ ] Sink the fleet: winner announced in chat, both fleets revealed, *Play again* starts placing with the other player shooting first.
 - [ ] Leaving while placing calls the game off; leaving while firing forfeits.
 - [ ] Phone: while placing, your sea and the dock fit with the other side as just a nameplate; while firing, the sea you aim at comes first.
+
+### Bots
+- [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.
+- [ ] Click your bot's name: rename and recolor it, mid-game too. Chat says "Y is now known as Z" and the board updates.
+- [ ] On every game board, bots' nameplates show the robot avatar; people show their initial.
+- [ ] Start each game with a bot in the room: once you sit down it takes a free seat within a couple of seconds and plays its turns (poker: after someone deals; Battleship: places and readies its fleet by itself). If nobody sits, bots wait about 10 s before sitting down.
+- [ ] Refresh: your bots come back online with you. Close the tab: they go offline. Open the room in two tabs: each bot is online once, and closing the tab playing it hands it to the other.
+- [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list.
+- [ ] Another player sees your bot as *bot* (hover: "Adam's bot") without a ×.
 
 ### Lifecycle & layout
 - [ ] The gear next to *End game* shows the running game's settings (turn timer, and for poker chips and blinds).

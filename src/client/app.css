@@ -125,8 +125,8 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   --bg: var(--brand);
 }
 /* The serif "gg" has deep descenders: size it by its x-height, and nudge it onto the bar's center line. */
-.brand { font-size: 2.1rem; font-weight: 700; line-height: 1; margin: -4px 6px 0 0; color: var(--gold); text-decoration: none; }
-.brand:hover { color: #f7d696; }
+.topbar .brand { font-size: 2.1rem; font-weight: 700; line-height: 1; margin: -4px 6px 0 0; color: var(--gold); text-decoration: none; }
+.topbar .brand:hover { color: #f7d696; }
 .room-id { display: inline-flex; align-items: center; gap: 8px; }
 .room-id .code { user-select: all; font-size: 14px; color: var(--on-brand); background: rgb(0 0 0 / 0.15); }
 .topbar .pill { color: var(--on-brand-2); }
@@ -167,6 +167,40 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .members li { display: flex; align-items: center; gap: 8px; padding: 4px 4px; }
 .members li.away { opacity: 0.55; }
 .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 6px 2px 2px;
+  margin: -2px 0 -2px -2px;
+  border: none;
+  border-radius: var(--pill);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.member-edit:hover { background: var(--surface-2); }
+.member-edit:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.member-remove {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.member-remove:hover { color: var(--danger); background: var(--surface-2); }
+.members-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 8px; }
+.members-foot .btn.ghost { padding-inline: 4px; }
 
 .chat { flex: 1; min-height: 0; }
 .chat-list { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; margin: 0 -8px; }
@@ -207,7 +241,7 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   .home-hero { padding: 40px 16px 40px; }
   .home-main { padding: 36px 16px 24px; }
   .topbar { padding: 8px 12px; }
-  .brand { font-size: 1.8rem; }
+  .topbar .brand { font-size: 1.8rem; }
   .room-id .label { display: none; }
   .game-card-art { width: 64px; height: 64px; }
 }

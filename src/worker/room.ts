@@ -27,6 +27,7 @@ import {
   ClientMessage,
   CloseCode,
   type GameSnapshot,
+  MAX_BOTS_PER_PLAYER,
   type Member,
   PING,
   PONG,
@@ -38,6 +39,7 @@ import {
   sanitizeName,
   sanitizeRoomName,
 } from "../shared/protocol";
+import { playerIdFromSecret } from "../shared/playerId";
 import type { TokenBucket } from "../shared/token-bucket";
 import {
   chatBucket,
@@ -128,6 +130,7 @@ export class Room extends DurableObject<Env> {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.ready = this.sql.exec(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'kv'`).toArray().length > 0;
+    if (this.ready) this.upgrade();
     this.game = this.getKv<StoredGame>("game");
     if (this.game && !games[this.game.gameId]) {
       // A deploy removed or renamed this game. Drop it rather than wedge the room.
@@ -205,6 +208,8 @@ export class Room extends DurableObject<Env> {
         return this.onSetProfile(playerId, msg.name, msg.color);
       case "renameRoom":
         return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onRenameRoom(playerId, msg.name)));
+      case "leaveRoom":
+        return this.onLeaveRoom(ws, playerId, msg.cid);
       case "chat":
         return this.ack(ws, msg.cid, this.onChat(playerId, msg.cid, msg.text));
       case "selectGame":
@@ -270,11 +275,17 @@ export class Room extends DurableObject<Env> {
     if (joined >= MAX_SOCKETS_PER_ROOM) return this.refuse(ws, ROOM_FULL, "This room is full right now.", 30_000);
 
     const playerId = await playerIdFromSecret(msg.secret);
+    const ownerId = msg.owner ? await playerIdFromSecret(msg.owner) : null;
     const name = sanitizeName(msg.name);
     const now = Date.now();
     const existing = this.getMember(playerId);
+    const owner = ownerId ? this.getMember(ownerId) : null;
     if (!existing) {
-      if (!this.bucket(this.newMembers, att.ip, newMemberBucket).take(now)) {
+      if (ownerId && this.botsOf(ownerId) >= MAX_BOTS_PER_PLAYER) {
+        return this.refuse(ws, RATE_LIMITED, `You can have up to ${MAX_BOTS_PER_PLAYER} bots in a room.`, 60_000);
+      }
+      // A member's bots are already capped; anyone else counts as a new player from this network.
+      if (!owner && !this.bucket(this.newMembers, att.ip, newMemberBucket).take(now)) {
         return this.refuse(ws, RATE_LIMITED, "Too many new players from your network just now.", 60_000);
       }
       this.makeRoomForMember();
@@ -282,11 +293,13 @@ export class Room extends DurableObject<Env> {
     const wasOnline = this.isOnline(playerId);
 
     this.sql.exec(
-      `INSERT INTO members (id, name, color, kind, joined_at, last_seen_at) VALUES (?, ?, ?, 'human', ?, ?)
+      `INSERT INTO members (id, name, color, kind, owner_id, joined_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = excluded.color, last_seen_at = excluded.last_seen_at`,
       playerId,
       name,
       msg.color ?? 0,
+      ownerId ? "bot" : "human",
+      ownerId,
       now,
       now,
     );
@@ -295,7 +308,10 @@ export class Room extends DurableObject<Env> {
     this.touch();
 
     let joinMessage: ChatMessage | null = null;
-    if (!existing) joinMessage = this.insertChat("system", null, null, `${name} joined the room.`);
+    if (!existing) {
+      const text = ownerId ? `${owner?.name ?? "Someone"} added a bot, ${name}.` : `${name} joined the room.`;
+      joinMessage = this.insertChat("system", null, null, text);
+    }
 
     const { messages, reset } = this.chatSince(msg.chatCursor);
     this.send(ws, {
@@ -306,7 +322,7 @@ export class Room extends DurableObject<Env> {
       members: this.getMembers(),
       chat: messages,
       chatReset: reset,
-      game: this.game ? this.snapshotFor(playerId) : null,
+      game: this.game ? this.snapshotFor(playerId, !!ownerId) : null,
       serverTime: now,
     });
 
@@ -340,6 +356,28 @@ export class Room extends DurableObject<Env> {
     this.broadcast({ type: "room", name });
     this.broadcast({ type: "chat", messages: [msg] });
     return { ok: true };
+  }
+
+  /** A bot leaving for good: forget it and close its connections, so it can't come back. */
+  private onLeaveRoom(ws: WebSocket, playerId: string, cid: string) {
+    const member = this.getMember(playerId);
+    if (member && member.kind !== "bot") return this.ack(ws, cid, fail("not_a_bot", "Only bots leave a room for good."));
+    if (member) {
+      this.sql.exec(`DELETE FROM members WHERE id = ?`, playerId);
+      const owner = member.ownerId ? this.getMember(member.ownerId) : null;
+      const msg = this.insertChat("system", null, null, owner ? `${owner.name} removed ${member.name}.` : `${member.name} left the room.`);
+      this.broadcast({ type: "chat", messages: [msg] });
+      this.broadcast({ type: "members", members: this.getMembers() });
+    }
+    this.ack(ws, cid, { ok: true });
+    for (const s of this.ctx.getWebSockets()) {
+      if (this.attachment(s)?.playerId !== playerId) continue;
+      try {
+        s.close(CloseCode.Left, "left the room");
+      } catch {
+        // already closing
+      }
+    }
   }
 
   private onChat(playerId: string, cid: string, raw: string): AckResult {
@@ -444,7 +482,8 @@ export class Room extends DurableObject<Env> {
     this.broadcastGame();
   }
 
-  private snapshotFor(playerId: string): GameSnapshot {
+  /** Bots also get their legal ops, so they needn't know the game's rules to play it. */
+  private snapshotFor(playerId: string, bot: boolean): GameSnapshot {
     const game = this.game!;
     const def = this.definition();
     return {
@@ -454,19 +493,22 @@ export class Room extends DurableObject<Env> {
       startedAt: game.startedAt,
       startedBy: game.startedBy,
       view: def.view(game.state, playerId),
+      players: def.players(game.state),
       waitingOn: def.waitingOn(game.state),
+      ...(bot ? { legalOps: def.legalOps(game.state, playerId) } : {}),
     };
   }
 
   /** Each player gets their own redacted view. */
   private broadcastGame() {
     const payloads = new Map<string, string>();
+    const bots = new Set(this.sql.exec<{ id: string }>(`SELECT id FROM members WHERE kind = 'bot'`).toArray().map((r) => r.id));
     for (const ws of this.ctx.getWebSockets()) {
       const playerId = this.attachment(ws)?.playerId;
       if (!playerId) continue;
       let payload = payloads.get(playerId);
       if (!payload) {
-        const msg: ServerMessage = { type: "game", game: this.game ? this.snapshotFor(playerId) : null };
+        const msg: ServerMessage = { type: "game", game: this.game ? this.snapshotFor(playerId, bots.has(playerId)) : null };
         payload = JSON.stringify(msg);
         payloads.set(playerId, payload);
       }
@@ -647,11 +689,16 @@ export class Room extends DurableObject<Env> {
       id: row.id,
       name: row.name,
       kind: row.kind as Member["kind"],
+      ownerId: row.owner_id ?? null,
       color,
       online: online.has(row.id),
       joinedAt: row.joined_at,
       lastSeenAt: row.last_seen_at,
     };
+  }
+
+  private botsOf(ownerId: string): number {
+    return this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM members WHERE owner_id = ?`, ownerId).one().n;
   }
 
   private nameOf(id: string): string {
@@ -767,6 +814,7 @@ export class Room extends DurableObject<Env> {
       name TEXT NOT NULL,
       color INTEGER NOT NULL DEFAULT 0,
       kind TEXT NOT NULL,
+      owner_id TEXT,
       joined_at INTEGER NOT NULL,
       last_seen_at INTEGER NOT NULL
     )`);
@@ -789,9 +837,15 @@ export class Room extends DurableObject<Env> {
     )`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS ops_ts ON ops (ts)`);
   }
+
+  /** Bring rooms created by an older version up to date. */
+  private upgrade() {
+    const columns = this.sql.exec<{ name: string }>(`SELECT name FROM pragma_table_info('members')`).toArray();
+    if (!columns.some((c) => c.name === "owner_id")) this.sql.exec(`ALTER TABLE members ADD COLUMN owner_id TEXT`);
+  }
 }
 
-type MemberRow = { id: string; name: string; color: number; kind: string; joined_at: number; last_seen_at: number };
+type MemberRow = { id: string; name: string; color: number; kind: string; owner_id: string | null; joined_at: number; last_seen_at: number };
 type ChatRow = { seq: number; ts: number; kind: string; player_id: string | null; name: string | null; text: string; cid: string | null };
 
 function toChat(r: ChatRow): ChatMessage {
@@ -806,12 +860,6 @@ function gameFailure(e: unknown): AckResult {
   if (e instanceof GameError) return fail(e.code, e.message);
   console.error("game error", e);
   return fail("internal", "Something went wrong.");
-}
-
-/** Public id = truncated SHA-256 of the browser's secret, so ids can't be spoofed. */
-export async function playerIdFromSecret(secret: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(secret));
-  return [...new Uint8Array(digest).slice(0, 8)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function secureRandomInt(maxExclusive: number): number {

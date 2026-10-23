@@ -8,11 +8,13 @@
 import { z } from "zod";
 import { COLOR_COUNT } from "./colors";
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export const MAX_NAME_LENGTH = 24;
 export const MAX_ROOM_NAME_LENGTH = 40;
 export const MAX_CHAT_LENGTH = 500;
+/** Bots one player can have in a room. */
+export const MAX_BOTS_PER_PLAYER = 4;
 
 /** Heartbeat literals, answered by the DO's auto-response without waking it up. */
 export const PING = "ping";
@@ -29,6 +31,8 @@ export const CloseCode = {
    * retried automatically: two tabs taking turns kicking each other out would loop.
    */
   Replaced: 4409,
+  /** A bot was removed from the room; it must not come back. */
+  Left: 4410,
 } as const;
 
 /** Error codes for limits; the message is meant to be shown to the user as-is. */
@@ -41,6 +45,8 @@ export interface Member {
   id: string;
   name: string;
   kind: MemberKind;
+  /** For bots: the player whose browser runs it. */
+  ownerId: string | null;
   /** Index into PLAYER_COLORS: their preference, unless someone who joined earlier has it. */
   color: number;
   online: boolean;
@@ -72,8 +78,12 @@ export interface GameSnapshot<V = unknown> {
   startedBy: string;
   /** The game state as seen by the receiving player (secrets redacted server-side). */
   view: V;
+  /** Player ids taking part (e.g. seated). */
+  players: string[];
   /** Player ids the game is currently waiting on. */
   waitingOn: string[];
+  /** Only sent to bots: the ops they can make right now (the game's `legalOps`). */
+  legalOps?: unknown[];
 }
 
 export interface AckError {
@@ -97,9 +107,13 @@ export const ClientMessage = z.discriminatedUnion("type", [
     color: z.number().int().min(0).max(COLOR_COUNT - 1).optional(),
     /** Highest chat seq the client has; null on first load. */
     chatCursor: z.number().int().nullable(),
+    /** Set when a bot connects: its owner's secret (the bot has its own). */
+    owner: z.string().min(16).max(128).optional(),
   }),
   z.object({ type: z.literal("setProfile"), name: z.string().max(200), color: z.number().int().min(0).max(COLOR_COUNT - 1) }),
   z.object({ type: z.literal("renameRoom"), cid, name: z.string().max(200) }),
+  /** A bot leaving for good (its owner removed it). */
+  z.object({ type: z.literal("leaveRoom"), cid }),
   z.object({ type: z.literal("chat"), cid, text: z.string().max(4 * MAX_CHAT_LENGTH) }),
   z.object({ type: z.literal("selectGame"), cid, gameId: z.string().max(64), config: z.unknown() }),
   z.object({ type: z.literal("endGame"), cid, instanceId: z.string().max(64) }),

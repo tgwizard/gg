@@ -144,15 +144,15 @@ describe("away players and leaving", () => {
 });
 
 describe("secrets", () => {
-  it("shows which cards changed hands only to the two players involved", () => {
+  it("shows everyone which cards changed hands, as at a real table", () => {
     const { state, ctx } = setup(3);
     rig(state, { a: ["7h"], b: ["7s", "7d", "9c"], c: ["Kc"] }, ["4c"], "a");
     ask(state, "a", "b", "7", ctx());
-    const askOf = (viewer: string) => viewFor(state, viewer).log.find((e) => e.type === "ask");
-    expect(askOf("a")).toMatchObject({ got: 2, cards: ["7s", "7d"] });
-    expect(askOf("b")).toMatchObject({ got: 2, cards: ["7s", "7d"] });
-    expect(askOf("c")).toMatchObject({ got: 2, cards: null });
-    expect(JSON.stringify(viewFor(state, "c"))).not.toContain('"7s"');
+    for (const viewer of ["a", "b", "c", "spectator"]) {
+      expect(viewFor(state, viewer).log.find((e) => e.type === "ask")).toMatchObject({ got: 2, cards: ["7s", "7d"] });
+    }
+    // The rest of b's hand stays private.
+    expect(JSON.stringify(viewFor(state, "c"))).not.toContain('"9c"');
   });
 
   it("shows you only your own hand and draws", () => {

@@ -10,6 +10,8 @@ test("two players play a round of tic-tac-toe", async ({ browser }) => {
   await alice.page.getByRole("button", { name: /Tic-tac-toe/ }).click();
   await alice.page.getByRole("button", { name: "Start tic-tac-toe" }).click();
   await alice.page.getByRole("button", { name: "Play as X" }).click();
+  // Bob picks once he sees Alice seated (a move made against an older view is refused as stale).
+  await expect(bob.page.getByRole("dialog", { name: "Pick a side" })).toContainText("Take on Alice");
   await bob.page.getByRole("button", { name: "Play as O" }).click();
   await expect(alice.page.getByTestId("ttt-status")).toHaveText("Your move (X)");
 

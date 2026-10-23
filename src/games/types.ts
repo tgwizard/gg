@@ -10,6 +10,9 @@
  *   - `players` / `waitingOn` tell the room who is playing and whose move it is.
  *   - `legalOps` lists what a player could do now (bots act from it; the shared
  *     conformance tests fuzz every game with it).
+ *   - `bot` plays the game without AI. Table moves (sitting down, sitting out,
+ *     starting) are built from `kit/lobby` and handled for every game alike; the
+ *     game's bot only picks among its own moves.
  *   - `nextDeadline`/`onDeadline` drive timers (turn clocks, delays between hands),
  *     backed by a Durable Object alarm.
  *
@@ -63,7 +66,8 @@ export interface GameDefinition<State = unknown, Op = unknown, View = unknown, C
   waitingOn(state: State): string[];
   /**
    * Ops `player` could legally make right now; every one must be accepted by `apply`.
-   * For open-ended ops (bet sizes) a representative sample is fine.
+   * For open-ended ops (bet sizes) a representative sample is fine. Bots are sent
+   * this list, so it must not depend on anything `player` can't know.
    */
   legalOps(state: State, player: string): Op[];
   /** Must make progress: after onDeadline, the deadline moves later or goes away. */
@@ -71,11 +75,17 @@ export interface GameDefinition<State = unknown, Op = unknown, View = unknown, C
   onDeadline?(state: State, ctx: GameContext): void;
   /** Invariants the conformance fuzzer checks after every step; throw to fail. */
   checkInvariants?(state: State): void;
+  bot: GameBot<View, Op>;
+}
+
+/** How a bot plays a game. Bots submit ops through the same `apply` path as humans. */
+export interface GameBot<View, Op> {
   /**
-   * Future bot support: describe a player's view and legal ops in a form an LLM can
-   * act on. Bots will submit ops through the same `apply` path as humans.
+   * The Easy bot, which needs no AI: pick one of `ops` (the legal game moves right
+   * now, table moves left out) or null to wait. It decides from `view` alone, like a
+   * person at the table would. Starting games is left to people.
    */
-  describeForBot?(view: View): { situation: string; legalOps: Op[] };
+  easy(view: View, ops: Op[], rand: (maxExclusive: number) => number): Op | null;
 }
 
 export type AnyGameDefinition = GameDefinition<any, any, any, any>;

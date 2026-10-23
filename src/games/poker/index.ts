@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import {
@@ -22,6 +23,7 @@ import {
   start,
   viewFor,
 } from "./engine";
+import { pokerBot } from "./bot";
 import { pokerMeta } from "./meta";
 
 const configSchema = z
@@ -35,12 +37,12 @@ const configSchema = z
   .refine((c) => c.startingStack >= c.bigBlind * 2, "Starting stack must cover at least two big blinds.");
 
 export const pokerOp = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("sit"), seat: z.number().int().min(0).max(SEAT_COUNT - 1) }),
-  z.object({ type: z.literal("leave") }),
-  z.object({ type: z.literal("sitOut") }),
-  z.object({ type: z.literal("sitIn") }),
+  lobbyOps.sit(SEAT_COUNT),
+  lobbyOps.leave,
+  lobbyOps.sitOut,
+  lobbyOps.sitIn,
+  lobbyOps.start,
   z.object({ type: z.literal("rebuy") }),
-  z.object({ type: z.literal("start") }),
   z.object({ type: z.literal("fold") }),
   z.object({ type: z.literal("check") }),
   z.object({ type: z.literal("call") }),
@@ -81,11 +83,9 @@ export const poker: GameDefinition<PokerState, PokerOp, PokerView, PokerConfig> 
   },
   legalOps(state, player) {
     const seat = seatOf(state, player);
-    if (seat < 0) return state.seats.flatMap((s, i) => (s ? [] : [{ type: "sit" as const, seat: i }]));
-    const me = state.seats[seat]!;
-    const ops: PokerOp[] = [{ type: "leave" }, me.sittingOut ? { type: "sitIn" } : { type: "sitOut" }];
-    if (me.stack === 0 && !inCurrentHand(state, seat)) ops.push({ type: "rebuy" });
-    if (canStart(state)) ops.push({ type: "start" });
+    const ops: PokerOp[] = legalLobbyOps(state, player, { sitOut: true, canStart: canStart(state) });
+    if (seat < 0) return ops;
+    if (state.seats[seat]!.stack === 0 && !inCurrentHand(state, seat)) ops.push({ type: "rebuy" });
     const legal = legalActions(state, seat);
     if (legal) {
       ops.push({ type: "fold" }, legal.canCheck ? { type: "check" } : { type: "call" });
@@ -98,6 +98,7 @@ export const poker: GameDefinition<PokerState, PokerOp, PokerView, PokerConfig> 
   },
   nextDeadline,
   onDeadline,
+  bot: pokerBot,
   checkInvariants(state) {
     const stacks = state.seats.reduce((n, s) => n + (s?.stack ?? 0), 0);
     const away = Object.values(state.away).reduce((n, a) => n + a.stack, 0);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { RANKS } from "../kit/cards";
-import { seatedPlayers, seatOf } from "../kit/seating";
+import { legalLobbyOps, lobbyOps } from "../kit/lobby";
+import { seatedPlayers } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import {
   ask,
@@ -21,16 +22,17 @@ import {
   TOTAL_BOOKS,
   viewFor,
 } from "./engine";
+import { fishBot } from "./bot";
 import { finnsISjonMeta } from "./meta";
 
 const configSchema = z.object({ turnSeconds: z.number().int().min(0).max(600).default(45) });
 
 export const fishOp = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("sit"), seat: z.number().int().min(0).max(SEAT_COUNT - 1) }),
-  z.object({ type: z.literal("leave") }),
-  z.object({ type: z.literal("sitOut") }),
-  z.object({ type: z.literal("sitIn") }),
-  z.object({ type: z.literal("start") }),
+  lobbyOps.sit(SEAT_COUNT),
+  lobbyOps.leave,
+  lobbyOps.sitOut,
+  lobbyOps.sitIn,
+  lobbyOps.start,
   z.object({ type: z.literal("ask"), target: z.string().min(1).max(64), rank: z.enum(RANKS.split("") as [string, ...string[]]) }),
 ]);
 export type FishOp = z.infer<typeof fishOp>;
@@ -63,16 +65,14 @@ export const finnsISjon: GameDefinition<FishState, FishOp, FishView, FishConfig>
     return p ? [p.playerId] : [];
   },
   legalOps(state, player) {
-    const seat = seatOf(state, player);
-    if (seat < 0) return state.seats.flatMap((s, i) => (s ? [] : [{ type: "sit" as const, seat: i }]));
-    const ops: FishOp[] = [{ type: "leave" }, state.seats[seat]!.sittingOut ? { type: "sitIn" } : { type: "sitOut" }];
-    if (canStart(state)) ops.push({ type: "start" });
+    const ops: FishOp[] = legalLobbyOps(state, player, { sitOut: true, canStart: canStart(state) });
     const options = askOptions(state, player);
     for (const target of options?.targets ?? []) for (const rank of options!.ranks) ops.push({ type: "ask", target, rank });
     return ops;
   },
   nextDeadline,
   onDeadline,
+  bot: fishBot,
   checkInvariants(state) {
     if (state.players.length === 0) return;
     const cards = [...state.lake, ...state.players.flatMap((p) => p.hand)];

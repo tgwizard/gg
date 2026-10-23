@@ -1,6 +1,8 @@
 import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { PLAYER_COLORS } from "../../shared/colors";
 import { MAX_ROOM_NAME_LENGTH } from "../../shared/protocol";
+import { useBots } from "../bots/store";
+import { useRunBots } from "../bots/useRunBots";
 import { getSecret, saveColor, saveName, useColor, useName } from "../identity";
 import type { RoomClient } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
@@ -12,7 +14,7 @@ import { GameStage } from "../components/GameStage";
 import { Members } from "../components/Members";
 import { ProfileForm, ProfileMenu } from "../components/Profile";
 import { ToastProvider, useToast } from "../components/Toasts";
-import { Panel, PlayerColorsProvider, Spinner } from "../../ui";
+import { Panel, PlayersProvider, Spinner } from "../../ui";
 import { noAutofill } from "../noAutofill";
 import { ModeToggle } from "../components/ModeToggle";
 
@@ -47,8 +49,11 @@ export function RoomPage({ roomId }: { roomId: string }) {
 function Room({ roomId, name, color }: { roomId: string; name: string; color: number }) {
   const secret = useMemo(getSecret, []);
   const { client, snapshot } = useRoom(roomId, secret, name, color);
+  const bots = useBots(roomId);
+  useRunBots(roomId, secret);
   const toast = useToast();
   const colors = useMemo(() => new Map(snapshot.members.map((m) => [m.id, m.color])), [snapshot.members]);
+  const botIds = useMemo(() => new Set(snapshot.members.filter((m) => m.kind === "bot").map((m) => m.id)), [snapshot.members]);
   // Colors other members have, for the picker.
   const taken = useMemo(
     () => new Map(snapshot.members.filter((m) => m.id !== snapshot.you?.id).map((m) => [m.color, m.name])),
@@ -101,7 +106,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
   const connected = snapshot.status === "connected";
   const you = snapshot.you;
   return (
-    <PlayerColorsProvider colors={colors}>
+    <PlayersProvider colors={colors} bots={botIds}>
       <div className="room">
         <header className="topbar on-brand">
           <a
@@ -146,12 +151,12 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
             <GameStage client={client} snapshot={snapshot} />
           </section>
           <aside className="sidebar">
-            <Members snapshot={snapshot} />
+            <Members snapshot={snapshot} roomId={roomId} bots={bots} />
             <Chat snapshot={snapshot} onSend={(t) => client.sendChat(t)} />
           </aside>
         </main>
       </div>
-    </PlayerColorsProvider>
+    </PlayersProvider>
   );
 }
 
