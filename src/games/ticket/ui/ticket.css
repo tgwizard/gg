@@ -34,6 +34,21 @@
   .ttr-side .ttr-plate-foot { grid-area: foot; width: 96px; height: auto; align-items: flex-end; }
   .ttr-side .ttr-plate-foot .plate-line.status { font-size: 9.5px; }
   .ttr-side .ttr-plate-hover { display: block; }
+  /* What a player is up to (a bot thinking) goes on its own line inside the row, not floating over the row above. */
+  .ttr-side .ttr-players .activity-bubble {
+    grid-column: 1 / -1;
+    justify-self: start;
+    position: static;
+    translate: none;
+    padding: 2px 9px;
+    font-size: 11.5px;
+    color: var(--text-2);
+    background: var(--surface-2);
+    border: none;
+    box-shadow: none;
+    animation: none;
+  }
+  .ttr-side .ttr-players .activity-bubble::after { display: none; }
   .ttr-side .ttr-seat-open { width: 100%; height: 38px; }
   .ttr-board { grid-area: board; }
   .ttr-side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
