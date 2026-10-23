@@ -23,6 +23,7 @@ pnpm dev --port 5311 &
 node test/e2e/screens.ts http://localhost:5311 ./screens        # rooms + poker
 node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
 node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battleship, light + dark
+node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Ticket to Ride, light + dark
 ```
 
 ## 2. Manual scenarios
@@ -43,6 +44,7 @@ these through the browser and reports back.
 - [ ] Open the same room in a second tab of the same profile: still one member.
 - [ ] Rename: the other player sees "X is now known as Y", and the new name sticks in new rooms.
 - [ ] Mistyped room link: "Room not found" with a way out.
+- [ ] *Hide chat* folds the members and chat into a slim rail (people online, a chat button counting new messages); it stays folded after a reload, and *Show chat* brings it back. Narrow windows always show it under the game.
 
 ### Connection resilience
 - [ ] DevTools → Network → *Offline*: the pill goes red and a banner appears. Chat typed now shows as pending. Back online: it's delivered, missed messages arrive, and the banner goes away.
@@ -103,6 +105,19 @@ these through the browser and reports back.
 - [ ] Sink the fleet: winner announced in chat, both fleets revealed, *Play again* starts placing with the other player shooting first.
 - [ ] Leaving while placing calls the game off; leaving while firing forfeits.
 - [ ] Phone: while placing, your sea and the dock fit with the other side as just a nameplate; while firing, the sea you aim at comes first.
+
+### Ticket to Ride
+- [ ] Two to five sit down; *Start* deals 4 cards and offers 3 tickets to each. Hovering a ticket points out its cities on the map; *Keep* needs at least 2. Others only see "choosing tickets".
+- [ ] Draw two cards: face up or from the deck. A face-up locomotive ends the draw and can't be the second card. Three locomotives face up are replaced (the log says so). Only you see what you drew blind ("From the deck last turn").
+- [ ] On your turn, routes you can pay for are outlined; clicking one opens a bubble by the route (the rest of the board dims) with every way to pay (color, with or without locomotives); Cancel, Escape or a click elsewhere on the map backs out. Claimed routes show the player's trains (taller, with windows), distinct from the printed board in both modes.
+- [ ] Double routes: with 2–3 players, claiming one track fades the other; with 4–5 the other stays open, but not to you.
+- [ ] *Tickets* draws 3; keep at least 1. Completed tickets turn green with a ✓.
+- [ ] Get someone to 2 or fewer trains: "last round" in chat and on the plates; each player gets one more turn, then the score table shows routes, tickets (each ✓/✗), the longest railway bonus and totals.
+- [ ] Let the clock run out: two cards are drawn for you and you're marked away; *I'm back* gives you the rest of your turn. The first tickets' clock (twice as long) keeps the cheapest two.
+- [ ] Hovering a player's nameplate fades everything but their trains; hovering a ticket joins its two cities with a dotted line.
+- [ ] Cards you take fly from the face-up row or the deck to your hand (not with reduced motion). The news and the log show the cards taken (face up in color, blind ones as backs, yours in color) and the cards paid for routes.
+- [ ] On a laptop screen (1440×900) the players, the map, the market, your cards and your tickets all fit without scrolling; narrower windows stack them under the map.
+- [ ] Phone: the map scrolls sideways; the market, your cards and tickets stay usable.
 
 ### Bots
 - [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.

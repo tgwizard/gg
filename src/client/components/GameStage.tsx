@@ -6,6 +6,7 @@ import { RequestError } from "../net/RoomClient";
 import { useServerNow } from "../useNow";
 import { Panel } from "../../ui";
 import { GameCard } from "./GameCard";
+import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
 
 export function GameStage({ client, snapshot }: { client: RoomClient; snapshot: RoomSnapshot }) {
@@ -80,43 +81,37 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
 
   return (
     <div className="active-game">
-      <div className="game-header">
-        <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
-        <h2 className="display">{ui.meta.name}</h2>
-        <div className="spacer" />
-        <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
-        {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
-        {confirmEnd ? (
-          <span className="row">
-            <span className="muted small">End for everyone?</span>
-            <button
-              className="btn danger small"
-              onClick={() => {
-                setConfirmEnd(false);
-                client.endGame().catch((e) => toast(e instanceof RequestError ? e.message : "Couldn't end the game."));
-              }}
-            >
+      <InTopbar>
+        <div className="game-header">
+          <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
+          <h2 className="display">{ui.meta.name}</h2>
+          <div className="spacer" />
+          <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
+          {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
+          {confirmEnd ? (
+            <span className="row">
+              <span className="muted small">End for everyone?</span>
+              <button
+                className="btn danger small"
+                onClick={() => {
+                  setConfirmEnd(false);
+                  client.endGame().catch((e) => toast(e instanceof RequestError ? e.message : "Couldn't end the game."));
+                }}
+              >
+                End game
+              </button>
+              <button className="btn ghost small" onClick={() => setConfirmEnd(false)}>
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
               End game
             </button>
-            <button className="btn ghost small" onClick={() => setConfirmEnd(false)}>
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
-            End game
-          </button>
-        )}
-      </div>
-      <ui.Game
-        view={game.view}
-        snapshot={game}
-        me={snapshot.you!.id}
-        members={members}
-        connected={connected}
-        sendOp={sendOp}
-        serverNow={serverNow}
-      />
+          )}
+        </div>
+      </InTopbar>
+      <ui.Game view={game.view} snapshot={game} me={snapshot.you!.id} members={members} connected={connected} sendOp={sendOp} serverNow={serverNow} />
     </div>
   );
 }
@@ -157,7 +152,14 @@ export function Rules({ text }: { text: string }) {
   const blocks: ReactNode[] = [];
   let bullets: string[] = [];
   const flush = () => {
-    if (bullets.length) blocks.push(<ul key={blocks.length}>{bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>);
+    if (bullets.length)
+      blocks.push(
+        <ul key={blocks.length}>
+          {bullets.map((b, i) => (
+            <li key={i}>{b}</li>
+          ))}
+        </ul>,
+      );
     bullets = [];
   };
   for (const line of text.split("\n")) {

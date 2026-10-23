@@ -2,7 +2,8 @@
 import { battleshipMeta } from "./battleship/meta";
 import { finnsISjonMeta } from "./finnsisjon/meta";
 import { pokerMeta } from "./poker/meta";
+import { ticketMeta } from "./ticket/meta";
 import { ticTacToeMeta } from "./tictactoe/meta";
 import type { GameMeta } from "./types";
 
-export const gameMetas: GameMeta[] = [pokerMeta, ticTacToeMeta, finnsISjonMeta, battleshipMeta];
+export const gameMetas: GameMeta[] = [ticketMeta, pokerMeta, battleshipMeta, finnsISjonMeta, ticTacToeMeta];

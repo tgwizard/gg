@@ -1,0 +1,367 @@
+.ttr { container-type: inline-size; }
+.ttr-grid { display: flex; flex-direction: column; gap: 14px; }
+/* Stacked (narrow): the side's parts join the column, with the players above the map. */
+.ttr-side { display: contents; }
+.ttr-players { order: -1; }
+
+/* Wide enough: your side of the table goes beside the map, so the board, your cards and the players all fit on one screen. */
+@container (min-width: 880px) {
+  .ttr-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    grid-template-areas: "board side" "result result" "footer footer";
+    align-items: start;
+  }
+  /* The players as rows at the top of the side column: name and points, then counts and what they're doing. */
+  .ttr-side .ttr-players { order: 0; flex-direction: column; flex-wrap: nowrap; gap: 8px; }
+  .ttr-side .ttr-players .plate {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name pts" "stats foot";
+    align-items: center;
+    gap: 6px 12px;
+    width: 100%;
+    height: auto;
+    padding: 9px 14px 10px;
+  }
+  .ttr-side .ttr-players .plate-name { grid-area: name; justify-content: flex-start; min-width: 0; }
+  .ttr-side .ttr-players .plate-name .name { font-size: 14px; }
+  .ttr-side .ttr-plate-line { display: contents; }
+  .ttr-side .ttr-points { grid-area: pts; }
+  .ttr-side .ttr-points .num { font-size: 16px; }
+  .ttr-side .ttr-stats { grid-area: stats; justify-content: flex-start; gap: 12px; padding-left: 2px; }
+  .ttr-side .ttr-stats .num { font-size: 13px; }
+  .ttr-side .ttr-plate-foot { grid-area: foot; width: 96px; height: auto; align-items: flex-end; }
+  .ttr-side .ttr-plate-foot .plate-line.status { font-size: 9.5px; }
+  .ttr-side .ttr-plate-hover { display: block; }
+  .ttr-side .ttr-seat-open { width: 100%; height: 38px; }
+  .ttr-board { grid-area: board; }
+  .ttr-side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .ttr-result { grid-area: result; }
+  .ttr-grid > .table-footer { grid-area: footer; }
+  .ttr-side .action-tray { flex-direction: column; align-items: stretch; padding: 12px; }
+  .ttr-side .action-tray-main { min-width: 0; }
+  .ttr-side .action-tray-aside:empty { display: none; }
+  .ttr-side .ttr-card.md { width: 38px; height: 54px; }
+  .ttr-side .ttr-faceup { gap: 6px; }
+  .ttr-side .ttr-market { gap: 10px 14px; }
+  .ttr-side .ttr-hand-cards { gap: 12px; }
+  .ttr-side .ttr-hand > .label { width: 100%; }
+  .ttr-side .ttr-news { min-height: 0; padding: 8px 12px; }
+  .ttr-side .ttr-ticket-row, .ttr-side .ttr-ticket-row > *, .ttr-side .ttr-ticket { width: 100%; }
+  .ttr-side .ttr-ticket { font-size: 13px; }
+  .ttr-side .ttr-yours { padding: 10px 12px; }
+}
+
+/* ---------- players ---------- */
+.ttr-players { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.ttr-players .plate, .ttr-seat-open { width: 168px; height: 74px; justify-content: center; }
+.ttr-plate-foot { height: 12px; display: flex; flex-direction: column; justify-content: center; }
+.ttr-plate-foot .meter { margin: 0; }
+/* The board deserves the room: wider than other games when the screen is. */
+.active-game:has(.ttr) { max-width: 1600px; }
+.ttr-plate-line { display: flex; justify-content: center; align-items: center; gap: 9px; }
+.ttr-stats { display: flex; justify-content: center; align-items: center; gap: 9px; font-size: 12px; color: var(--text-2); }
+.ttr-points { font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.ttr-stats > span { display: inline-flex; align-items: center; gap: 3px; }
+.ttr-stats .num { color: var(--text); font-size: 14px; }
+.ttr-points .num { color: var(--gold); }
+.ttr-swatch { width: 14px; height: 7px; border-radius: 2px; background: var(--pc); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
+.ttr-mini-card { width: 8px; height: 11px; border-radius: 2px; background: var(--card-back); box-shadow: 0 0 0 1px var(--card-back-line); }
+.ttr-mini-ticket { width: 12px; height: 8px; border-radius: 2px; background: var(--card-face); box-shadow: 0 0 0 1px var(--card-edge); }
+
+/* ---------- news ---------- */
+.ttr-news { min-height: 64px; }
+.ttr-latest { font-weight: 700; }
+.ttr-story { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 6px; }
+.ttr-story-cards { display: inline-flex; gap: 4px; }
+.game-log li.ttr-story { display: flex; justify-content: flex-start; }
+.ttr-story-note { font-weight: 400; color: var(--text-2); font-size: 13px; }
+.ttr-last-round { font-weight: 800; color: var(--accent-text); }
+
+/* ---------- the map ---------- */
+.ttr-board {
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--wood);
+  border: 1px solid var(--wood-edge);
+  box-shadow: var(--table-shadow);
+}
+.ttr-map { position: relative; user-select: none; }
+.ttr-play { position: relative; display: block; width: 100%; height: auto; }
+/* The board under the tracks never changes: its own layer, so hovering a route doesn't redraw the shading. */
+.ttr-scenery { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform; }
+.ttr-relief { mix-blend-mode: multiply; opacity: 0.45; }
+.ttr-sea-near { stop-color: var(--map-water-2); }
+.ttr-sea-mid { stop-color: var(--map-water); }
+.ttr-sea-far { stop-color: var(--map-water-deep); }
+.ttr-vignette-in { stop-color: var(--map-ink); stop-opacity: 0; }
+.ttr-vignette-out { stop-color: var(--map-ink); stop-opacity: 0.22; }
+.ttr-vignette { pointer-events: none; }
+.ttr-tree path { fill: var(--train-green); stroke: var(--map-ink); stroke-width: 0.9; stroke-linejoin: round; opacity: 0.45; }
+.ttr-tree .trunk { fill: none; }
+.ttr-cactus { fill: none; stroke: var(--train-green); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; opacity: 0.45; }
+.ttr-cities { filter: drop-shadow(0 1.5px 1px rgb(40 30 20 / 0.45)); }
+.ttr-land { fill: var(--map-land); }
+.ttr-land.abroad { fill: color-mix(in srgb, var(--map-land), var(--map-land-2) 60%); }
+.ttr-lake { stroke: none; }
+.ttr-shore { fill: none; stroke: var(--map-water-2); stroke-width: 12; stroke-linejoin: round; opacity: 0.7; }
+.ttr-shore.far { stroke-width: 30; opacity: 0.25; }
+.ttr-coast { fill: none; stroke: var(--map-ink); stroke-width: 0.9; opacity: 0.5; stroke-linejoin: round; }
+.ttr-border { fill: none; stroke: var(--map-ink); stroke-width: 1; stroke-dasharray: 5 3 1 3; opacity: 0.3; }
+.ttr-mountain { fill: var(--map-land-2); stroke: var(--map-ink); stroke-width: 1; stroke-linejoin: round; opacity: 0.4; }
+.ttr-wave { fill: none; stroke: var(--map-ink); stroke-width: 1; stroke-linecap: round; opacity: 0.25; }
+.ttr-compass circle { fill: none; stroke: var(--map-ink); stroke-width: 0.8; opacity: 0.45; }
+.ttr-compass polygon { fill: var(--map-halo); stroke: var(--map-ink); stroke-width: 0.9; opacity: 0.8; }
+.ttr-compass text { font-family: var(--font-display); font-size: 11px; font-weight: 700; text-anchor: middle; fill: var(--map-ink); opacity: 0.7; }
+.ttr-paper { pointer-events: none; mix-blend-mode: multiply; opacity: 0.5; }
+.ttr-rule { fill: none; stroke: var(--map-ink); stroke-width: 1; opacity: 0.35; }
+/* The printed track spaces: tiles with a pale edge, sitting on the paper. */
+.ttr-tracks { filter: drop-shadow(0 0.8px 0.5px rgb(40 30 20 / 0.45)); }
+
+/* Free spaces are printed on the board: pale tiles outlined in their route's color. */
+.ttr-track.c-red { --rc: var(--train-red); }
+.ttr-track.c-orange { --rc: var(--train-orange); }
+.ttr-track.c-yellow { --rc: var(--train-yellow); }
+.ttr-track.c-green { --rc: var(--train-green); }
+.ttr-track.c-blue { --rc: var(--train-blue); }
+.ttr-track.c-pink { --rc: var(--train-pink); }
+.ttr-track.c-white { --rc: var(--train-white); --rc-edge: color-mix(in srgb, var(--map-ink), transparent 55%); }
+.ttr-track.c-black { --rc: var(--train-black); }
+.ttr-track.c-gray { --rc: var(--train-gray); }
+.ttr-track.free .ttr-car {
+  fill: color-mix(in srgb, var(--rc) 55%, var(--map-land));
+  stroke: var(--rc-edge, color-mix(in srgb, var(--rc), black 18%));
+  stroke-width: 1.3;
+}
+/* Claimed: solid trains in the player's color, with a glow of that color along the whole track. */
+.ttr-track-glow { fill: none; stroke: var(--pc); stroke-width: 17; stroke-linecap: round; opacity: 0.38; }
+.ttr-track.claimed .ttr-car { fill: var(--pc); stroke: var(--map-ink); stroke-width: 1.8; filter: drop-shadow(0 1.5px 1px rgb(0 0 0 / 0.5)); }
+.ttr-car-windows { fill: var(--map-halo); opacity: 0.7; }
+.ttr-track.closed { opacity: 0.22; }
+.ttr-track.claimable { cursor: pointer; }
+.ttr-track.claimable .ttr-car { stroke: var(--brand); stroke-width: 1.6; opacity: 1; }
+.ttr-track.claimable:hover .ttr-car, .ttr-track.selected .ttr-car { stroke: var(--accent); stroke-width: 2.6; }
+.ttr-track-hit { fill: none; stroke: transparent; stroke-width: 16; }
+.ttr-track.recent .ttr-car { animation: ttr-recent 1.2s ease-in-out 2; }
+@keyframes ttr-recent { 50% { filter: drop-shadow(0 0 4px var(--gold)); } }
+
+.ttr-city-dot { fill: var(--accent); stroke: var(--map-ink); stroke-width: 1.8; }
+.ttr-city-core { fill: var(--map-halo); pointer-events: none; }
+.ttr-city.marked .ttr-city-dot { fill: var(--gold); stroke-width: 2.4; }
+.ttr-city-halo { fill: var(--accent); fill-opacity: 0.25; stroke: var(--accent); stroke-width: 4; animation: ttr-pulse 1.4s ease-in-out infinite; }
+/* Looking at a ticket: the rest of the board steps back, and a dotted line joins its two cities. */
+.ttr-play .ttr-tracks { transition: opacity 160ms ease; }
+.ttr-play.focusing .ttr-tracks { opacity: 0.45; }
+/* A player's nameplate hovered: only their railway stays bright. */
+.ttr-play .ttr-track { transition: opacity 160ms ease; }
+.ttr-play.owner-focus .ttr-track:not(.shown) { opacity: 0.18; }
+.ttr-track.shown .ttr-car { stroke: var(--gold); stroke-width: 2.6; }
+.ttr-plate-hover { display: flex; }
+.ttr-ticket-line path { fill: none; stroke-linecap: round; pointer-events: none; }
+.ttr-ticket-line .under { stroke: var(--map-halo); stroke-width: 8; opacity: 0.9; }
+.ttr-ticket-line .over { stroke: var(--accent); stroke-width: 4; stroke-dasharray: 0.1 9; animation: ttr-march 0.9s linear infinite; }
+@keyframes ttr-march { to { stroke-dashoffset: -9.1; } }
+@keyframes ttr-pulse { 50% { stroke-width: 7; stroke-opacity: 0.6; } }
+.ttr-city text {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 650;
+  fill: var(--map-ink);
+  stroke: var(--map-halo);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+}
+.ttr-city.focus text { fill: var(--accent-text); font-size: 16px; font-weight: 800; }
+
+/* ---------- train cards ---------- */
+.ttr-card {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 62px;
+  border-radius: var(--radius-card);
+  border: 2.5px solid var(--card-face);
+  box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow);
+  flex-shrink: 0;
+}
+.ttr-card.sm { width: 26px; height: 36px; border-width: 1.5px; }
+.ttr-card.xs { width: 17px; height: 24px; border-width: 1.5px; border-radius: 4px; vertical-align: middle; }
+.ttr-card.xs .ttr-card-glyph { width: 80%; }
+.ttr-card.dim { opacity: 0.5; }
+.ttr-card.empty { background: rgb(0 0 0 / 0.15); border-style: dashed; border-color: var(--line-strong); box-shadow: none; }
+.ttr-card.back { background: var(--card-back); }
+.ttr-card.c-red { background: var(--train-red); }
+.ttr-card.c-orange { background: var(--train-orange); }
+.ttr-card.c-yellow { background: var(--train-yellow); }
+.ttr-card.c-green { background: var(--train-green); }
+.ttr-card.c-blue { background: var(--train-blue); }
+.ttr-card.c-pink { background: var(--train-pink); }
+.ttr-card.c-white { background: var(--train-white); }
+.ttr-card.c-black { background: var(--train-black); }
+.ttr-card.c-loco { background: var(--train-loco); }
+.ttr-card-glyph { width: 70%; fill: rgb(255 255 255 / 0.85); filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.3)); }
+.ttr-card.c-white .ttr-card-glyph, .ttr-card.c-yellow .ttr-card-glyph { fill: rgb(58 46 36 / 0.7); filter: none; }
+.ttr-card-count {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  min-width: 22px;
+  padding: 3px 5px 2px;
+  border-radius: var(--pill);
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+  color: var(--card-ink);
+  background: var(--card-face);
+  box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow);
+}
+.ttr-card.sm .ttr-card-count { right: -7px; bottom: -6px; min-width: 18px; font-size: 11px; padding: 2px 4px 1px; }
+
+/* ---------- your turn: market, hand, claiming ---------- */
+.ttr-me { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+.ttr-market { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.ttr-faceup { display: flex; gap: 8px; }
+.ttr-take { padding: 0; border: none; background: none; cursor: pointer; border-radius: var(--radius-card); color: inherit; font: inherit; }
+.ttr-take:disabled { cursor: default; }
+.ttr-take:not(:disabled):hover .ttr-card, .ttr-take:not(:disabled):hover .ttr-ticket-back { translate: 0 -4px; }
+.ttr-take:disabled .ttr-card:not(.empty), .ttr-take:disabled .ttr-ticket-back { filter: saturate(0.6) brightness(0.85); }
+.ttr-take:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.ttr-pile { display: inline-flex; align-items: center; gap: 8px; }
+.ttr-tickets-pile { display: inline-flex; align-items: center; gap: 8px; }
+.ttr-pile-label { display: flex; flex-direction: column; align-items: flex-start; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); }
+.ttr-pile-label .num { font-size: 18px; color: var(--text); letter-spacing: 0; }
+.ttr-ticket-back {
+  display: inline-block;
+  width: 62px;
+  height: 40px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(135deg, var(--card-face) 0 6px, var(--map-land-2) 6px 12px);
+  box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow);
+}
+.ttr-hint { color: var(--on-brand-2); font-size: 14px; min-height: 20px; }
+.ttr-hand { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.ttr-hand > .label { color: var(--on-brand-2); }
+.ttr-hand-cards { display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 8px 8px 0; }
+.ttr-drawn { font-size: 13px; }
+/* ---------- claiming: a bubble on the map ---------- */
+/* The rest of the board steps back while you choose how to pay. */
+.ttr-scenery, .ttr-play .ttr-cities { transition: filter 160ms ease, opacity 160ms ease; }
+.ttr-map.picking .ttr-scenery { filter: brightness(0.62) saturate(0.7); }
+.ttr-map.picking .ttr-track:not(.selected) { opacity: 0.25; }
+.ttr-map.picking .ttr-cities { opacity: 0.55; }
+.ttr-map.picking .ttr-track.selected .ttr-car { stroke: var(--gold); stroke-width: 3; opacity: 1; }
+.ttr-claim-catch { position: absolute; inset: 0; z-index: 4; }
+.ttr-claim-pop {
+  --tx: -50%;
+  --ty: calc(-100% - 22px);
+  position: absolute;
+  z-index: 5;
+  translate: var(--tx) var(--ty);
+  width: max-content;
+  max-width: min(440px, 92%);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.4), var(--shadow-md);
+  animation: ttr-pop 140ms ease-out;
+}
+.ttr-claim-pop.below { --ty: 22px; }
+.ttr-claim-pop.start { --tx: -28px; }
+.ttr-claim-pop.end { --tx: calc(-100% + 28px); }
+@keyframes ttr-pop { from { opacity: 0; scale: 0.94; } }
+.ttr-claim-head { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+.ttr-claim-head strong { font-family: var(--font-display); font-size: 18px; }
+.ttr-claim-head .muted { font-size: 13px; }
+.ttr-pay { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.ttr-pay-btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 14px 14px 16px; height: auto; border-radius: var(--radius); }
+.ttr-pay-cards { display: flex; gap: 14px; padding: 0 8px 4px 0; }
+.ttr-pay-heading { margin-bottom: -4px; }
+.ttr-claim-cancel { margin-top: -4px; }
+
+/* ---------- tickets ---------- */
+.ttr-choose { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.ttr-choose-head { display: flex; flex-direction: column; gap: 2px; }
+.ttr-choose-head strong { font-size: 16px; }
+.ttr-choose-foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ttr-choose-timer { flex: 1; max-width: 240px; }
+/* Tickets: all the same size, parchment with a brown frame, like the printed ones. */
+.ttr-ticket-row { display: flex; gap: 8px 10px; flex-wrap: wrap; }
+.ttr-ticket-row > * { display: block; }
+.ttr-ticket-btn { padding: 0; border: none; background: none; cursor: pointer; border-radius: 8px; font: inherit; }
+.ttr-ticket-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.ttr-ticket {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 236px;
+  height: 46px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 7px;
+  color: var(--ticket-ink);
+  background: var(--ticket-face);
+  border: 2px solid var(--ticket-edge);
+  /* a thin inner rule, as on the printed card */
+  box-shadow: inset 0 0 0 2px var(--ticket-face), inset 0 0 0 3px color-mix(in srgb, var(--ticket-edge), transparent 55%), var(--card-shadow);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: left;
+  transition: translate 120ms ease, box-shadow 120ms ease;
+}
+.ttr-ticket-points {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--ticket-face);
+  background: var(--ticket-edge);
+}
+.ttr-ticket-btn:hover .ttr-ticket, .ttr-yours .ttr-ticket:hover { translate: 0 -3px; box-shadow: inset 0 0 0 2px var(--ticket-face), 0 0 0 2px var(--accent), var(--card-shadow); }
+.ttr-ticket-btn[aria-pressed="true"] .ttr-ticket { box-shadow: inset 0 0 0 2px var(--ticket-face), 0 0 0 3px var(--gold), var(--card-shadow); }
+.ttr-ticket-btn[aria-pressed="true"]:hover .ttr-ticket { box-shadow: inset 0 0 0 2px var(--ticket-face), 0 0 0 3px var(--gold), 0 0 0 5px var(--accent), var(--card-shadow); }
+.ttr-ticket-btn[aria-pressed="false"] .ttr-ticket { opacity: 0.85; }
+.ttr-ticket.done { background: color-mix(in srgb, var(--ticket-face), var(--good) 22%); }
+.ttr-ticket.done .ttr-ticket-points { background: var(--good); }
+.ttr-ticket-done { position: absolute; top: -8px; right: -6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; color: var(--ticket-face); background: var(--good); font-family: var(--font-body); font-weight: 900; }
+.ttr-yours { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+
+/* ---------- results ---------- */
+.ttr-result { display: flex; flex-direction: column; gap: 10px; }
+.ttr-scores { width: 100%; border-collapse: separate; border-spacing: 0; padding: 6px 12px; font-size: 14px; }
+.ttr-scores th, .ttr-scores td { padding: 6px 10px; text-align: right; }
+.ttr-scores th:first-child { text-align: left; }
+.ttr-scores thead th { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); }
+.ttr-scores tr.winner th { color: var(--gold-text); }
+.ttr-total { font-size: 18px; font-weight: 800; }
+.ttr-scores .tag { margin-left: 6px; }
+.ttr-score-tickets td { text-align: left; padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.ttr-score-tickets span { display: inline-block; margin-right: 14px; }
+.ttr-score-tickets .done { color: var(--good); }
+.ttr-score-tickets .missed { color: var(--danger); }
+
+@media (max-width: 640px) {
+  .ttr-players { gap: 8px; }
+  .ttr-players .plate { width: calc(50% - 4px); }
+  .ttr-seat-open { width: calc(33% - 6px); height: 40px; }
+  .ttr-board { padding: 6px; overflow-x: auto; }
+  .ttr-map { min-width: 720px; }
+  .ttr-card { width: 36px; height: 50px; }
+  .ttr-faceup { gap: 6px; }
+}
+
+/* ---------- cards in flight ---------- */
+.ttr-flights { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+.ttr-flying { position: absolute; left: 0; top: 0; filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.35)); }

@@ -151,6 +151,77 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .topbar form.row .btn { padding: 8px 12px; }
 
 .room-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+.room-main.sidebar-hidden { grid-template-columns: minmax(0, 1fr) 60px; }
+.sidebar { position: relative; }
+.sidebar:has(.sidebar-hide) { padding-top: 40px; }
+.sidebar-hide { position: absolute; top: 6px; right: 14px; font-size: 12px; font-weight: 700; padding: 3px 8px; color: var(--text-2); }
+.sidebar-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 0;
+  border-left: 1px solid var(--line-strong);
+  background: var(--surface-2);
+}
+.rail-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.rail-btn:hover { background: var(--surface-hover); color: var(--text); }
+.rail-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.rail-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 20px;
+  padding: 3px 5px 2px;
+  border-radius: var(--pill);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.sidebar-rail { position: relative; }
+.rail-popups { position: absolute; top: 14px; right: calc(100% + 10px); z-index: 40; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; pointer-events: none; }
+.rail-popup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: var(--shadow-md);
+  animation: rail-popup 6s ease both;
+}
+.rail-popup .name { font-size: 13px; }
+.rail-popup-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+/* A speech-bubble tail toward the rail. */
+.rail-popup::after { content: ""; position: absolute; right: -6px; top: 14px; width: 10px; height: 10px; background: inherit; border: inherit; border-left: none; border-bottom: none; rotate: 45deg; }
+.rail-popup { position: relative; }
+@keyframes rail-popup {
+  0% { opacity: 0; translate: 12px 0; }
+  6%, 85% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: 12px 0; }
+}
+@media (prefers-reduced-motion: reduce) { .rail-popup { animation: none; } }
+.rail-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .stage { overflow: auto; padding: 24px 28px 36px; }
 .sidebar {
   display: flex;
@@ -231,6 +302,14 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .game-header { display: flex; align-items: center; gap: 12px; }
 .game-header h2 { font-size: 1.9rem; }
 .game-header-icon { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--badge); }
+/* The running game's header, up in the room's top bar. */
+.topbar-game:empty { display: none; }
+.topbar-game { display: flex; min-width: 0; padding-left: 14px; border-left: 1px solid rgb(255 255 255 / 0.15); }
+.topbar-game .game-header { gap: 8px; }
+.topbar-game .game-header .spacer { width: 4px; flex: none; }
+.topbar-game .game-header h2 { font-size: 1.3rem; color: var(--on-brand); white-space: nowrap; }
+.topbar-game .game-header-icon { width: 32px; height: 32px; }
+.topbar-game .icon-btn { width: 30px; height: 30px; }
 
 @media (max-width: 860px) {
   .room { height: auto; min-height: 100%; }

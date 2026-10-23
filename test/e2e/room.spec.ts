@@ -113,3 +113,23 @@ test("profile colors resolve clashes, and rooms can be named and renamed", async
   await expect(alice.page.getByTestId("room-name")).toHaveText("Taco night");
   await expect(chat(alice.page)).toContainText("Bob named the room “Taco night”.");
 });
+
+test("the chat sidebar folds away and counts what's new", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const bob = await newPlayer(browser);
+  const url = await createRoom(alice.page, "Alice");
+  await joinRoom(bob.page, url, "Bob");
+
+  await alice.page.getByRole("button", { name: "Hide chat" }).click();
+  const rail = alice.page.getByTestId("sidebar-rail");
+  await expect(rail).toBeVisible();
+  await expect(alice.page.getByLabel("Chat message")).toHaveCount(0);
+  await sendChat(bob.page, "are you there?");
+  await expect(rail.getByRole("button", { name: "Show chat (1 new)" })).toBeVisible();
+
+  // Remembered across a reload; showing it again brings the message.
+  await alice.page.reload();
+  await expectConnected(alice.page);
+  await alice.page.getByTestId("sidebar-rail").getByRole("button", { name: /Show chat/ }).click();
+  await expect(chat(alice.page)).toContainText("are you there?");
+});
