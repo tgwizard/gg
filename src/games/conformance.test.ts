@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import { botMove } from "./kit/bot";
 import { isLobbyOp } from "./kit/lobby";
 import { seededRandomInt } from "./kit/testing";
+import { gameMetas } from "./metas";
 import { games } from "./registry";
 import type { AnyGameDefinition, GameContext } from "./types";
 
@@ -140,3 +141,9 @@ function play(def: AnyGameDefinition, seed: number) {
     for (const viewer of [...people, "spectator"]) JSON.stringify(def.view(state, viewer));
   }
 }
+
+describe("game metas", () => {
+  it("lists every registered game, for things that don't load the engines", () => {
+    expect(gameMetas.map((m) => m.id).sort()).toEqual(Object.keys(games).sort());
+  });
+});

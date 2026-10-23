@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Avatar, PlayerName, useIsBot, usePlayerColors } from "../../../ui";
+import { ActivityBubble, Avatar, PlayerName, useActivity, useIsBot, usePlayerColors } from "../../../ui";
 import "./kit.css";
 
 /**
@@ -27,6 +27,7 @@ export function PlayerPlate(props: {
 }) {
   const color = usePlayerColors()(props.playerId);
   const bot = useIsBot()(props.playerId);
+  const activity = useActivity()(props.playerId);
   const classes = [
     "plate box on-brand",
     props.active && "active",
@@ -48,6 +49,7 @@ export function PlayerPlate(props: {
         {props.tags}
       </div>
       {props.children}
+      {activity && <ActivityBubble text={activity} />}
     </>
   );
   return props.onClick ? (

@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { MAX_BOTS_PER_PLAYER, type Member } from "../../shared/protocol";
-import { Avatar, Panel, PlayerName } from "../../ui";
-import { addBot, type BotRecord, removeBot, suggestBot, updateBot } from "../bots/store";
+import { ActivityBubble, Avatar, Panel, PlayerName } from "../../ui";
+import { addBot, type BotRecord, type BotSetup, removeBot, suggestBot, updateBot } from "../bots/store";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { Popover, ProfileForm } from "./Profile";
+import { BotForm } from "./BotForm";
+import { Popover } from "./Profile";
 
 export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[] }) {
   const waiting = new Set(snapshot.game?.waitingOn ?? []);
@@ -19,6 +20,8 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
           const bot = mine.get(m.id);
           return (
             <li key={m.id} className={m.online ? "online" : "away"} data-testid="member">
+              {/* On the avatar's corner, so it never takes room from the name. */}
+              {m.activity && <ActivityBubble text={m.activity} compact />}
               {bot ? (
                 <EditBot bot={bot} member={m} members={snapshot.members} />
               ) : (
@@ -30,7 +33,12 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
               {m.kind === "bot" && (
                 <span className="tag brand" title={bot ? "Your bot, playing from this browser" : `${names.get(m.ownerId ?? "") ?? "Someone"}'s bot`}>
-                  bot
+                  {bot?.level === "ai" ? "AI bot" : "bot"}
+                </span>
+              )}
+              {bot?.error && (
+                <span className="tag danger" title={bot.error}>
+                  AI problem
                 </span>
               )}
               {waiting.has(m.id) && <span className="tag gold">to act</span>}
@@ -59,7 +67,7 @@ function takenColors(members: Member[], except?: string): Map<number, string> {
 }
 
 function AddBot({ roomId, members, disabled }: { roomId: string; members: Member[]; disabled: boolean }) {
-  const [suggestion, setSuggestion] = useState<{ name: string; color: number } | null>(null);
+  const [suggestion, setSuggestion] = useState<BotSetup | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const close = () => setSuggestion(null);
   return (
@@ -69,22 +77,21 @@ function AddBot({ roomId, members, disabled }: { roomId: string; members: Member
         className="btn ghost small"
         disabled={disabled}
         aria-expanded={!!suggestion}
-        onClick={() => setSuggestion(suggestion ? null : suggestBot({ names: members.map((m) => m.name), colors: members.map((m) => m.color) }))}
+        onClick={() =>
+          setSuggestion(suggestion ? null : { ...suggestBot({ names: members.map((m) => m.name), colors: members.map((m) => m.color) }), level: "easy" })
+        }
       >
         + Add a bot
       </button>
       {suggestion && button.current && (
         <Popover anchor={button.current} label="Add a bot" onClose={close}>
-          <ProfileForm
-            name={suggestion.name}
-            color={suggestion.color}
-            whose="Bot"
-            bot
+          <BotForm
+            initial={suggestion}
             submitLabel="Add bot"
             taken={takenColors(members)}
-            onSubmit={(name, color) => {
+            onSubmit={(setup) => {
               close();
-              void addBot(roomId, name, color);
+              void addBot(roomId, setup);
             }}
             onCancel={close}
           />
@@ -106,23 +113,21 @@ function EditBot({ bot, member, members }: { bot: BotRecord; member: Member; mem
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label={`Edit ${member.name}`}
-        title={`Rename or recolor ${member.name}`}
+        title={`Edit ${member.name}`}
       >
         <Avatar name={member.name} color={member.color} online={member.online} bot size="sm" />
         <PlayerName name={member.name} color={member.color} className="member-name" />
       </button>
       {open && button.current && (
         <Popover anchor={button.current} label={`Edit ${member.name}`} onClose={() => setOpen(false)}>
-          <ProfileForm
-            name={bot.name}
-            color={bot.color}
-            whose="Bot"
-            bot
+          <BotForm
+            initial={bot}
+            bot={bot}
             submitLabel="Save"
             taken={takenColors(members, member.id)}
-            onSubmit={(name, color) => {
+            onSubmit={(setup) => {
               setOpen(false);
-              updateBot(bot.id, { name, color });
+              updateBot(bot.id, setup);
             }}
             onCancel={() => setOpen(false)}
           />

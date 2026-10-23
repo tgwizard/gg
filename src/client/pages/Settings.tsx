@@ -9,25 +9,26 @@ import { Avatar, Panel, playerStyle, Spinner } from "../../ui";
 import { ModeToggle } from "../components/ModeToggle";
 import { ColorPicker, NameField } from "../components/Profile";
 import { deleteLocalData, saveColor, saveName, useColor, useName } from "../identity";
-import { clientFor, defaultModel, maskKey, PROVIDERS, putConnection, removeConnection, updateConnection, useConnections } from "../llm/connections";
+import { clientFor, defaultModel, EFFORTS, maskKey, PROVIDERS, putConnection, removeConnection, updateConnection, useConnections } from "../llm/connections";
 import { type Connection, type Effort, type LLMModel, LLMError, type LLMResult, type Provider } from "../llm/types";
 import { noAutofill } from "../noAutofill";
-import { navigate } from "../router";
+import { cameFrom, navigate } from "../router";
 
 export function SettingsPage() {
   const connections = useConnections();
+  const [back] = useState(cameFrom);
   return (
     <div className="guide settings">
       <header className="guide-head on-brand">
         <a
           className="settings-back"
-          href="/"
+          href={back ?? "/"}
           onClick={(e) => {
             e.preventDefault();
-            navigate("/");
+            navigate(back ?? "/");
           }}
         >
-          ← gg
+          {back?.startsWith("/r/") ? "← Back to the room" : "← gg"}
         </a>
         <h1 className="display">Settings</h1>
         <p>Saved in this browser only.</p>
@@ -165,7 +166,7 @@ function ApiKeyForm() {
       // Check the key works (and pick a model) before keeping it.
       const models = await (await clientFor(connection)).listModels();
       const model = defaultModel(provider, models);
-      putConnection({ ...connection, ...(model ? { model } : {}) });
+      putConnection({ ...connection, models: models.map((m) => m.id), ...(model ? { model } : {}) });
       setKey("");
     } catch (err) {
       setError(message(err));
@@ -204,13 +205,6 @@ function ApiKeyForm() {
   );
 }
 
-/** How hard the model thinks. Lower is faster and cheaper, which suits most game moves. */
-const EFFORTS: { id: Effort; label: string }[] = [
-  { id: "low", label: "Low" },
-  { id: "medium", label: "Medium" },
-  { id: "high", label: "High" },
-];
-
 function ConnectionCard({ connection: c }: { connection: Connection }) {
   const [models, setModels] = useState<LLMModel[] | null>(null);
   const [error, setError] = useState<LLMError | Error | null>(null);
@@ -226,7 +220,7 @@ function ConnectionCard({ connection: c }: { connection: Connection }) {
       .then((list) => {
         setModels(list);
         const model = defaultModel(c.provider, list);
-        if (!c.model && model) updateConnection(c.id, { model });
+        updateConnection(c.id, { models: list.map((m) => m.id), ...(!c.model && model ? { model } : {}) });
       })
       .catch((err: unknown) => !abort.signal.aborted && setError(err as Error));
     return () => abort.abort();
@@ -283,6 +277,7 @@ function ConnectionCard({ connection: c }: { connection: Connection }) {
       </div>
 
       <form className="stack" onSubmit={run}>
+        <p className="muted small settings-text">Try the key here. Each AI bot picks its own model and effort when you add it (the cheapest model at low effort, unless you change them).</p>
         <div className="settings-pick">
           <label className="field">
             <span>Model</span>

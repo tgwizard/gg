@@ -16,12 +16,12 @@ tic-tac-toe.
   duplicating actions.
 - **Private hands**: each player only ever receives their own view of the game.
 - **Bots**: add one from the members panel and it takes a free seat in any game.
-  Easy bots need no AI and play from your tab while you have the room open.
-- **AI connections** (`/settings`): paste an Anthropic, OpenAI or Meta (Muse) key,
-  for the coming AI bots. Kept in your browser; gg's server never sees them.
+  Easy bots need no AI. AI bots use your own Anthropic, OpenAI or Meta (Muse) key
+  (paste it at `/settings`), with a personality of your choosing, and chat as they
+  play. Bots play from your tab while you have the room open, and keys never leave
+  your browser.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works (including bots
-and the planned AI ones) and [docs/QA.md](docs/QA.md) for the test and QA playbook.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works (including bots) and [docs/QA.md](docs/QA.md) for the test and QA playbook.
 
 ## Development
 

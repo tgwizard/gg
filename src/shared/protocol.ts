@@ -50,6 +50,8 @@ export interface Member {
   /** Index into PLAYER_COLORS: their preference, unless someone who joined earlier has it. */
   color: number;
   online: boolean;
+  /** What they're up to right now, e.g. a bot "Thinking about its move". Not stored. */
+  activity?: string;
   joinedAt: number;
   lastSeenAt: number;
 }
@@ -112,6 +114,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("setProfile"), name: z.string().max(200), color: z.number().int().min(0).max(COLOR_COUNT - 1) }),
   z.object({ type: z.literal("renameRoom"), cid, name: z.string().max(200) }),
+  /** What you're up to right now (null when done); shown to everyone. */
+  z.object({ type: z.literal("activity"), text: z.string().max(200).nullable() }),
   /** A bot leaving for good (its owner removed it). */
   z.object({ type: z.literal("leaveRoom"), cid }),
   z.object({ type: z.literal("chat"), cid, text: z.string().max(4 * MAX_CHAT_LENGTH) }),
@@ -168,6 +172,12 @@ export function sanitizeName(raw: string): string {
 /** A room's display name; empty means unnamed. */
 export function sanitizeRoomName(raw: string): string | null {
   return raw.normalize("NFC").replace(INVISIBLE, "").replace(/\s+/g, " ").trim().slice(0, MAX_ROOM_NAME_LENGTH) || null;
+}
+
+export const MAX_ACTIVITY_LENGTH = 40;
+
+export function sanitizeActivity(raw: string): string {
+  return raw.normalize("NFC").replace(INVISIBLE, "").replace(/\s+/g, " ").trim().slice(0, MAX_ACTIVITY_LENGTH);
 }
 
 export function sanitizeChat(raw: string): string {

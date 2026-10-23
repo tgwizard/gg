@@ -4,7 +4,7 @@
  * game's own moves) is up to the game's bot. Starting games is left to people.
  */
 import type { AnyGameDefinition } from "../types";
-import { isLobbyOp } from "./lobby";
+import { isLobbyOp, type LobbyOp } from "./lobby";
 
 export type BotIntent = "play" | "leave";
 
@@ -16,15 +16,23 @@ export function botMove(
   rand: (maxExclusive: number) => number,
   intent: BotIntent = "play",
 ): unknown {
+  return (
+    tableMove(legalOps, rand, intent) ??
+    (intent === "leave"
+      ? null
+      : def.bot.easy(
+          view,
+          legalOps.filter((op) => !isLobbyOp(op)),
+          rand,
+        ))
+  );
+}
+
+/** The table move a bot makes now, if any: a free seat, sitting back in, or leaving. */
+export function tableMove(legalOps: unknown[], rand: (maxExclusive: number) => number, intent: BotIntent = "play"): LobbyOp | null {
   const lobby = legalOps.filter(isLobbyOp);
   if (intent === "leave") return lobby.find((op) => op.type === "leave") ?? null;
   const seats = lobby.filter((op) => op.type === "sit");
-  if (seats.length) return seats[rand(seats.length)];
-  const sitIn = lobby.find((op) => op.type === "sitIn");
-  if (sitIn) return sitIn;
-  return def.bot.easy(
-    view,
-    legalOps.filter((op) => !isLobbyOp(op)),
-    rand,
-  );
+  if (seats.length) return seats[rand(seats.length)]!;
+  return lobby.find((op) => op.type === "sitIn") ?? null;
 }

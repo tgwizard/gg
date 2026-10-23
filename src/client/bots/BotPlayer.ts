@@ -9,10 +9,13 @@
  * Only one tab plays a given bot: each holds a Web Lock while playing, and other tabs
  * of the room wait for it (taking over if that tab closes).
  */
-import { botMove } from "../../games/kit/bot";
+import { botMove, tableMove } from "../../games/kit/bot";
 import type { AnyGameDefinition } from "../../games/types";
+import { devLog } from "../devlog";
 import { RequestError, RoomClient } from "../net/RoomClient";
-import type { BotRecord } from "./store";
+import { AiBrain } from "./ai/AiBrain";
+import { gameMoves } from "./ai/prompt";
+import { addBotStandIn, addBotUsage, type BotRecord, setBotError } from "./store";
 
 /** How long a bot "thinks" before moving. */
 const THINK_MS: [number, number] = [600, 1500];
@@ -23,6 +26,8 @@ const random = (maxExclusive: number) => Math.floor(Math.random() * maxExclusive
 
 export class BotPlayer {
   private client: RoomClient | null = null;
+  /** For AI bots: decides game moves and chat (table moves stay here). */
+  private brain: AiBrain | null = null;
   private games: Record<string, AnyGameDefinition> | null = null;
   private readonly lock = new AbortController();
   private releaseLock: (() => void) | null = null;
@@ -50,15 +55,17 @@ export class BotPlayer {
     else void play();
   }
 
-  /** Its name or color changed. */
+  /** Its setup changed (name, color, AI connection, persona). */
   update(bot: BotRecord) {
     this.bot = bot;
     this.client?.setProfile(bot.name, bot.color);
+    if (this.client) this.setBrain();
   }
 
   /** Stop playing (you left the room); the bot stays a member and comes back with you. */
   stop() {
     this.stopped = true;
+    this.brain?.stop();
     clearTimeout(this.timer);
     this.lock.abort();
     this.client?.stop();
@@ -73,6 +80,8 @@ export class BotPlayer {
     if (!client) return this.stop();
     this.leaving = true;
     clearTimeout(this.timer);
+    this.brain?.stop();
+    this.brain = null;
     try {
       await connected(client, 10_000);
       const game = client.getSnapshot().game;
@@ -84,6 +93,10 @@ export class BotPlayer {
     this.stop();
   }
 
+  private log(event: string, data?: unknown) {
+    devLog(this.bot.roomId, `bot ${this.bot.name}`, event, data);
+  }
+
   private async connect() {
     // Game rules are only needed once you have a bot, so they load separately.
     this.games ??= (await import("../../games/registry")).games;
@@ -91,11 +104,42 @@ export class BotPlayer {
     const { roomId, secret, name, color } = this.bot;
     const client = new RoomClient(roomId, secret, name, color, this.ownerSecret);
     this.client = client;
+    this.setBrain();
     client.subscribe(() => this.onChange());
     client.start();
   }
 
+  /** AI bots get a brain; switching a bot to Easy (or to another connection) replaces it. */
+  private setBrain() {
+    const { level, connectionId, name, persona, model, effort } = this.bot;
+    if (level !== "ai" || !connectionId || this.leaving) {
+      this.brain?.stop();
+      this.brain = null;
+      return;
+    }
+    const setup = { name, persona, connectionId, model, effort };
+    if (this.brain) return this.brain.update(setup);
+    const client = this.client!;
+    this.brain = new AiBrain(setup, this.games!, {
+      snapshot: () => client.getSnapshot(),
+      sendOp: (op, ifVersion) => client.sendGameOp(op, ifVersion),
+      say: (text) => void client.sendChat(text).catch(() => {}),
+      easyMove: () => {
+        const game = client.getSnapshot().game;
+        const def = game && this.games?.[game.gameId];
+        return def ? def.bot.easy(game.view, gameMoves(game.legalOps ?? []), random) : null;
+      },
+      usage: (u) => addBotUsage(this.bot.id, u),
+      error: (message) => setBotError(this.bot.id, message),
+      activity: (text) => client.setActivity(text),
+      standIn: (why) => addBotStandIn(this.bot.id, why),
+      log: (event, data) => this.log(event, data),
+    });
+    this.brain.observe();
+  }
+
   private onChange() {
+    this.brain?.observe();
     const snapshot = this.client?.getSnapshot();
     const game = snapshot?.status === "connected" ? snapshot.game : null;
     const key = game ? `${game.instanceId}:${game.version}` : null;
@@ -116,7 +160,8 @@ export class BotPlayer {
     const game = client?.getSnapshot().game;
     const def = game && this.games?.[game.gameId];
     if (!client || !game || !def || this.leaving) return;
-    const op = botMove(def, game.view, game.legalOps ?? [], random);
+    // AI bots only make table moves here; their brain plays the game.
+    const op = this.brain ? tableMove(game.legalOps ?? [], random) : botMove(def, game.view, game.legalOps ?? [], random);
     if (op == null) return;
     if ((op as { type?: string }).type === "sit") {
       // Follow people to the table quickly; with nobody seated yet, give them time to choose first.
@@ -129,7 +174,9 @@ export class BotPlayer {
         return;
       }
     }
+    this.log(this.brain ? "table move" : "easy move", op);
     client.sendGameOp(op).catch((e: unknown) => {
+      this.log("move refused", { op, error: e instanceof Error ? e.message : String(e) });
       // Stale: the game moved on and the new view is on its way, which makes the bot look again.
       if (e instanceof RequestError && e.code === "stale") return;
       if (++this.attempts < MAX_ATTEMPTS && `${game.instanceId}:${game.version}` === this.seen) this.think();

@@ -51,6 +51,13 @@ export interface GameMeta {
   tagline: string;
   minPlayers: number;
   maxPlayers: number;
+  /**
+   * How to play, shown in the game's help and given to AI bots. Plain text:
+   * paragraphs, and lines starting with "- " as bullets.
+   */
+  rules: string;
+  /** For AI bots only: how the game's view and moves are written (coordinates, card codes). */
+  botNotes?: string;
 }
 
 export interface GameDefinition<State = unknown, Op = unknown, View = unknown, Config = unknown> {

@@ -35,6 +35,7 @@ import {
   RATE_LIMITED,
   ROOM_FULL,
   type ServerMessage,
+  sanitizeActivity,
   sanitizeChat,
   sanitizeName,
   sanitizeRoomName,
@@ -123,6 +124,8 @@ export class Room extends DurableObject<Env> {
   private ipLimits = new Map<string, Buckets>();
   private newMembers = new Map<string, TokenBucket>();
   private lastTouch = 0;
+  /** What members are up to (e.g. a bot thinking). In memory only: it's gone after hibernation, which is fine. */
+  private activities = new Map<string, string>();
   /** Sweeps run on a fixed cadence from the last one, so busy rooms still get swept. */
   private lastSweepAt = Date.now();
 
@@ -193,7 +196,7 @@ export class Room extends DurableObject<Env> {
       if (!this.allow(ws, "ops")) return;
       return this.send(ws, { type: "error", code: "bad_message", message: "Malformed message." });
     }
-    if (!this.allow(ws, msg.type === "chat" || msg.type === "setProfile" || msg.type === "renameRoom" ? "chat" : "ops")) {
+    if (!this.allow(ws, msg.type === "chat" || msg.type === "setProfile" || msg.type === "renameRoom" || msg.type === "activity" ? "chat" : "ops")) {
       return this.onLimited(ws, msg);
     }
 
@@ -206,6 +209,8 @@ export class Room extends DurableObject<Env> {
     switch (msg.type) {
       case "setProfile":
         return this.onSetProfile(playerId, msg.name, msg.color);
+      case "activity":
+        return this.setActivity(playerId, msg.text === null ? "" : sanitizeActivity(msg.text));
       case "renameRoom":
         return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onRenameRoom(playerId, msg.name)));
       case "leaveRoom":
@@ -334,6 +339,13 @@ export class Room extends DurableObject<Env> {
     await this.scheduleAlarm();
   }
 
+  private setActivity(playerId: string, text: string) {
+    if ((this.activities.get(playerId) ?? "") === text) return;
+    if (text) this.activities.set(playerId, text);
+    else this.activities.delete(playerId);
+    this.broadcast({ type: "members", members: this.getMembers() });
+  }
+
   private onSetProfile(playerId: string, raw: string, color: number) {
     const name = sanitizeName(raw);
     const before = this.sql.exec<MemberRow>(`SELECT * FROM members WHERE id = ?`, playerId).toArray()[0];
@@ -363,6 +375,7 @@ export class Room extends DurableObject<Env> {
     const member = this.getMember(playerId);
     if (member && member.kind !== "bot") return this.ack(ws, cid, fail("not_a_bot", "Only bots leave a room for good."));
     if (member) {
+      this.activities.delete(playerId);
       this.sql.exec(`DELETE FROM members WHERE id = ?`, playerId);
       const owner = member.ownerId ? this.getMember(member.ownerId) : null;
       const msg = this.insertChat("system", null, null, owner ? `${owner.name} removed ${member.name}.` : `${member.name} left the room.`);
@@ -449,6 +462,7 @@ export class Room extends DurableObject<Env> {
   private onDisconnect(ws: WebSocket) {
     const playerId = this.attachment(ws)?.playerId;
     if (!playerId || this.isOnline(playerId, ws)) return;
+    this.activities.delete(playerId);
     this.sql.exec(`UPDATE members SET last_seen_at = ? WHERE id = ?`, Date.now(), playerId);
     this.broadcast({ type: "members", members: this.getMembers() }, ws);
   }
@@ -692,6 +706,7 @@ export class Room extends DurableObject<Env> {
       ownerId: row.owner_id ?? null,
       color,
       online: online.has(row.id),
+      ...(this.activities.has(row.id) ? { activity: this.activities.get(row.id)! } : {}),
       joinedAt: row.joined_at,
       lastSeenAt: row.last_seen_at,
     };

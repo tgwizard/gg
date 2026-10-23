@@ -62,7 +62,7 @@ export function HomePage() {
             <h1 className="display logo">
               gg<span className="logo-dot">.</span>
             </h1>
-            <p className="tagline">Games with friends. Make a room, share the link, play.</p>
+            <p className="tagline">Games with friends. Make a room, share the link, play. Perhaps add an AI bot?</p>
             <p className="label">No accounts · No installs · Private by link</p>
           </div>
           <HeroGames />

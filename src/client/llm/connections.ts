@@ -2,9 +2,9 @@
  * The user's LLM connections (API keys), kept in localStorage only. `clientFor` turns
  * one into an LLMClient; the provider SDKs load on first use.
  */
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { storage } from "../storage";
-import type { Connection, LLMClient, LLMModel, Provider } from "./types";
+import type { Connection, Effort, LLMClient, LLMModel, Provider } from "./types";
 
 const KEY = "gg.llm.connections";
 const EVENT = "gg:llm";
@@ -15,6 +15,13 @@ export const PROVIDERS: Record<Provider, { name: string; billing: string; cheape
   anthropic: { name: "Anthropic API", billing: "Billed to your Anthropic API account.", cheapest: (ids) => ids.find((id) => id.includes("haiku")) },
   meta: { name: "Meta Model API", billing: "Billed to your Meta developer account.", cheapest: (ids) => ids.find((id) => id.endsWith("-contributor")) },
 };
+
+/** How hard the model thinks. Lower is faster and cheaper, which suits most game moves. */
+export const EFFORTS: { id: Effort; label: string }[] = [
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High" },
+];
 
 /** The model a new connection starts on: the provider's cheapest, else its newest. */
 export function defaultModel(provider: Provider, models: LLMModel[]): string | undefined {
@@ -98,4 +105,27 @@ export async function clientFor(c: Connection): Promise<LLMClient> {
       return openAIClient({ baseURL: META_API, providerName: "Meta", apiKey: c.apiKey, listModels: listMetaModels });
     }
   }
+}
+
+/**
+ * A connection's chat models: the list saved with it, refreshed from the provider when
+ * there isn't one yet. Null while loading.
+ */
+export function useModels(c: Connection | undefined): string[] | null {
+  const [fetched, setFetched] = useState<{ id: string; models: string[] } | null>(null);
+  useEffect(() => {
+    if (!c || c.models?.length) return;
+    const abort = new AbortController();
+    clientFor(c)
+      .then((client) => client.listModels(abort.signal))
+      .then((list) => {
+        const models = list.map((m) => m.id);
+        setFetched({ id: c.id, models });
+        updateConnection(c.id, { models });
+      })
+      .catch(() => {});
+    return () => abort.abort();
+  }, [c?.id, c?.apiKey]);
+  if (!c) return null;
+  return c.models?.length ? c.models : fetched?.id === c.id ? fetched.models : null;
 }

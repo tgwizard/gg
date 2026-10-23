@@ -7,11 +7,40 @@ export function playerStyle(color: number): CSSProperties {
   return { "--pc": c.hex, "--pc-ink": c.ink } as CSSProperties;
 }
 
-const Players = createContext<{ colors: ReadonlyMap<string, number>; bots: ReadonlySet<string> }>({ colors: new Map(), bots: new Set() });
+interface PlayersInfo {
+  colors: ReadonlyMap<string, number>;
+  bots: ReadonlySet<string>;
+  /** What members are up to right now (e.g. a bot thinking). */
+  activities: ReadonlyMap<string, string>;
+}
 
-/** Makes each room member's color, and which members are bots, available to everything below (chat, games). */
-export function PlayersProvider({ colors, bots, children }: { colors: ReadonlyMap<string, number>; bots: ReadonlySet<string>; children: ReactNode }) {
-  return <Players.Provider value={useMemo(() => ({ colors, bots }), [colors, bots])}>{children}</Players.Provider>;
+const Players = createContext<PlayersInfo>({ colors: new Map(), bots: new Set(), activities: new Map() });
+
+/** Makes each room member's color, which members are bots, and what they're up to available to everything below (chat, games). */
+export function PlayersProvider({ colors, bots, activities, children }: PlayersInfo & { children: ReactNode }) {
+  return <Players.Provider value={useMemo(() => ({ colors, bots, activities }), [colors, bots, activities])}>{children}</Players.Provider>;
+}
+
+export function useActivity(): (playerId: string) => string | undefined {
+  const { activities } = useContext(Players);
+  return (id) => activities.get(id);
+}
+
+/**
+ * What someone is up to: a speech bubble with the text and three bobbing dots, or
+ * (`compact`, for tight rows) just the dots, with the text as a tooltip.
+ */
+export function ActivityBubble({ text, compact }: { text: string; compact?: boolean }) {
+  return (
+    <span className={`activity ${compact ? "activity-compact" : "activity-bubble"}`} role="status" title={compact ? text : undefined}>
+      <span className={compact ? "visually-hidden" : undefined}>{text}</span>
+      <span className="activity-dots" aria-hidden>
+        <i />
+        <i />
+        <i />
+      </span>
+    </span>
+  );
 }
 
 /** Look up players' colors; someone who's left the room gets a stable stand-in. */

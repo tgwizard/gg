@@ -113,6 +113,14 @@ these through the browser and reports back.
 - [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list.
 - [ ] Another player sees your bot as *bot* (hover: "Adam's bot") without a ×.
 
+### AI bots (needs an AI key in `/settings`)
+- [ ] Add a bot, *Plays*: your key. Model and effort default to the cheapest model at low effort; the preview says so. *Configure AI settings* is always in the popup; your profile popup links to all settings, and settings has *Back to the room*.
+- [ ] Say hello before any game: it answers in character. Start a game: it sits, plays its moves within a few seconds, and chats now and then (not after every move).
+- [ ] While its model works, a bubble over its nameplate says what it's doing, and dots show on its avatar in the members list (the name stays readable).
+- [ ] Edit it: tokens used so far; change model or effort and it uses them from its next move.
+- [ ] Remove the key in settings (or use a bad one): the bot shows *AI problem* and the Easy bot plays its moves, so the game never waits.
+- [ ] *?* in a game's header shows How to play.
+
 ### Lifecycle & layout
 - [ ] The gear next to *End game* shows the running game's settings (turn timer, and for poker chips and blinds).
 - [ ] *End game* asks for confirmation and returns everyone to the picker. A new game can start.

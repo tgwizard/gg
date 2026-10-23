@@ -1,9 +1,10 @@
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PLAYER_COLORS } from "../../shared/colors";
 import { MAX_NAME_LENGTH } from "../../shared/protocol";
 import { Avatar, playerStyle } from "../../ui";
 import { noAutofill } from "../noAutofill";
+import { SettingsLink } from "./SettingsLink";
 
 /**
  * The palette as a radio group. `taken` marks colors others in the room have: you can
@@ -62,6 +63,10 @@ export function ProfileForm(props: {
   /** Whose profile it is, if not yours (e.g. "Bot"): labels the fields "Bot's name", "Bot's color". */
   whose?: string;
   bot?: boolean;
+  /** A line under the name in the preview (default: the color's name). */
+  caption?: string;
+  /** More fields, between the color and the buttons. */
+  children?: ReactNode;
 }) {
   const nameLabel = props.whose ? `${props.whose}'s name` : "Your name";
   const colorLabel = props.whose ? `${props.whose}'s color` : "Your color";
@@ -79,7 +84,7 @@ export function ProfileForm(props: {
           <strong className="name" style={playerStyle(color)}>
             {name.trim() || nameLabel}
           </strong>
-          <span className="muted small">{PLAYER_COLORS[color]!.name}</span>
+          <span className="muted small">{props.caption ?? PLAYER_COLORS[color]!.name}</span>
         </div>
       </div>
       <NameField value={name} onChange={setName} label={nameLabel} autoFocus />
@@ -87,6 +92,7 @@ export function ProfileForm(props: {
         <span>{colorLabel}</span>
         <ColorPicker value={color} onChange={setColor} taken={props.taken} label={colorLabel} />
       </div>
+      {props.children}
       <div className="row">
         <button className="btn primary" disabled={!name.trim()}>
           {props.submitLabel}
@@ -123,16 +129,37 @@ export function ProfileMenu(props: { name: string; color: number; onSave(name: s
               setOpen(false);
             }}
             onCancel={() => setOpen(false)}
-          />
+          >
+            <p className="muted small profile-settings-link">
+              <SettingsLink>All settings</SettingsLink>: AI keys, and the data gg keeps in this browser.
+            </p>
+          </ProfileForm>
         </Popover>
       )}
     </div>
   );
 }
 
-/** A small dialog under `anchor`, right-aligned with it; clicking elsewhere closes it. */
+/**
+ * A small dialog under `anchor`, right-aligned with it, moved up if it would run off
+ * the bottom of the window (and scrolling inside if it's taller than the window).
+ * Clicking elsewhere closes it.
+ */
 export function Popover({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose(): void; children: ReactNode }) {
   const pop = useRef<HTMLDivElement>(null);
+  const rect = anchor.getBoundingClientRect();
+  const [top, setTop] = useState(rect.bottom + 10);
+  const below = rect.bottom + 10;
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!el) return;
+    // Re-placed whenever its content grows or shrinks (e.g. a field appears).
+    const place = () => setTop(Math.max(12, Math.min(below, window.innerHeight - el.offsetHeight - 12)));
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [below]);
   useEffect(() => {
     const close = (e: PointerEvent) => {
       const t = e.target as Node;
@@ -141,14 +168,13 @@ export function Popover({ anchor, label, onClose, children }: { anchor: HTMLElem
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [anchor, onClose]);
-  const rect = anchor.getBoundingClientRect();
   return createPortal(
     <div
       ref={pop}
       className="profile-pop box"
       role="dialog"
       aria-label={label}
-      style={{ top: rect.bottom + 10, right: Math.max(12, window.innerWidth - rect.right) }}
+      style={{ top, right: Math.max(12, window.innerWidth - rect.right) }}
     >
       {children}
     </div>,

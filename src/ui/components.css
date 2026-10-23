@@ -123,6 +123,7 @@ select:disabled { cursor: not-allowed; opacity: 0.6; }
 }
 .tag.accent { color: var(--on-accent); background: var(--accent); border-color: var(--accent); }
 .tag.gold { color: #3a2e24; background: var(--gold); border-color: var(--gold); }
+.tag.danger { color: #fffaf2; background: var(--danger); border-color: var(--danger); }
 .tag.brand { color: var(--on-brand); background: var(--brand-3); border-color: var(--brand-3); }
 
 /* A round status light. */
@@ -252,6 +253,42 @@ details.log li:nth-child(odd) { background: var(--surface-2); }
 .avatar.sm .avatar-status { width: 8px; height: 8px; right: -3px; bottom: -3px; }
 .avatar-status.on { background: var(--good); }
 .avatar-status.off { background: var(--text-muted); }
+
+/* What someone is up to: a bubble over a nameplate, or inline in a list. */
+.activity { display: inline-flex; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.activity-compact { position: relative; color: var(--text-muted); padding: 3px 7px; border-radius: var(--pill); background: var(--surface-2); flex-shrink: 0; }
+.activity-bubble {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 50%;
+  translate: -50% 0;
+  z-index: 6;
+  padding: 5px 10px;
+  border-radius: var(--pill);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-md);
+  animation: activity-in 160ms ease-out both;
+}
+.activity-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% -4px;
+  width: 8px;
+  height: 8px;
+  rotate: 45deg;
+  background: var(--surface);
+  border: solid var(--line-strong);
+  border-width: 0 1px 1px 0;
+}
+.activity-dots { display: inline-flex; gap: 2px; }
+.activity-dots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: bob 0.9s ease-in-out infinite; }
+.activity-dots i:nth-child(2) { animation-delay: 0.15s; }
+.activity-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes activity-in { from { opacity: 0; translate: -50% 4px; } }
 
 /* The color picker: a radio group of swatches. */
 .swatches { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; max-width: 320px; }

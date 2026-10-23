@@ -29,6 +29,7 @@ import {
   type ServerMessage,
   sanitizeChat,
 } from "../../shared/protocol";
+import { devLog } from "../devlog";
 
 export type ConnectionStatus =
   | "connecting"
@@ -187,11 +188,19 @@ export class RoomClient {
     };
   }
 
+  /** For logs: whose connection this is. */
+  private who(): string {
+    return this.owner ? `bot ${this.name}` : `you (${this.name})`;
+  }
+
   private toast(text: string) {
     for (const l of this.toastListeners) l(text);
   }
 
   private update(patch: Partial<RoomSnapshot>) {
+    if (patch.status && patch.status !== this.snapshot.status) {
+      devLog(this.roomId, this.who(), `status ${patch.status}`, patch.attempt ? { attempt: patch.attempt } : undefined);
+    }
     this.snapshot = { ...this.snapshot, ...patch };
     for (const l of this.listeners) l();
   }
@@ -214,6 +223,11 @@ export class RoomClient {
     if (this.welcomed) this.sendRaw({ type: "setProfile", name, color });
   }
 
+  /** What you're up to (null when done). Only sent while connected: it's of the moment. */
+  setActivity(text: string | null) {
+    if (this.isConnected()) this.sendRaw({ type: "activity", text });
+  }
+
   renameRoom(name: string) {
     return this.request({ type: "renameRoom", cid: crypto.randomUUID(), name }, "room");
   }
@@ -233,10 +247,11 @@ export class RoomClient {
     return this.request({ type: "leaveRoom", cid: crypto.randomUUID() }, "room");
   }
 
-  sendGameOp(op: unknown) {
+  /** A move, made against the game as you see it now (or as of `ifVersion`). */
+  sendGameOp(op: unknown, ifVersion?: number) {
     const game = this.snapshot.game;
     if (!game) return Promise.reject(new RequestError("no_game", "No game is running."));
-    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId: game.instanceId, op, ifVersion: game.version }, "game");
+    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId: game.instanceId, op, ifVersion: ifVersion ?? game.version }, "game");
   }
 
   // --- outbox --------------------------------------------------------------
@@ -262,6 +277,7 @@ export class RoomClient {
   private settle(cid: string, error: RequestError | null) {
     const out = this.outbox.get(cid);
     if (!out) return;
+    if (error) devLog(this.roomId, this.who(), "refused", { request: out.msg, code: error.code, message: error.message });
     this.outbox.delete(cid);
     if (out.kind === "chat") this.update({ pendingChat: this.snapshot.pendingChat.filter((p) => p.cid !== cid) });
     if (error) out.reject(error);
@@ -455,6 +471,7 @@ export class RoomClient {
           return this.toast(msg.message);
         }
         console.warn("server error", msg);
+        devLog(this.roomId, this.who(), "server error", msg);
     }
   }
 }

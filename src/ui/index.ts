@@ -15,6 +15,6 @@ export { hash2 } from "./hash";
 export { Meter } from "./Meter";
 export { applyMode, type Mode, toggleMode, useMode } from "./mode";
 export { Panel } from "./Panel";
-export { Avatar, BotIcon, PlayerName, PlayersProvider, playerStyle, useIsBot, usePlayerColors } from "./players";
+export { ActivityBubble, Avatar, BotIcon, PlayerName, PlayersProvider, playerStyle, useActivity, useIsBot, usePlayerColors } from "./players";
 export { Spinner } from "./Spinner";
 export { useMedia, useNarrow } from "./useMedia";

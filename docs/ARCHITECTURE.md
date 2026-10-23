@@ -260,8 +260,14 @@ cross-origin requests with an API key (`access-control-allow-origin: *`; Anthrop
 needs its `anthropic-dangerous-direct-browser-access` opt-in, which its SDK sends).
 
 - **`LLMClient`** (`types.ts`) is the provider-neutral surface: `listModels()` and
-  `generate({ model, instructions, messages, maxOutputTokens, effort, onText })`,
-  with errors mapped to `LLMError` codes (`auth`, `rate_limit`, `refused`, …).
+  `generate({ model, instructions, messages, tools, effort, cache, onText })`,
+  returning text, tool calls and usage (with cached input tokens), with errors
+  mapped to `LLMError` codes (`auth`, `rate_limit`, `refused`, …). Messages carry
+  text, tool calls and tool results; an assistant turn also keeps the provider's
+  own record of it (`native`: Anthropic content blocks, Responses output items with
+  encrypted reasoning), sent back as-is so multi-turn conversations stay intact.
+  `cache` sets Anthropic's top-level `cache_control`; OpenAI and Meta cache shared
+  prefixes on their own.
   `clientFor(connection)` (`connections.ts`) picks the adapter and loads its SDK on
   first use, so the provider SDKs stay out of the main bundle.
 - **Adapters:** `openai.ts` (Responses API, official SDK) serves an OpenAI key and a
@@ -314,23 +320,48 @@ A bot is just another member of the room, played from its owner's browser:
   tab playing it gives up its seat and sends `leaveRoom`, which removes the member
   and closes its connections with `Left` so it doesn't come back.
 
-**Next: LLM bots.** Same harness, with the owner's AI connection deciding instead
-of `bot.easy`, and nothing leaving the browser but moves and chat. The plan:
+### AI bots (`src/client/bots/ai`)
 
-- One tool, `act({ op?, say? })`: the move (the game's `opSchema` as JSON Schema)
-  and/or something to say in chat; an empty call passes. Results (accepted, or the
-  game's error) go back to the model, which may retry a few times.
-- An append-only prompt, so it's mostly cache hits: a shared system prompt, the
-  game's rules (one text, also shown in an in-game help box), the tool, then the
-  room chat as it happens (game announcements are already public) and the bot's
-  view plus legal moves at each wake-up. A fresh transcript per game or hand.
-- Woken by events, not a timer: its turn, a change in its view, chat (grouped over
-  a couple of seconds), plus a slow heartbeat when something changed. One call at a
-  time per bot; turn calls first.
-- Replies to people aren't throttled; unprompted chatter is. Bots may talk to each
-  other on a budget that people and game events top up.
-- Difficulty maps to model and effort, plus a persona in the prompt; tokens used
-  are shown to the owner, who pays for them.
+An AI bot is the same bot, with the owner's model deciding instead of `bot.easy`.
+When adding one you pick one of your AI keys, a model and an effort (the cheapest
+model at low effort by default; a key's model list is saved with it), and
+optionally a personality. Only moves and chat leave the browser.
+
+- **One tool**, `act({ op?, say? })`: `op` is the game's own `opSchema` as JSON
+  Schema, minus table moves (those stay with `botMove`'s table logic), checked
+  with the schema before it's sent; `say` is one chat message; neither is a pass.
+  Tool choice stays `auto` (the newest Claude models reject forced tool use), and a
+  pass on its own move gets one nudge before the Easy bot moves for it.
+- **An append-only conversation** per game (`prompt.ts`): instructions (being a bot
+  in gg, the persona, the game's `rules` and `botNotes`), the tool, then one user
+  turn per wake-up: chat and game news since the last one, the bot's view if it
+  changed, and its legal moves. The `act` call's result opens the next update.
+  Nothing earlier ever changes, so each request is mostly a cache hit. A new game,
+  a changed setup, or 80 messages start a fresh conversation with recent chat.
+  Between games there's a lobby conversation with a chat-only tool.
+- **Woken by events** (`AiBrain`): its move (right away), people talking (after a
+  2.5 s pause, so a burst is one call), other bots talking (on a budget of 3 that
+  people and game news refill, so bots can banter but not forever), and a 60 s
+  heartbeat while there's unseen news. One call at a time, at most 8 a minute;
+  unprompted chat at most every 30 s; replies to people aren't limited.
+- **Never stalls a table:** a failed call or a refused move (after a few tries) and
+  the Easy bot plays that move. Moves carry the game version the model saw, so a
+  move for a situation that's moved on is refused as stale and the bot looks again.
+- **What it's doing** (`activity`): while its model works, the bot tells the room
+  ("Thinking about its move", "Reading the chat"), which relays it to everyone as
+  `Member.activity` (kept in memory, cleared on disconnect). It shows as a bubble
+  over its nameplate and dots on its avatar in the members list.
+- **Usage** (tokens in, cached, out, calls) and the last error are kept on the
+  bot's record and shown when editing it.
+
+Every game has `meta.rules` (also shown in the game's "How to play" help) and
+optional `meta.botNotes` (how its view and moves are written, for models).
+
+**Dev logs.** Bots live in the browser, so in dev they (and every room connection)
+report through `devLog` to a Vite dev-server endpoint, which writes
+`logs/<YYYY-MM-DD>/<room>.log` and a line to the terminal: each wake-up and why, the
+update sent, the answer with timing and tokens, what came of it, stand-ins and
+errors. Production builds drop it; e2e runs turn it off (`GG_DEV_LOGS=0`).
 
 ## Limits
 

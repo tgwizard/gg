@@ -1,6 +1,6 @@
 /** The Anthropic Messages API with a user's own API key. */
 import Anthropic from "@anthropic-ai/sdk";
-import { httpError, type LLMClient, LLMError } from "./types";
+import { httpError, type LLMClient, LLMError, type LLMMessage } from "./types";
 
 /** Models that take server-side refusal fallbacks (re-run a declined request on another model). */
 const FALLBACK_MODELS = new Set(["claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
@@ -23,8 +23,11 @@ export function anthropicClient(apiKey: string): LLMClient {
           model: req.model,
           max_tokens: req.maxOutputTokens ?? 16000,
           ...(req.instructions !== undefined ? { system: req.instructions } : {}),
-          messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+          messages: req.messages.map(toParam),
+          ...(req.tools?.length ? { tools: req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters as Anthropic.Tool.InputSchema })) } : {}),
           ...(req.effort ? { output_config: { effort: req.effort } } : {}),
+          // Moves the cache marker to the end of the conversation on every request.
+          ...(req.cache ? { cache_control: { type: "ephemeral" as const } } : {}),
         };
         const onText = (delta: string) => req.onText?.(delta);
         let message: Anthropic.Message | Anthropic.Beta.BetaMessage;
@@ -39,11 +42,39 @@ export function anthropicClient(apiKey: string): LLMClient {
         }
         if (message.stop_reason === "refusal") throw new LLMError("refused", "The model declined this request.");
         let text = "";
-        for (const block of message.content) if (block.type === "text") text += block.text;
-        return { text, usage: { inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens } };
+        const toolCalls = [];
+        for (const block of message.content) {
+          if (block.type === "text") text += block.text;
+          if (block.type === "tool_use") toolCalls.push({ id: block.id, name: block.name, input: block.input });
+        }
+        const { input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens } = message.usage;
+        return {
+          text,
+          toolCalls,
+          message: { role: "assistant", content: text, native: message.content },
+          usage: {
+            inputTokens: input_tokens + (cache_read_input_tokens ?? 0) + (cache_creation_input_tokens ?? 0),
+            outputTokens: output_tokens,
+            cachedInputTokens: cache_read_input_tokens ?? 0,
+          },
+        };
       });
     },
   };
+}
+
+/** One conversation turn as a Messages API message; tool results go first in a user turn. */
+function toParam(m: LLMMessage): Anthropic.MessageParam {
+  if (m.role === "assistant" && Array.isArray(m.native)) return { role: "assistant", content: m.native as Anthropic.ContentBlockParam[] };
+  if (typeof m.content === "string") return { role: m.role, content: m.content };
+  const results: Anthropic.ContentBlockParam[] = [];
+  const rest: Anthropic.ContentBlockParam[] = [];
+  for (const p of m.content) {
+    if (p.type === "tool_result") results.push({ type: "tool_result", tool_use_id: p.callId, content: p.content, ...(p.isError ? { is_error: true } : {}) });
+    else if (p.type === "tool_call") rest.push({ type: "tool_use", id: p.id, name: p.name, input: p.input });
+    else rest.push({ type: "text", text: p.text });
+  }
+  return { role: m.role, content: [...results, ...rest] };
 }
 
 async function wrap<T>(fn: () => Promise<T>): Promise<T> {

@@ -179,6 +179,26 @@ describe("bots", () => {
     expect(bot.closed?.code).toBe(CloseCode.Left);
   });
 
+  it("shows everyone what a member is up to, until they're done or gone", async () => {
+    const room = await createRoom();
+    const { client: alice } = await TestClient.join(room, secret("alice"), "Alice");
+    const { client: bot, welcome: bw } = await TestClient.join(room, secret("beep"), "Beep", null, 0, secret("alice"));
+    const activityOf = (m: { members: { id: string; activity?: string }[] }) => m.members.find((x) => x.id === bw.you.id)?.activity;
+
+    const thinking = alice.next("members", (m) => activityOf(m) === "Thinking about its move");
+    bot.send({ type: "activity", text: "  Thinking about\u200b its move  " });
+    await thinking;
+    const done = alice.next("members", (m) => activityOf(m) === undefined);
+    bot.send({ type: "activity", text: null });
+    await done;
+
+    bot.send({ type: "activity", text: "x".repeat(100) });
+    expect(activityOf(await alice.next("members", (m) => activityOf(m) !== undefined))).toHaveLength(40);
+    const gone = alice.next("members", (m) => activityOf(m) === undefined);
+    bot.close();
+    await gone;
+  });
+
   it("caps how many bots one player can add", async () => {
     const room = await createRoom();
     await TestClient.join(room, secret("alice"), "Alice");

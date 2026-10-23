@@ -109,3 +109,20 @@ test("a bot plays from one tab at a time, and another tab takes over when it clo
   await second.getByRole("button", { name: `Remove ${bot}` }).click();
   await expect(member(second)).toHaveCount(0);
 });
+
+test("settings are a click away from the bot and profile popups, with a way back to the room", async ({ browser }) => {
+  const { page } = await newPlayer(browser);
+  const url = await createRoom(page, "Alice");
+
+  await page.getByRole("button", { name: "+ Add a bot" }).click();
+  await page.getByRole("dialog", { name: "Add a bot" }).getByRole("link", { name: "Configure AI settings" }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await page.getByRole("link", { name: "← Back to the room" }).click();
+  await expect(page).toHaveURL(url);
+  await expectConnected(page);
+
+  await page.getByRole("button", { name: "Alice" }).click();
+  await page.getByRole("dialog", { name: "Your profile" }).getByRole("link", { name: "All settings" }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.getByRole("link", { name: "← Back to the room" })).toBeVisible();
+});

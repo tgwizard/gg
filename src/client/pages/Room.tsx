@@ -54,6 +54,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
   const toast = useToast();
   const colors = useMemo(() => new Map(snapshot.members.map((m) => [m.id, m.color])), [snapshot.members]);
   const botIds = useMemo(() => new Set(snapshot.members.filter((m) => m.kind === "bot").map((m) => m.id)), [snapshot.members]);
+  const activities = useMemo(() => new Map(snapshot.members.flatMap((m) => (m.activity ? [[m.id, m.activity] as const] : []))), [snapshot.members]);
   // Colors other members have, for the picker.
   const taken = useMemo(
     () => new Map(snapshot.members.filter((m) => m.id !== snapshot.you?.id).map((m) => [m.color, m.name])),
@@ -106,7 +107,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
   const connected = snapshot.status === "connected";
   const you = snapshot.you;
   return (
-    <PlayersProvider colors={colors} bots={botIds}>
+    <PlayersProvider colors={colors} bots={botIds} activities={activities}>
       <div className="room">
         <header className="topbar on-brand">
           <a
