@@ -159,7 +159,16 @@ export function HomePage() {
       </main>
 
       <footer className="home-footer">
-        <a href="https://github.com/tgwizard/gg">Open source</a> · MIT · Rooms are private to whoever has the link.
+        <a href="https://github.com/tgwizard/gg">Open source</a> · by Adam Renberg Tamm · Rooms are private to whoever has the link. ·{" "}
+        <a
+          href="/settings"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/settings");
+          }}
+        >
+          Settings
+        </a>
       </footer>
     </div>
   );

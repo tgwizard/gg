@@ -86,6 +86,19 @@ input::placeholder { color: var(--text-muted); opacity: 1; }
 input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
 input[type="range"] { box-shadow: none; border: none; padding: 0; background: transparent; accent-color: var(--accent); }
 input[type="number"] { border-radius: var(--radius-sm); }
+textarea { border-radius: var(--radius); }
+select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* Our own chevron, inset from the rounded edge (the native one hugs the border). */
+select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 42px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%), linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+  background-position: calc(100% - 23px) 52%, calc(100% - 18px) 52%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+select:disabled { cursor: not-allowed; opacity: 0.6; }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span:first-child { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }

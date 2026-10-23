@@ -8,11 +8,14 @@ SQLite storage), with a React SPA. Game logic is server-authoritative and modula
 Games so far: no-limit Texas Hold'em, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
 
 - **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.
-- **Names** are set once per browser and used in every room.
+- **Names** (and colors) are set once per browser and used in every room. Change
+  them, or delete everything gg keeps in your browser, at `/settings`.
 - **Resilient**: reconnects automatically, catches up on chat and game state, and
   survives refreshes, flaky networks and sleeping laptops without losing or
   duplicating actions.
 - **Private hands**: each player only ever receives their own view of the game.
+- **AI connections** (`/settings`): paste an Anthropic, OpenAI or Meta (Muse) key,
+  for the coming bots. Kept in your browser; gg's server never sees them.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it works (including the
 planned LLM bots) and [docs/QA.md](docs/QA.md) for the test and QA playbook.
