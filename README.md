@@ -6,7 +6,7 @@ Live at <https://gg.tgwizard.com>.
 Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSockets,
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
 Games so far: Coast to Coast (a fan-made take on Ticket to Ride), no-limit Texas Hold'em,
-Battleship, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
+chess, Battleship, Finns i sjön (Swedish Go Fish) and tic-tac-toe.
 
 - **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.
 - **Names** (and colors) are set once per browser and used in every room. Change
@@ -64,3 +64,6 @@ This needs `pnpm exec wrangler login` once. The custom domain `gg.tgwizard.com` 
 ## License
 
 MIT
+
+The chess pieces are by Colin M.L. Burnett (Cburnett), from Wikimedia Commons, under the
+3-clause BSD license (see `public/pieces/LICENSE`).

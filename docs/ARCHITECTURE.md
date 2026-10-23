@@ -269,6 +269,37 @@ Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firin
 - Leaving while placing calls the game off unscored; leaving while firing
   forfeits. *Play again* starts the next game with the opener alternating.
 
+### Chess (`src/games/chess`)
+
+Standard chess for two, with chess clocks.
+- **The rules** (`rules.ts`) are pure functions over a position (64 squares, a1 = 0):
+  legal moves (castling through or out of check refused, en passant, promotions,
+  pins), making a move, SAN and FEN, threefold-repetition keys (an en passant square
+  only counts when a pawn can take there) and insufficient material. It's checked
+  against the standard perft counts, and the board in the browser uses the same code
+  to show legal moves without asking the server.
+- **State** keeps the position as a FEN string, the moves (UCI and SAN), and the
+  position keys since the last capture or pawn move for repetition. A move op is UCI
+  (`{type: "move", move: "e7e8q"}`), which is also what AI bots send.
+- **Games** start when both seats fill; *Play again* starts the next with colors
+  swapped. They end on the board (mate, stalemate, repetition, fifty moves, too
+  little material) or off it (resigning, an accepted draw, time, leaving). Leaving
+  before your first move calls the game off unscored. One draw offer per move; it
+  stands until the other side answers or moves.
+- **Clocks** are Fischer: `minutes` each plus `increment` seconds per move. Only the
+  side to move's clock runs (`clock` is the time left as of `clockSince`), and its flag
+  is the game's one timer. Running out loses, or draws if the other side has only a
+  king. `minutes: 0` means no clock.
+- **The board** (`ui/Board.tsx`): click-click or drag, legal-move dots and capture
+  rings, last move and check highlights, a promotion picker on the file, and moves
+  slide into place (not the ones you dragged, nor with reduced motion) while a taken
+  piece is knocked off its square. The king can castle by moving two squares or onto
+  its rook. Each move records the piece and what it took (`moveFacts`), so the panel
+  says the last move in words ("Rivet's queen took your bishop on d5. Check!") and the
+  move list marks captures and checks. Your move
+  shows at once and is taken back if the server refuses it. Pieces are Cburnett's
+  SVGs (BSD) in `public/pieces`; square colors are tokens (`--board-*`).
+
 ### Coast to Coast (`src/games/ticket`)
 
 Ticket to Ride's rules on its North American map, under our own name: fan-made,
@@ -379,7 +410,8 @@ A bot is just another member of the room, played from its owner's browser:
   the time, poker plays loose and passive with a rough sense of hand strength,
   Finns i sjön asks for what it holds most of and remembers some asks, Battleship
   places at random and hunts around hits, Coast to Coast keeps its cheapest
-  tickets and claims routes on the cheapest path to them. It decides from the view
+  tickets and claims routes on the cheapest path to them, chess looks one move ahead
+  (mates, material, no free pieces for the other side) with some randomness. It decides from the view
   only, so it can't cheat. The conformance suite seats a table of Easy bots in every game and
   fails if the game ever waits on a bot that has no move.
 - **Where it runs.** While the owner has the room open. One tab plays each bot

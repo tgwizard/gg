@@ -24,6 +24,7 @@ node test/e2e/screens.ts http://localhost:5311 ./screens        # rooms + poker
 node test/e2e/screens-fish.ts http://localhost:5311 ./screens   # Finns i sjön
 node test/e2e/screens-battleship.ts http://localhost:5311 ./screens   # Battleship, light + dark
 node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Coast to Coast, light + dark
+node test/e2e/screens-chess.ts http://localhost:5311 ./screens        # Chess, light + dark
 ```
 
 ## 2. Manual scenarios
@@ -105,6 +106,20 @@ these through the browser and reports back.
 - [ ] Sink the fleet: winner announced in chat, both fleets revealed, *Play again* starts placing with the other player shooting first.
 - [ ] Leaving while placing calls the game off; leaving while firing forfeits.
 - [ ] Phone: while placing, your sea and the dock fit with the other side as just a nameplate; while firing, the sea you aim at comes first.
+
+### Chess
+- [ ] Setup: the time-control presets fill in minutes and increment; *No clock* hides the clocks.
+- [ ] Nobody seated: a "Take a seat" prompt over a greyed board; seated alone, "Waiting for an opponent". The second player sitting starts the game; seat 0 has White first.
+- [ ] Moving: click a piece then a square, or drag it. Legal squares get dots (rings for captures); a second click on the piece puts it down. Out of turn nothing picks up. Black's board is upside down; ⇅ flips it.
+- [ ] Castling both ways (king two squares, or king onto the rook), en passant, and promotion (a picker of four pieces on the file; Escape cancels). The check square glows red with a pulse.
+- [ ] After each move the panel says it in words with little pieces ("Alice's bishop took your pawn on f7. You're in check!"), from your side ("Your…", "your…"). A taken piece is knocked off its square; captures show the taken piece in the move list, checks are red.
+- [ ] Clocks: only the side to move runs, the increment is added after each move, tenths show under 10 s and it turns red under 20 s. Let one run out: a loss on time (a draw if the other side has only a king).
+- [ ] Draws: *Offer draw* shows Accept/Decline to the other side; moving declines it; you can't offer again until the next move. Repetition, stalemate and insufficient material end the game on their own.
+- [ ] *Resign* asks first. The result shows in the panel and in chat; *Play again* swaps colors. Captured pieces and the material lead show under each name.
+- [ ] Leaving before your first move calls the game off; after, it's a loss.
+- [ ] *Copy PGN* pastes into an analysis board (e.g. lichess.org/paste).
+- [ ] Against an Easy bot: it answers within a couple of seconds and rarely leaves a piece to be taken for free.
+- [ ] Laptop (1440×900 and 1280×800): board, players, clocks and moves fit without scrolling. Phone: opponent above the board, you below, moves in a strip.
 
 ### Coast to Coast
 - [ ] Two to five sit down; *Start* deals 4 cards and offers 3 tickets to each. Hovering a ticket points out its cities on the map; *Keep* needs at least 2. Others only see "choosing tickets".

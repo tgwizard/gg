@@ -84,6 +84,13 @@
   --train-black: #3b3631;
   --train-gray: #aaa295;
   --train-loco: conic-gradient(from 200deg, #c8423a, #e58a2f, #ecc544, #5c9a4b, #3f7fbf, #d97aa6, #c8423a);
+  /* a chess board: maple and walnut squares, and what's drawn on them */
+  --board-light: #f0dcb6;
+  --board-dark: #b5855a;
+  --board-last: rgb(236 190 92 / 0.5);
+  --board-selected: rgb(91 138 74 / 0.55);
+  --board-hint: rgb(47 74 58 / 0.42);
+  --board-check: radial-gradient(circle, rgb(214 60 40 / 0.95) 0, rgb(214 60 40 / 0.55) 35%, transparent 72%);
 
   /* type & shape */
   --font-body: "Nunito Variable", system-ui, sans-serif;
@@ -153,6 +160,9 @@
   --map-halo: #e3d8bf;
   --ticket-face: #e4d3ae;
   --ticket-edge: #7a4e27;
+  --board-light: #d9c29a;
+  --board-dark: #93673f;
+  --board-last: rgb(236 190 92 / 0.42);
 
   color-scheme: dark;
 }
