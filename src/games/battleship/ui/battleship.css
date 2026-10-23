@@ -97,18 +97,48 @@
 .bs-cell.preview.bad { background: color-mix(in oklab, var(--danger) 55%, transparent); }
 
 /* pegs: cream for a miss, terracotta for a hit */
-.bs-peg { border-radius: 50%; box-shadow: var(--card-shadow); }
+.bs-peg { position: relative; border-radius: 50%; box-shadow: var(--card-shadow); transition: background-color 400ms ease 500ms; }
 .bs-cell.miss .bs-peg { width: 30%; height: 30%; background: var(--card-face); border: 1px solid var(--card-edge); }
 .bs-cell.hit .bs-peg { width: 46%; height: 46%; background: var(--accent); border: 2px solid var(--card-face); }
 .bs-cell.hit.sunk .bs-peg { background: var(--danger); }
 .bs-cell.last { box-shadow: inset 0 0 0 2px var(--gold); }
-.bs-cell.last .bs-peg { animation: bs-drop 320ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+
+/* A shot coming in live: the peg drops in with a splash for a miss, a burst for a hit,
+   and a ship that's sunk is shown rocking, then settling dark. */
+.bs-cell.landing { position: relative; z-index: 3; }
+.bs-cell.landing .bs-peg { animation: bs-drop 320ms cubic-bezier(0.3, 1.6, 0.5, 1); }
 @keyframes bs-drop {
   from { scale: 2; opacity: 0; }
   to { scale: 1; opacity: 1; }
 }
+.bs-cell.landing::before, .bs-cell.landing::after { content: ""; position: absolute; border-radius: 50%; opacity: 0; pointer-events: none; }
+.bs-cell.landing.miss::before, .bs-cell.landing.miss::after { inset: 22%; border: 2px solid var(--card-face); animation: bs-splash 700ms ease-out 150ms; }
+.bs-cell.landing.miss::after { animation-delay: 330ms; }
+@keyframes bs-splash {
+  from { scale: 0.4; opacity: 0.9; }
+  to { scale: 2.3; opacity: 0; }
+}
+.bs-cell.landing.hit::before {
+  inset: -45%;
+  background: radial-gradient(circle, var(--gold) 0 22%, color-mix(in oklab, var(--accent) 75%, transparent) 42%, transparent 68%);
+  animation: bs-burst 560ms ease-out 100ms;
+}
+.bs-cell.landing.sunk::before { inset: -80%; animation-duration: 720ms; }
+@keyframes bs-burst {
+  0% { scale: 0.25; opacity: 1; }
+  55% { opacity: 0.85; }
+  100% { scale: 1.2; opacity: 0; }
+}
+.bs-ship.sinking { animation: bs-sink 1100ms ease-in-out 250ms backwards; }
+@keyframes bs-sink {
+  0% { filter: none; scale: 1.06; }
+  25% { filter: none; scale: 1; rotate: 0deg; }
+  50% { rotate: -2.5deg; translate: 0 1px; }
+  75% { rotate: 1.5deg; translate: 0 2px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .bs-cell.last .bs-peg { animation: none; }
+  .bs-peg { transition: none; }
+  .bs-cell.landing .bs-peg, .bs-cell.landing::before, .bs-cell.landing::after, .bs-ship.sinking { animation: none; }
 }
 
 /* The other side's sea while fleets are being hidden. */

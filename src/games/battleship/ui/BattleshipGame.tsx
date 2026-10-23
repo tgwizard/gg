@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
@@ -25,6 +25,7 @@ import type { BsOp } from "../index";
 import "./battleship.css";
 
 type Props = GameUIProps<BsView, BsOp>;
+type Shot = Extract<BsEvent, { type: "shot" }>;
 const SIDES: Side[] = [0, 1];
 const LETTERS = "ABCDEFGHIJ";
 
@@ -50,6 +51,7 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
   const prompt: "pick" | "wait" | null = view.phase !== "waiting" ? null : mySeat === null ? "pick" : "wait";
 
   const placement = usePlacement(view, placing && !myBoard!.ready ? myBoard : null, send);
+  const landing = useLanding(view, connected);
 
   return (
     <div className="bs" data-testid="bs">
@@ -86,6 +88,7 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
                   target={myTurn && !mine}
                   underFire={view.phase === "firing" && shooter}
                   placement={mine ? placement : null}
+                  landing={board && landing?.target === board.playerId ? landing : null}
                   disabled={!connected || busy}
                   onFire={(cell) => send({ type: "fire", cell })}
                   caption={caption(view, board, mine, ownerId ? name(ownerId) : null)}
@@ -151,6 +154,24 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
       />
     </div>
   );
+}
+
+/**
+ * The shot that just came in, so it can land on its cell (and sink its ship). Only one
+ * that arrived live: nothing replays on first render, a refresh or a reconnect catching up.
+ */
+function useLanding(view: BsView, connected: boolean): Shot | null {
+  const fired = view.boards.reduce((n, b) => n + (b?.shots.length ?? 0), 0);
+  const [landing, setLanding] = useState<Shot | null>(null);
+  const seen = useRef({ fired, connected });
+  useLayoutEffect(() => {
+    const before = seen.current;
+    seen.current = { fired, connected };
+    if (fired === before.fired) return;
+    const shot = view.log.findLast((e): e is Shot => e.type === "shot") ?? null;
+    setLanding(fired === before.fired + 1 && before.connected && connected ? shot : null);
+  }, [fired, connected]);
+  return landing;
 }
 
 // --- placing ----------------------------------------------------------------
@@ -301,6 +322,8 @@ function Board(props: {
   /** Whoever's shooting is aiming at it. */
   underFire: boolean;
   placement: Placement | null;
+  /** The shot landing on this sea right now, if any. */
+  landing: Shot | null;
   disabled: boolean;
   onFire(cell: number): void;
   caption: ReactNode;
@@ -342,7 +365,7 @@ function Board(props: {
             return (
               <div
                 key={s.id}
-                className={`bs-ship ${s.vertical ? "vertical" : ""} ${s.sunk ? "sunk" : ""} ${placement?.active === s.id && placement.hover !== null ? "moving" : ""}`}
+                className={`bs-ship ${s.vertical ? "vertical" : ""} ${s.sunk ? "sunk" : ""} ${props.landing?.ship === s.id ? "sinking" : ""} ${placement?.active === s.id && placement.hover !== null ? "moving" : ""}`}
                 style={{ gridRow: s.vertical ? `${r + 2} / span ${s.cells.length}` : r + 2, gridColumn: s.vertical ? c + 2 : `${c + 2} / span ${s.cells.length}` }}
                 data-ship={s.id}
                 data-cells={s.cells.join(" ")}
@@ -360,6 +383,7 @@ function Board(props: {
               fired && (hit ? "hit" : "miss"),
               sunkCells.has(cell) && "sunk",
               cell === lastCell && "last",
+              cell === props.landing?.cell && "landing",
               previewCells.has(cell) && (preview!.ok ? "preview" : "preview bad"),
             ]
               .filter(Boolean)

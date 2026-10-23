@@ -93,6 +93,7 @@ these through the browser and reports back.
 ### Tic-tac-toe
 - [ ] Entering with no side picked: the board is greyed out with a "Pick a side" prompt (buttons in your color); seated alone, it says you're waiting for an opponent; watching a full game, the board is live and the status says you're watching.
 - [ ] Two players take X and O; the round starts at once; a win highlights the line, scores it and announces it in chat.
+- [ ] Motion: the mark just played pops in, and a win gets a line drawn across it in the winner's color; neither replays after a refresh, and with reduced motion the line is just there.
 - [ ] The next round starts on its own with the other player opening. Draws are counted.
 - [ ] Leaving mid-round forfeits it. Leaving and coming back keeps your win count.
 
@@ -101,6 +102,7 @@ these through the browser and reports back.
 - [ ] Placing: the next ship goes where you click (green/red preview on hover), *Rotate* or <kbd>R</kbd> turns it, clicking a placed ship picks it up, *Random* deals a fleet, *Ready* needs all five. With "ships may touch" off, touching ships are refused.
 - [ ] The other player only sees "placing…" / "ready" over a blank sea. DevTools → WS: no `row`/`col` of the opponent's ships ever arrives before game over.
 - [ ] Firing: misses get a cream peg, hits a terracotta one; a hit doesn't show the ship; a sinking shows the ship and says "You sank Bob's Cruiser". The defender is told which of their ships was hit.
+- [ ] Motion: the newest shot drops in with a splash for a miss and a burst for a hit, and a sunk ship rocks and settles dark; only shots that arrive live (not after a refresh or reconnect), none with reduced motion.
 - [ ] Strict alternation by default; with "a hit earns another shot" on, you keep shooting until you miss.
 - [ ] Let the clock run out: a random shot is fired for you; three in a row forfeits. The placement clock completes unfinished fleets at random.
 - [ ] Sink the fleet: winner announced in chat, both fleets revealed, *Play again* starts placing with the other player shooting first.

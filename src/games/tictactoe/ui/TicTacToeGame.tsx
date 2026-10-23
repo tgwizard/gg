@@ -1,3 +1,4 @@
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { playerStyle, usePlayerColors } from "../../../ui";
 import { Herald } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
@@ -19,6 +20,7 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
   };
   const myTurn = view.status === "playing" && view.turn === mySeat;
   const winLine = new Set(view.result?.line ?? []);
+  const fresh = useFreshMove(view.board, connected);
   const nextIn = view.nextRoundAt ? Math.max(0, Math.ceil((view.nextRoundAt - serverNow) / 1000)) : null;
   const open = ([0, 1] as Mark[]).filter((m) => !view.seats[m]);
   const opponentOf = (m: Mark) => view.seats[(1 - m) as Mark];
@@ -82,16 +84,19 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
         {view.board.map((cell, i) => (
           <button
             key={i}
-            className={`ttt-cell ${cell !== null ? `mark-${cell}` : ""} ${winLine.has(i) ? "win" : ""}`}
+            className={`ttt-cell ${cell !== null ? `mark-${cell}` : ""} ${winLine.has(i) ? "win" : ""} ${i === fresh ? "fresh" : ""}`}
             style={cell !== null ? markStyle(cell) : undefined}
             disabled={!myTurn || cell !== null || !connected}
             onClick={() => sendOp({ type: "place", cell: i })}
             aria-label={cell === null ? `Empty square ${i + 1}` : `${MARKS[cell]} in square ${i + 1}`}
             data-testid={`ttt-cell-${i}`}
           >
-            {cell === null ? "" : MARKS[cell]}
+            {cell === null ? "" : <span className="ttt-glyph">{MARKS[cell]}</span>}
           </button>
         ))}
+        {view.result?.line && view.result.winner !== null && (
+          <WinLine line={view.result.line} live={fresh !== null && winLine.has(fresh)} className={`mark-${view.result.winner}`} style={markStyle(view.result.winner)} />
+        )}
       </div>
       {prompt === "pick" && (
         <div className="ttt-prompt box" role="dialog" aria-label="Pick a side">
@@ -128,5 +133,39 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The square just played, so its mark can pop in. Only a move that arrived live: nothing
+ * replays on first render, a refresh or a reconnect catching up.
+ */
+function useFreshMove(board: (Mark | null)[], connected: boolean): number | null {
+  const key = board.map((c) => c ?? "-").join("");
+  const [fresh, setFresh] = useState<number | null>(null);
+  const seen = useRef({ key, connected });
+  useLayoutEffect(() => {
+    const before = seen.current;
+    seen.current = { key, connected };
+    if (key === before.key) return;
+    const changed = [...key].flatMap((c, i) => (c === before.key[i] ? [] : [i]));
+    const one = changed.length === 1 && before.key[changed[0]!] === "-";
+    setFresh(one && before.connected && connected ? changed[0]! : null);
+  }, [key, connected]);
+  return fresh;
+}
+
+/** A stroke through the winning three, drawn across them when the win comes in live. */
+function WinLine({ line, live, className, style }: { line: number[]; live: boolean; className: string; style?: CSSProperties }) {
+  const at = (i: number) => [(i % 3) + 0.5, Math.floor(i / 3) + 0.5] as const;
+  const [[x1, y1], [x2, y2]] = [at(line[0]!), at(line[line.length - 1]!)];
+  // Run a little past the centers of the end squares.
+  const [dx, dy] = [Math.sign(x2 - x1) * 0.3, Math.sign(y2 - y1) * 0.3];
+  return (
+    <svg className={`ttt-line ${live ? "live" : ""} ${className}`} style={style} viewBox="0 0 3 3" aria-hidden>
+      {["edge", "ink"].map((k) => (
+        <line key={k} className={k} x1={x1 - dx} y1={y1 - dy} x2={x2 + dx} y2={y2 + dy} pathLength={1} />
+      ))}
+    </svg>
   );
 }

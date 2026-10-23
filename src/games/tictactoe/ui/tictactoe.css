@@ -8,6 +8,7 @@
 .ttt .herald { width: min(100%, 460px); }
 
 .ttt-board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
@@ -38,7 +39,26 @@
 .ttt-cell:not(:disabled):hover { background: #fff3df; }
 .ttt-cell.mark-0 { color: color-mix(in oklab, var(--pc, var(--card-red)), black 8%); }
 .ttt-cell.mark-1 { color: color-mix(in oklab, var(--pc, #346a88), black 8%); }
-.ttt-cell.win { background: var(--gold); }
+/* Just a hint: the line drawn across says it. */
+.ttt-cell.win { background: color-mix(in oklab, var(--gold) 22%, var(--card-face)); }
+
+/* A mark played live pops in; a win that comes in live gets its line drawn across. */
+.ttt-cell.fresh .ttt-glyph { animation: ttt-pop 320ms cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes ttt-pop {
+  from { scale: 0.3; opacity: 0; }
+}
+.ttt-line { position: absolute; inset: 10px; width: calc(100% - 20px); height: calc(100% - 20px); pointer-events: none; overflow: visible; }
+/* in the winner's color, with a cream edge so it reads over marks of the same color */
+.ttt-line line { stroke-linecap: round; stroke-dasharray: 1; }
+.ttt-line .edge { stroke: var(--card-face); stroke-width: 0.16; }
+.ttt-line .ink { stroke: color-mix(in oklab, currentColor, black 8%); stroke-width: 0.09; }
+.ttt-line.live line { animation: ttt-draw 450ms cubic-bezier(0.5, 0, 0.3, 1) 280ms backwards; }
+@keyframes ttt-draw {
+  from { stroke-dashoffset: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ttt-cell.fresh .ttt-glyph, .ttt-line.live line { animation: none; }
+}
 .ttt-footer { display: flex; gap: 16px; align-items: center; }
 
 /* An empty seat. */
