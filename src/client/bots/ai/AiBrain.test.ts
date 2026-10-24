@@ -81,6 +81,16 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 describe("AiBrain", () => {
+  it("waits a moment after the game changed before moving, however quick the model", async () => {
+    generate = () => Promise.resolve(act({ op: { type: "place", cell: 4 } }));
+    const t = setup(snapshot("A", 3));
+    t.brain.observe();
+    await vi.advanceTimersByTimeAsync(900);
+    expect(t.sent).toEqual([]);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(t.sent.map((s) => s.op)).toEqual([{ type: "place", cell: 4 }]);
+  });
+
   it("never plays an answer into a game that started after the question", async () => {
     let answerA!: (r: LLMResult) => void;
     let calledB = false;

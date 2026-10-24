@@ -18,6 +18,7 @@
  * new conversation and cancels the call in flight, and an answer that arrives after the
  * game moved on is never played into it.
  */
+import { BOT_MIN_MOVE_MS } from "../../../games/kit/bot";
 import type { AnyGameDefinition } from "../../../games/types";
 import { clientFor, getConnection } from "../../llm/connections";
 import { type Effort, type LLMClient, LLMError, type LLMMessage, type LLMPart, type LLMUsage } from "../../llm/types";
@@ -73,7 +74,7 @@ const UNPROMPTED_SAY_MS = 30_000;
 const MAX_CALLS_PER_MINUTE = 8;
 const MAX_MOVE_CALLS_PER_MINUTE = 30;
 /** How long the built-in bot "thinks" when it stands in, like it does on its own. */
-const STAND_IN_MS: [number, number] = [600, 1500];
+const STAND_IN_MS: [number, number] = [BOT_MIN_MOVE_MS, 1800];
 const MAX_ATTEMPTS = 3;
 /** Model calls are given up on after this long; for its own move, before its clock runs out. */
 const CALL_TIMEOUT_MS = 90_000;
@@ -98,6 +99,8 @@ export class AiBrain {
   private seenChat = 0;
   private viewVersion: number | null = null;
   private seenVersion: number | null = null;
+  /** When it saw the game change last: it waits a moment from then before moving. */
+  private seenVersionAt = 0;
   private news = false;
   private botBudget = BOT_CHAT_BUDGET;
   private lastUnpromptedSay = 0;
@@ -159,6 +162,7 @@ export class AiBrain {
 
     if (game && game.version !== this.seenVersion) {
       this.seenVersion = game.version;
+      this.seenVersionAt = Date.now();
       this.news = true;
       if (gameMoves(game.legalOps ?? []).length) this.wake("turn");
     }
@@ -328,6 +332,10 @@ export class AiBrain {
       if (!moves.length) failed = "It isn't your move.";
       else {
         try {
+          // A quick model still leaves people a moment to see the last move.
+          const wait = this.seenVersionAt + BOT_MIN_MOVE_MS - Date.now();
+          if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+          if (this.stopped || generation !== this.generation) return;
           await this.host.sendOp(act.op, at!);
           notes.unshift("Move made.");
         } catch (e) {

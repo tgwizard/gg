@@ -8,6 +8,12 @@ import { isLobbyOp, type LobbyOp } from "./lobby";
 
 export type BotIntent = "play" | "leave";
 
+/**
+ * A bot never moves sooner than this after the game last changed, however quick its
+ * decision, so people see each move (a trick being taken, a disc landing) before the next.
+ */
+export const BOT_MIN_MOVE_MS = 1_000;
+
 /** The op to send next, or null to wait for something to change. */
 export function botMove(
   def: AnyGameDefinition,

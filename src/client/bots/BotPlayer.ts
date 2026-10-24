@@ -13,7 +13,7 @@
  * room together. Until the room confirms, the bot's record stays (marked `removing`),
  * so a removal made offline happens when you're back.
  */
-import { botMove, tableMove } from "../../games/kit/bot";
+import { BOT_MIN_MOVE_MS, botMove, tableMove } from "../../games/kit/bot";
 import type { AnyGameDefinition } from "../../games/types";
 import type { BotInfo } from "../../shared/protocol";
 import { devLog } from "../devlog";
@@ -24,7 +24,7 @@ import { gameMoves } from "./ai/prompt";
 import { addBotStandIn, addBotUsage, type BotRecord, forgetBot, setBotError } from "./store";
 
 /** How long a bot "thinks" before moving. */
-const THINK_MS: [number, number] = [600, 1500];
+const THINK_MS: [number, number] = [BOT_MIN_MOVE_MS, 1800];
 /** Until a person sits down, bots leave the seats to people for this long. */
 const SEAT_WAIT_MS = 10_000;
 const MAX_ATTEMPTS = 3;

@@ -626,7 +626,9 @@ A bot is just another member of the room, played from its owner's browser:
   added at a bounded rate. What a member is gets settled when they first join.
 - **Playing** (`BotPlayer`). The bot gets only its own redacted view, like
   anyone, plus `legalOps` (the server adds them to bots' snapshots). After every
-  change it waits a moment, like a person, then makes one move through the same
+  change it waits a moment, like a person (never under `BOT_MIN_MOVE_MS`, 1 s, for
+  built-in and AI bots alike, so people see each move before the next lands), then
+  makes one move through the same
   path as a click (with `ifVersion`, so a move against an old situation is refused
   and it looks again). It plays on the same turn clocks as everyone. Seats are left
   to people first: bots follow quickly once a person sits down, and otherwise wait
