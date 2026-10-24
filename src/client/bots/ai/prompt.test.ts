@@ -92,4 +92,15 @@ describe("updateText", () => {
   it("leaves table moves out of the legal moves", () => {
     expect(gameMoves([{ type: "leave" }, { type: "place", cell: 3 }, { type: "sitOut" }])).toEqual([{ type: "place", cell: 3 }]);
   });
+
+  it("never offers resigning, and tells optional moves from its own move", () => {
+    expect(gameMoves([{ type: "sit", seat: 1 }, { type: "mark", square: "A1" }, { type: "resign" }])).toEqual([{ type: "mark", square: "A1" }]);
+    const base = { chat: [], moves: [{ type: "offerDraw" }], names: new Map(), you: "me" };
+    expect(updateText(base)).toContain("It's your move. Legal moves:");
+    const optional = updateText({ ...base, turn: false });
+    expect(optional).toContain('It isn\'t your move, but you can do one of these if you want to:\n{"type":"offerDraw"}');
+    expect(optional).not.toContain("It's your move");
+    expect(parseAct(games.chess!, { op: { type: "resign" } }).error).toBe("Bots don't resign: play it out.");
+  });
 });
+

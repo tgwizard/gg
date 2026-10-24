@@ -240,6 +240,8 @@ export class AiBrain {
     const at = game ? { instanceId: game.instanceId, version: game.version } : null;
 
     const moves = game ? gameMoves(game.legalOps ?? []) : [];
+    // Its move only when the game waits on it; other moves it has (a draw offer, playing again) are up to it.
+    const turn = !!game && moves.length > 0 && (game.waitingOn ?? []).includes(you);
     const chat = snap.chat.filter((m) => m.seq > this.chatCursor && !(m.kind === "user" && m.playerId === you));
     if (!game && !chat.length && !this.results.length) return;
     const text = updateText({
@@ -247,6 +249,7 @@ export class AiBrain {
       ...(game && game.version !== this.viewVersion ? { view: game.view } : {}),
       inGame: !!game,
       moves,
+      turn,
       names: new Map(snap.members.map((m) => [m.id, m.name])),
       you,
       ...(reminder ? { reminder } : {}),
@@ -255,7 +258,7 @@ export class AiBrain {
     const model = this.setup.model ?? connection?.model;
     if (!connection || !model) {
       this.host.error(connection ? "Pick a model for its AI connection in Settings." : "Its AI connection was removed. Edit the bot to pick another.");
-      if (moves.length) this.standIn("its AI connection isn't set up");
+      if (turn) this.standIn("its AI connection isn't set up");
       return;
     }
     // Kept in case the call fails: then this update is dropped and goes out with the next one.
@@ -269,10 +272,10 @@ export class AiBrain {
     let answer;
     const started = Date.now();
     this.host.log("wake", { reasons: [...reasons], attempt, model, effort: this.setup.effort ?? "low", messages: this.messages.length, update: text });
-    this.host.activity(moves.length ? "Thinking about its move" : reasons.has("chat") ? "Reading the chat" : game ? "Watching the game" : "Thinking");
+    this.host.activity(turn ? "Thinking about its move" : reasons.has("chat") ? "Reading the chat" : game ? "Watching the game" : "Thinking");
     const call = new AbortController();
     this.call = call;
-    const watchdog = setTimeout(() => call.abort(), this.callTimeout(snap, moves.length > 0));
+    const watchdog = setTimeout(() => call.abort(), this.callTimeout(snap, turn));
     try {
       this.calls.push(Date.now());
       answer = await (await this.llm()).generate({
@@ -296,7 +299,7 @@ export class AiBrain {
       const message = tooSlow ? "The model took too long to answer." : e instanceof Error ? e.message : "Couldn't reach the model.";
       this.host.log("model error", { ms: Date.now() - started, message, code: e instanceof LLMError ? e.code : undefined });
       this.host.error(message);
-      if (moves.length) this.standIn(tooSlow ? "the model took too long" : `the model call failed (${message})`);
+      if (turn) this.standIn(tooSlow ? "the model took too long" : `the model call failed (${message})`);
       return;
     } finally {
       clearTimeout(watchdog);
@@ -313,7 +316,7 @@ export class AiBrain {
     for (const c of extra) this.results.push({ type: "tool_result", callId: c.id, content: "Ignored: one act per update.", isError: true });
     if (!use || use.name !== ACT) {
       if (use) this.results.push({ type: "tool_result", callId: use.id, content: `Unknown tool; use ${ACT}.`, isError: true });
-      if (moves.length) return this.passed(reasons, attempt, at!);
+      if (turn) return this.passed(reasons, attempt, at!);
       return;
     }
 
@@ -354,13 +357,13 @@ export class AiBrain {
     this.host.log("act", { op: act.op, say: act.say, failed, notes });
     if (failed) {
       this.results.push({ type: "tool_result", callId: use.id, content: [`Not accepted: ${failed}`, ...notes].join(" "), isError: true });
-      if (moves.length && attempt < MAX_ATTEMPTS) return this.think(new Set(["retry"]), attempt + 1);
-      if (moves.length) this.standIn(`its moves weren't accepted (${failed})`);
+      if (turn && attempt < MAX_ATTEMPTS) return this.think(new Set(["retry"]), attempt + 1);
+      if (turn) this.standIn(`its moves weren't accepted (${failed})`);
       return;
     }
     this.results.push({ type: "tool_result", callId: use.id, content: notes.join(" ") || "Passed." });
     // Chat alone (or nothing) on its own move is passing on it.
-    if (moves.length && act.op === undefined) return this.passed(reasons, attempt, at!);
+    if (turn && act.op === undefined) return this.passed(reasons, attempt, at!);
   }
 
   /** It passed on its own move: one nudge, then the built-in bot moves for it (if that's still the move). */

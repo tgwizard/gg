@@ -48,6 +48,8 @@ export const BotInfo = z.object({
   model: z.string().max(80).optional(),
   provider: z.string().max(40).optional(),
   effort: z.enum(["low", "medium", "high"]).optional(),
+  /** How it talks and plays, as its owner put it. */
+  persona: z.string().max(300).optional(),
 });
 export type BotInfo = z.infer<typeof BotInfo>;
 

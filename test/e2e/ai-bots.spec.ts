@@ -52,8 +52,8 @@ test("an AI bot plays tic-tac-toe and chats", async ({ browser }) => {
   });
 
   await createRoom(page, "Alice");
-  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a bot" });
+  await page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  const dialog = page.getByRole("dialog", { name: "Invite a bot" });
   await dialog.getByLabel("Bot's name").fill("Pirate");
   await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });
   // The cheapest model at low effort, unless picked otherwise.
@@ -61,7 +61,7 @@ test("an AI bot plays tic-tac-toe and chats", async ({ browser }) => {
   await expect(dialog.getByLabel("Effort")).toHaveValue("low");
   await expect(dialog).toContainText("AI bot · muse-spark-1.3-contributor · low effort");
   await dialog.getByLabel(/Personality/).fill("A pirate who loves the sea.");
-  await dialog.getByRole("button", { name: "Add bot" }).click();
+  await dialog.getByRole("button", { name: "Make and invite" }).click();
   await expect(page.getByTestId("member").filter({ hasText: "Pirate" })).toContainText("AI bot");
 
   // Before any game, it chats (with a tool that has no moves).
@@ -140,11 +140,11 @@ test("when the model fails, the built-in bot moves for it, after a moment, and t
   );
 
   await createRoom(page, "Alice");
-  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a bot" });
+  await page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  const dialog = page.getByRole("dialog", { name: "Invite a bot" });
   await dialog.getByLabel("Bot's name").fill("Glitch");
   await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });
-  await dialog.getByRole("button", { name: "Add bot" }).click();
+  await dialog.getByRole("button", { name: "Make and invite" }).click();
   await page.getByRole("button", { name: /Tic-tac-toe/ }).click();
   await page.getByRole("button", { name: "Start tic-tac-toe" }).click();
   await page.getByRole("button", { name: /Play as X$/ }).click();
@@ -181,12 +181,12 @@ test("other people see that a bot is an AI bot, which model it runs, and whose b
   });
   const url = await createRoom(alice.page, "Alice");
   await joinRoom(bob.page, url, "Bob");
-  await alice.page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
-  const dialog = alice.page.getByRole("dialog", { name: "Add a bot" });
+  await alice.page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  const dialog = alice.page.getByRole("dialog", { name: "Invite a bot" });
   await dialog.getByLabel("Bot's name").fill("Luna");
   await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });
   await dialog.getByLabel("Effort").selectOption("medium");
-  await dialog.getByRole("button", { name: "Add bot" }).click();
+  await dialog.getByRole("button", { name: "Make and invite" }).click();
 
   const luna = bob.page.getByTestId("member").filter({ hasText: "Luna" });
   await expect(luna).toContainText("AI bot");
@@ -196,10 +196,10 @@ test("other people see that a bot is an AI bot, which model it runs, and whose b
   await expect(about).toContainText("muse-spark-1.3-contributor");
   await expect(about).toContainText("medium");
   await expect(about).toContainText("Meta");
-  await expect(about).toContainText("Alice added it, and it plays from Alice's browser, with Alice's own AI key.");
+  await expect(about).toContainText("It's Alice's bot, and it plays from Alice's browser, with Alice's own AI key.");
 
   // Switching it to built-in shows up for everyone.
-  await alice.page.getByRole("button", { name: "Edit Luna" }).click();
+  await alice.page.getByRole("complementary").getByRole("button", { name: "Edit Luna" }).click();
   const edit = alice.page.getByRole("dialog", { name: "Edit Luna" });
   await edit.getByLabel("Plays").selectOption("easy");
   await edit.getByRole("button", { name: "Save" }).click();

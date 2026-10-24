@@ -11,7 +11,7 @@ import { scenarios } from "../../games/scenarios";
 import { gameUIs } from "../../games/ui-registry";
 import type { LoadScenario } from "../../shared/protocol";
 import { Panel, Spinner } from "../../ui";
-import { addBot, type BotRecord, suggestBot } from "../bots/store";
+import { type BotRecord, createBot, getBots, inviteBot, suggestBot } from "../bots/store";
 import { ModeToggle } from "../components/ModeToggle";
 import { getColor, getName, getSecret, saveName } from "../identity";
 import { RoomClient } from "../net/RoomClient";
@@ -139,15 +139,16 @@ async function setUpRoom(gameId: string, scenario: Scenario, step: (text: string
     const you = new RoomClient(roomId, secret, name, getColor());
     await connect(you);
 
-    // The same bots as "Add a bot" in the room makes; they play from the room page.
-    step(scenario.bots === 1 ? "Adding a bot" : `Adding ${scenario.bots} bots`);
+    // Your built-in bots, invited as from the room (made if you haven't enough); they play from the room page.
+    step(scenario.bots === 1 ? "Inviting a bot" : `Inviting ${scenario.bots} bots`);
     const bots: BotRecord[] = [];
+    const yours = getBots().filter((b) => !b.deleted && b.level === "easy");
     for (let i = 0; i < scenario.bots; i++) {
       const taken = [...you.getSnapshot().members, ...bots];
-      const bot = await addBot(roomId, { ...suggestBot({ names: taken.map((m) => m.name), colors: taken.map((m) => m.color) }), level: "easy" });
-      if (!bot) throw new Error("Couldn't add a bot.");
+      const bot = yours[i] ?? (await createBot({ ...suggestBot({ names: taken.map((m) => m.name), colors: taken.map((m) => m.color) }), level: "easy" }));
+      if (!bot || !inviteBot(bot.id, roomId)) throw new Error("Couldn't invite a bot.");
       bots.push(bot);
-      await connect(new RoomClient(roomId, bot.secret, bot.name, bot.color, secret, { level: "easy" }));
+      await connect(new RoomClient(roomId, bot.secret, bot.name, bot.color, secret, { level: "easy", ...(bot.persona ? { persona: bot.persona } : {}) }));
     }
     const snapshot = await until(you, (s) => bots.every((b) => s.members.some((m) => m.id === b.playerId)));
 

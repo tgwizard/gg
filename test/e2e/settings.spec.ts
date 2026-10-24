@@ -51,7 +51,7 @@ test("delete all data keeps only the player secret", async ({ page }) => {
   for (const key of ["gg.name", "gg.mode", "gg.llm.connections"]) expect(left).not.toHaveProperty(key);
 });
 
-test("add a Meta key, run a prompt, remove it", async ({ page, context }) => {
+test("add Meta keys, make an AI bot with one, remove it", async ({ page, context }) => {
   await context.addInitScript(() => {
     // A ChatGPT sign-in saved by an older version: ignored, not a crash.
     if (!localStorage.getItem("gg.llm.connections")) {
@@ -66,65 +66,65 @@ test("add a Meta key, run a prompt, remove it", async ({ page, context }) => {
     const ids = ["muse-image-1.0", "muse-spark-1.2", "muse-spark-1.3", "muse-spark-1.3-contributor", "sam-3.1"];
     await route.fulfill({ headers: cors, json: { object: "list", data: ids.map((id) => ({ id, object: "model", owned_by: "meta" })) } });
   });
-  const requests: { model: string; reasoning?: { effort: string } }[] = [];
-  await context.route("https://api.meta.ai/v1/responses", async (route) => {
-    if (preflight(route)) return;
-    expect(route.request().headers()["authorization"]).toBe(`Bearer ${GOOD}`);
-    expect(route.request().postDataJSON()).toMatchObject({ store: false, stream: true });
-    requests.push(route.request().postDataJSON());
-    const events = [
-      { type: "response.output_text.delta", delta: "Hello, " },
-      { type: "response.output_text.delta", delta: "table!" },
-      { type: "response.completed", response: { usage: { input_tokens: 12, output_tokens: 4 } } },
-    ];
-    await route.fulfill({
-      headers: { ...cors, "content-type": "text/event-stream" },
-      body: events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join(""),
-    });
-  });
 
   await page.goto("/");
   await page.getByRole("link", { name: "Settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
+  await page.getByRole("tab", { name: "Bots & AI" }).click();
+  await expect(page).toHaveURL(/\/settings#bots$/);
   await expect(page.getByTestId("ai-connection")).toHaveCount(0);
 
+  // Keys are kept as given; one the provider turns down says so on its card.
   await page.getByLabel("Provider").selectOption("meta");
   await page.getByLabel("API key").fill("meta-bad-key");
   await page.getByRole("button", { name: "Add key" }).click();
-  await expect(page.getByText(/Invalid API key/)).toBeVisible();
+  const bad = page.getByTestId("ai-connection");
+  await expect(bad).toContainText(/Invalid API key/);
+  await bad.getByRole("button", { name: "Remove" }).click();
   await expect(page.getByTestId("ai-connection")).toHaveCount(0);
 
+  await page.getByLabel("Provider").selectOption("meta");
   await page.getByLabel("API key").fill(GOOD);
   await page.getByRole("button", { name: "Add key" }).click();
   const card = page.getByTestId("ai-connection");
   await expect(card).toContainText("Meta Model API key");
+  await expect(card).toContainText("No bots use it yet");
   await expect(card).not.toContainText(GOOD); // only a masked form of the key is shown
   await expect(page.getByLabel("API key")).toHaveValue("");
-  // Starts on the cheapest model and the lowest effort.
-  const model = card.getByLabel("Model");
-  const effort = card.getByLabel("Effort");
-  await expect(model).toHaveValue("muse-spark-1.3-contributor");
-  await expect(model.getByRole("option")).toHaveCount(3); // chat models only
-  await expect(effort).toHaveValue("low");
 
-  await card.getByRole("button", { name: "Run" }).click();
-  await expect(card.getByTestId("ai-output")).toHaveText("Hello, table!");
-  await expect(card).toContainText("12 in · 4 out");
-  expect(requests.at(-1)).toMatchObject({ model: "muse-spark-1.3-contributor", reasoning: { effort: "low" } });
-
-  await model.selectOption("muse-spark-1.3");
-  await effort.selectOption("high");
-  await card.getByRole("button", { name: "Run" }).click();
-  await expect.poll(() => requests.length).toBe(2);
-  expect(requests.at(-1)).toMatchObject({ model: "muse-spark-1.3", reasoning: { effort: "high" } });
-  await expect(card.getByTestId("ai-output")).toHaveText("Hello, table!");
+  // A bot that plays with it: the cheapest model at the lowest effort, unless picked otherwise.
+  await page.getByRole("button", { name: "+ New bot" }).click();
+  await page.getByLabel("Bot's name").fill("Captain");
+  await page.getByLabel("Personality").fill("A grumpy old sea captain.");
+  await page.getByLabel("Plays").selectOption({ index: 1 });
+  await expect(page.getByRole("combobox", { name: "Model" })).toHaveValue("muse-spark-1.3-contributor");
+  await expect(page.getByRole("combobox", { name: "Model" }).getByRole("option")).toHaveCount(3); // chat models only
+  await expect(page.getByRole("combobox", { name: "Effort" })).toHaveValue("low");
+  await page.getByRole("button", { name: "Make bot" }).click();
+  const bot = page.getByTestId("bot-card").filter({ hasText: "Captain" });
+  await expect(bot).toContainText("AI bot · muse-spark-1.3-contributor · low effort · in no rooms yet");
+  await expect(bot).toContainText("A grumpy old sea captain.");
+  await expect(card).toContainText("Used by Captain");
 
   // It's remembered in this browser.
   await page.reload();
-  await expect(model).toHaveValue("muse-spark-1.3");
-  await expect(effort).toHaveValue("high");
+  await expect(bot).toBeVisible();
 
+  // Delete all bots, behind a confirmation.
+  await page.getByRole("button", { name: "+ New bot" }).click();
+  await page.getByRole("button", { name: "Make bot" }).click();
+  await expect(page.getByTestId("bot-card")).toHaveCount(2);
+  await page.getByRole("button", { name: "Delete all bots" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByTestId("bot-card")).toHaveCount(2);
+
+  // Without its key, it plays built-in.
   await card.getByRole("button", { name: "Remove" }).click();
   await expect(card).toHaveCount(0);
+  await expect(bot).toContainText("Built-in bot · no AI");
   expect(await page.evaluate(() => localStorage.getItem("gg.llm.connections"))).toBe("[]");
+  await page.getByRole("button", { name: "Delete all bots" }).click();
+  await page.getByRole("button", { name: "Delete all", exact: true }).click();
+  await expect(page.getByTestId("bot-card")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "+ New bot" })).toBeVisible();
 });

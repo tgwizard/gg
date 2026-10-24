@@ -97,6 +97,8 @@ export interface Update {
   reminder?: string;
   /** False between games. */
   inGame?: boolean;
+  /** False when the game isn't waiting on the bot, so its moves are optional (a draw offer, playing again). */
+  turn?: boolean;
 }
 
 /** One wake-up's worth of news, as the text of a user turn. */
@@ -114,7 +116,8 @@ export function updateText(u: Update): string {
     const people = [...u.names].map(([id, name]) => `${id} = ${id === u.you ? `${name} (you)` : name}`).join(", ");
     parts.push(`Your view of the game (player ids: ${people}):\n${JSON.stringify(u.view)}`);
   }
-  if (u.moves.length) parts.push(`It's your move. Legal moves:\n${describeMoves(u.moves).join("\n")}`);
+  if (u.moves.length && u.turn !== false) parts.push(`It's your move. Legal moves:\n${describeMoves(u.moves).join("\n")}`);
+  else if (u.moves.length) parts.push(`It isn't your move, but you can do one of these if you want to:\n${describeMoves(u.moves).join("\n")}\nOr say something, or pass.`);
   else if (u.inGame !== false) parts.push("It isn't your move right now: you can say something or pass.");
   else parts.push("You can say something or pass.");
   if (u.reminder) parts.push(u.reminder);
@@ -155,10 +158,12 @@ export function describeMoves(moves: unknown[]): string[] {
 /** Fewer moves of a kind than this are listed one by one. */
 const GROUP_FROM = 10;
 
-/** The game moves among the legal ops (table moves are handled for the bot). */
+/** The game moves among the legal ops: table moves are handled for the bot, and bots never resign. */
 export function gameMoves(legalOps: unknown[]): unknown[] {
-  return legalOps.filter((op) => !isLobbyOp(op));
+  return legalOps.filter((op) => !isLobbyOp(op) && !isResign(op));
 }
+
+const isResign = (op: unknown) => typeof op === "object" && op !== null && (op as { type?: unknown }).type === "resign";
 
 /** Check what the model asked for before acting on it. */
 export function parseAct(def: AnyGameDefinition | null, input: unknown): { op?: unknown; say?: string; error?: string } {
@@ -168,6 +173,7 @@ export function parseAct(def: AnyGameDefinition | null, input: unknown): { op?: 
   if (raw.op === undefined || raw.op === null) return { say };
   if (!def) return { say, error: "No game is being played." };
   if (isLobbyOp(raw.op)) return { say, error: "Sitting down and leaving are handled for you; pick a game move." };
+  if (isResign(raw.op)) return { say, error: "Bots don't resign: play it out." };
   const parsed = def.opSchema.safeParse(raw.op);
   if (!parsed.success) return { say, error: `That isn't a valid move: ${parsed.error.issues[0]?.message ?? "wrong shape"}.` };
   return { op: parsed.data, say };

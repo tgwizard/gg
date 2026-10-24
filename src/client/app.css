@@ -136,7 +136,8 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   padding: 10px 20px;
   background: var(--brand);
   border-bottom: 1px solid var(--brand-line);
-  flex-wrap: wrap;
+  /* Always one row: the game's header only moves up here when it fits (TopbarSlot). */
+  flex-wrap: nowrap;
   --bg: var(--brand);
 }
 /* The serif "gg" has deep descenders: size it by its x-height, and nudge it onto the bar's center line. */
@@ -354,6 +355,11 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .game-header h2 { font-size: 1.9rem; }
 .game-header-icon { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--badge); }
 /* The running game's header, up in the room's top bar. */
+/* Wide enough for the game's header up here: nothing squeezes, so a header that doesn't fit overflows, and TopbarSlot keeps it on the page. */
+@media (min-width: 861px) {
+  .topbar > :not(.spacer) { flex-shrink: 0; }
+  .topbar-game .game-header, .topbar-game .game-header-actions { flex-wrap: nowrap; }
+}
 .topbar-game:empty { display: none; }
 .topbar-game { display: flex; min-width: 0; padding-left: 14px; border-left: 1px solid rgb(255 255 255 / 0.15); }
 .topbar-game .game-header { gap: 8px; }
@@ -395,13 +401,13 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 @keyframes turn-dot { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .turn-pill.mine, .turn-pill-dot { animation: none; } }
 
+/* When the game's header is on the page (it didn't fit in the top bar): the name and buttons on one line, whose turn on a full-width line under them (kept when empty, so the game doesn't jump). */
+.active-game > .game-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
+.active-game > .game-header .game-header-title { gap: 10px; }
+.active-game > .game-header h2 { min-width: 0; font-size: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.active-game > .game-header .game-header-icon { flex: none; width: 36px; height: 36px; }
+.active-game > .game-header .turn-pill { grid-column: 1 / -1; width: auto; min-height: 34px; font-size: 14px; }
 @media (max-width: 860px) {
-  /* On the page: the name and buttons on one line, whose turn on a full-width line under them (kept when empty, so the game doesn't jump). */
-  .active-game > .game-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; }
-  .active-game > .game-header .game-header-title { gap: 10px; }
-  .active-game > .game-header h2 { min-width: 0; font-size: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .active-game > .game-header .game-header-icon { flex: none; width: 36px; height: 36px; }
-  .active-game > .game-header .turn-pill { grid-column: 1 / -1; width: auto; min-height: 34px; font-size: 14px; }
   .room { height: auto; min-height: 100%; }
   .room-main { grid-template-columns: minmax(0, 1fr); }
   .sidebar { border-left: none; border-top: 1px solid var(--line-strong); }
@@ -518,6 +524,33 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .invite-people { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .invite-person { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 3px; border-radius: var(--pill); background: var(--surface-2); border: 1px solid var(--line); font-weight: 700; }
 .invite-person:has(.tag) { padding-right: 5px; }
+.invite-person .member-edit, .invite-person .member-plain { margin: -3px 0 -3px -3px; padding: 3px 6px 3px 3px; font-weight: 700; }
+.invite-person .member-edit:hover { background: var(--surface); }
+.member-plain { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* "+ Invite a bot": your bots not here yet, one click each. */
+.invite-bots { display: flex; flex-direction: column; gap: 10px; min-width: min(300px, calc(100vw - 48px)); }
+.invite-bots-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; max-height: 320px; overflow-y: auto; }
+.invite-bot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.invite-bot:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.invite-bot:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.invite-bot-text { display: flex; flex-direction: column; min-width: 0; flex: 1; font-weight: 700; }
+.invite-bot-text .muted { font-weight: 500; }
+.invite-bot-go { font-size: 13px; font-weight: 800; color: var(--accent-text); }
+.invite-bots-foot { justify-content: space-between; align-items: center; font-size: 14px; }
+.bot-persona { margin: 0; font-style: italic; color: var(--text-2); font-size: 14px; overflow-wrap: anywhere; }
 
 /* ---------- /about ---------- */
 .about-list { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
@@ -612,6 +645,70 @@ a.try-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .settings-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; cursor: pointer; }
 .settings-check input { margin-top: 3px; accent-color: var(--accent); }
 .settings-check .muted { display: block; font-size: 13px; }
+.settings-switch {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin: -6px 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-switch:hover { background: var(--surface-2); }
+.settings-switch:hover .mode-toggle { color: var(--text); }
+.settings-switch[aria-checked="true"] .mode-toggle { color: var(--accent-text); border-color: var(--accent); }
+.settings-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.settings-switch .mode-toggle { flex: none; }
+.settings-switch-text { flex: 1; font-weight: 700; }
+.settings-switch-text .muted { display: block; font-size: 13px; font-weight: 500; }
+.settings-switch-state { font-size: 13px; font-weight: 800; color: var(--text-2); }
+.settings-tabs { display: flex; gap: 6px; margin-top: 10px; }
+.settings-tab {
+  padding: 7px 16px;
+  border: 1px solid color-mix(in srgb, var(--on-brand-2), transparent 60%);
+  border-radius: var(--pill);
+  background: transparent;
+  color: var(--on-brand-2);
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+.settings-tab:hover { color: var(--on-brand); border-color: var(--on-brand-2); }
+.settings-tab.on { background: var(--gold); border-color: var(--gold); color: var(--brand); }
+.settings-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.settings-new-bot { align-self: flex-start; }
+.bots-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.bots-delete-all { margin-left: auto; display: flex; justify-content: flex-end; }
+.bots-delete-all:has(.bots-delete-confirm) { flex: 1; overflow: hidden; }
+.bots-delete-confirm {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  animation: bots-slide 220ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.bots-delete-text { flex: 1 1 240px; }
+@keyframes bots-slide { from { transform: translateX(40px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .bots-delete-confirm { animation: none; } }
+.bot-card-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bot-card-head .profile-preview-text { flex: 1; min-width: 160px; }
+.bot-card-actions { gap: 6px; }
+.bot-card-confirm { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.ai-card-head .ai-remove { margin-left: auto; }
 
 .guide-game-over { position: relative; min-height: 560px; }
 .guide-books { display: inline-flex; gap: 3px; }

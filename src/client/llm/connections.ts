@@ -4,7 +4,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { storage } from "../storage";
-import type { Connection, Effort, LLMClient, LLMModel, Provider } from "./types";
+import type { Connection, Effort, LLMClient, LLMModel, Provider, Usage } from "./types";
 
 const KEY = "gg.llm.connections";
 const EVENT = "gg:llm";
@@ -65,6 +65,19 @@ export function putConnection(c: Connection) {
 
 export function updateConnection(id: string, patch: Partial<Connection>) {
   save(getConnections().map((c) => (c.id === id ? ({ ...c, ...patch } as Connection) : c)));
+}
+
+/** Count the tokens a call with this key used. */
+export function addConnectionUsage(id: string, u: { inputTokens: number; outputTokens: number; cachedInputTokens?: number }) {
+  const usage = getConnection(id)?.usage;
+  if (!getConnection(id)) return;
+  updateConnection(id, { usage: addUsage(usage, u) });
+}
+
+/** A running total, plus one call. */
+export function addUsage(total: Usage | undefined, u: { inputTokens: number; outputTokens: number; cachedInputTokens?: number }): Usage {
+  const t = total ?? { input: 0, cachedInput: 0, output: 0, calls: 0 };
+  return { input: t.input + u.inputTokens, cachedInput: t.cachedInput + (u.cachedInputTokens ?? 0), output: t.output + u.outputTokens, calls: t.calls + 1 };
 }
 
 export function removeConnection(id: string) {

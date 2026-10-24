@@ -115,6 +115,21 @@
   --fiar-hole: radial-gradient(circle at 50% 30%, #4a3220, #2a1b10);
   --fiar-coord: rgb(255 244 228 / 0.8);
   --fiar-aim: linear-gradient(rgb(255 250 240 / 0.05), rgb(255 250 240 / 0.16));
+  /* Luffarschack: a sheet of squared paper (faint blue squares, a red margin), pencil, and ink in the players' colors mixed toward a ballpoint blue-black */
+  --lfs-paper: #fbf8ef;
+  --lfs-paper-light: radial-gradient(ellipse at 28% 18%, rgb(255 255 255 / 0.6), transparent 62%), linear-gradient(170deg, transparent 55%, rgb(120 96 60 / 0.06));
+  --lfs-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .27 0 0 0 0 .2 .55 0 0 0 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --lfs-grid: rgb(72 142 218 / 0.38);
+  --lfs-margin: rgb(214 84 84 / 0.6);
+  --lfs-pencil: rgb(74 70 64 / 0.5);
+  --lfs-pencil-text: rgb(74 70 64 / 0.6);
+  --lfs-ink-mix: #1a2142 30%;
+  --lfs-ink-lmin: 0.3;
+  --lfs-ink-lmax: 0.5;
+  --lfs-ink-chroma: 1.05;
+  --lfs-highlight: rgb(243 199 122 / 0.45);
+  --lfs-sheet-shadow: 0 1px 1px rgb(58 46 36 / 0.12), 0 3px 6px rgb(58 46 36 / 0.08), 0 14px 30px rgb(58 46 36 / 0.14);
+  --lfs-veil: rgb(244 237 225 / 0.55);
   /* Cannons: a side view of hills under a big sky, and what flies over them */
   --cannons-sky-top: #9ec8dc;
   --cannons-sky-bottom: #f6e8cc;
@@ -242,6 +257,20 @@
   --fiar-hole: radial-gradient(circle at 50% 30%, #24170e, #120b06);
   --fiar-coord: rgb(255 244 228 / 0.6);
   --fiar-aim: linear-gradient(rgb(255 250 240 / 0.03), rgb(255 250 240 / 0.1));
+  --lfs-paper: #2f2b26;
+  --lfs-paper-light: radial-gradient(ellipse at 30% 20%, rgb(255 232 190 / 0.075), transparent 65%), linear-gradient(170deg, transparent 50%, rgb(0 0 0 / 0.12));
+  --lfs-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .96 0 0 0 0 .88 .14 0 0 0 -.055'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --lfs-grid: rgb(128 172 230 / 0.2);
+  --lfs-margin: rgb(232 112 100 / 0.42);
+  --lfs-pencil: rgb(228 220 206 / 0.42);
+  --lfs-pencil-text: rgb(228 220 206 / 0.5);
+  --lfs-ink-mix: #f6eedd 34%;
+  --lfs-ink-lmin: 0.8;
+  --lfs-ink-lmax: 0.88;
+  --lfs-ink-chroma: 0.85;
+  --lfs-highlight: rgb(243 199 122 / 0.17);
+  --lfs-sheet-shadow: 0 1px 1px rgb(0 0 0 / 0.3), 0 14px 30px rgb(0 0 0 / 0.38);
+  --lfs-veil: rgb(27 23 19 / 0.55);
   --cannons-sky-top: #121d2a;
   --cannons-sky-bottom: #3a3446;
   --cannons-sun: #efe4c6;

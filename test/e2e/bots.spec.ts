@@ -1,14 +1,17 @@
 import { expect, type Page, test } from "@playwright/test";
-import { chat, createRoom, expectConnected, newPlayer } from "./helpers";
+import { chat, createRoom, expectConnected, joinRoom, newPlayer } from "./helpers";
 
 /** Add a bot, keeping its suggested name and color unless given a name. */
 async function addBot(page: Page, rename?: string): Promise<string> {
-  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a bot" });
+  await page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  const dialog = page.getByRole("dialog", { name: "Invite a bot" });
+  // With bots of yours already, the list comes first; make a new one.
+  await expect(dialog.getByLabel("Bot's name").or(dialog.getByRole("button", { name: "+ New bot" }))).toBeVisible();
+  if (await dialog.getByRole("button", { name: "+ New bot" }).isVisible()) await dialog.getByRole("button", { name: "+ New bot" }).click();
   if (rename) await dialog.getByLabel("Bot's name").fill(rename);
   const name = await dialog.getByLabel("Bot's name").inputValue();
   expect(name).not.toBe("");
-  await dialog.getByRole("button", { name: "Add bot" }).click();
+  await dialog.getByRole("button", { name: "Make and invite" }).click();
   await expect(chat(page)).toContainText(`added a bot, ${name}.`);
   const member = page.getByTestId("member").filter({ hasText: name });
   await expect(member.getByRole("button", { name: `Remove ${name}` })).toBeVisible();
@@ -69,7 +72,9 @@ test("play tic-tac-toe against a built-in bot, then remove it", async ({ browser
   await expect(page.getByTestId("member").filter({ hasText: bot })).toHaveCount(0);
   // Its seat is free again.
   await expect(page.getByText("Open seat")).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("gg.bots"))).toBe("[]");
+  // Out of the room, but still yours.
+  const kept = JSON.parse((await page.evaluate(() => localStorage.getItem("gg.bots"))) ?? "[]") as { name: string; rooms: object }[];
+  expect(kept.map((b) => [b.name, b.rooms])).toEqual([["Clank", {}]]);
 });
 
 test("bots leave seats to people for a while before sitting down themselves", async ({ browser }) => {
@@ -114,9 +119,10 @@ test("settings are a click away from the bot and profile popups, with a way back
   const { page } = await newPlayer(browser);
   const url = await createRoom(page, "Alice");
 
-  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
-  await page.getByRole("dialog", { name: "Add a bot" }).getByRole("link", { name: "Configure AI settings" }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  await page.getByRole("dialog", { name: "Invite a bot" }).getByRole("link", { name: "Add an AI key" }).click();
+  await expect(page).toHaveURL(/\/settings#bots$/);
+  await expect(page.getByRole("tab", { name: "Bots & AI" })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("link", { name: "← Back to the room" }).click();
   await expect(page).toHaveURL(url);
   await expectConnected(page);
@@ -125,4 +131,46 @@ test("settings are a click away from the bot and profile popups, with a way back
   await page.getByRole("dialog", { name: "Your profile" }).getByRole("link", { name: "All settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.getByRole("link", { name: "← Back to the room" })).toBeVisible();
+});
+
+test("bots are yours across rooms: invite one into another room, edit it everywhere, delete it from settings", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const first = await createRoom(alice.page, "Alice");
+  const bot = await addBot(alice.page, "Marvin");
+
+  // A second room: Marvin is one click away, and the same player as in the first.
+  await alice.page.goto("/");
+  await alice.page.getByRole("button", { name: "Create a room" }).click();
+  await alice.page.waitForURL(/\/r\/[0-9A-Z]{10}$/);
+  await expectConnected(alice.page);
+  await alice.page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  await alice.page.getByRole("dialog", { name: "Invite a bot" }).getByRole("button", { name: `Invite ${bot}` }).click();
+  const member = alice.page.getByTestId("member").filter({ hasText: bot });
+  await expect(member).toHaveClass(/online/);
+
+  // Edited from the lobby's "Here now": the change shows up in the room.
+  await alice.page.getByTestId("invite-section").getByRole("button", { name: `Edit ${bot}` }).click();
+  const edit = alice.page.getByRole("dialog", { name: `Edit ${bot}` });
+  await edit.getByLabel("Personality").fill("Depressed, but polite.");
+  await edit.getByRole("button", { name: "Save" }).click();
+
+  // Someone else sees what it is (its personality too).
+  const bea = await newPlayer(browser);
+  await joinRoom(bea.page, alice.page.url(), "Bea");
+  await bea.page.getByRole("complementary").getByRole("button", { name: `About ${bot}` }).click();
+  await expect(bea.page.getByRole("dialog", { name: `About ${bot}` })).toContainText("Depressed, but polite.");
+
+  // Deleted in settings: it leaves both rooms, even the one nobody has open.
+  await alice.page.goto("/settings#bots");
+  const card = alice.page.getByTestId("bot-card").filter({ hasText: bot });
+  await expect(card).toContainText("in 2 rooms");
+  await card.getByRole("button", { name: `Delete ${bot}` }).click();
+  await card.getByRole("button", { name: `Delete ${bot}`, exact: true }).last().click();
+  await expect(alice.page.getByTestId("bot-card")).toHaveCount(0);
+  await expect(bea.page.getByTestId("member").filter({ hasText: bot })).toHaveCount(0);
+  await expect(chat(bea.page)).toContainText(`Alice removed ${bot}.`);
+  await expect.poll(() => alice.page.evaluate(() => localStorage.getItem("gg.bots"))).toBe("[]");
+  await alice.page.goto(first);
+  await expectConnected(alice.page);
+  await expect(alice.page.getByTestId("member").filter({ hasText: bot })).toHaveCount(0);
 });

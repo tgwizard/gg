@@ -24,6 +24,8 @@ export type Sfx =
   | "stone"
   /** A disc dropping into a slot and landing with a little bounce (Four in a Row). */
   | "drop"
+  /** A pen stroke on paper: a soft, short scratch (Luffarschack). */
+  | "pen"
   /** A piece taking another. */
   | "capture"
   /** Check, or something pointed at you. */
@@ -49,7 +51,7 @@ export type Sfx =
   | "win"
   | "lose";
 
-export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "heartbeat", "good", "win", "lose"];
+export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "pen", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "heartbeat", "good", "win", "lose"];
 
 const KEY = "gg.sound";
 const VOLUME = 0.18;
@@ -189,6 +191,12 @@ const SOUNDS: Record<Sfx, (a: AudioContext, t: number) => void> = {
     tone(a, t, vary(1700, 0.06), 0.03, { gain: 0.06, attack: 0.001 });
     tone(a, t, vary(260), 0.09, { to: 170, gain: 0.3, attack: 0.002 });
     tone(a, t + 0.11, vary(300), 0.05, { to: 210, gain: 0.1, attack: 0.002 });
+  },
+  pen(a, t) {
+    // A ballpoint across paper: a faint, papery rasp that eases in and trails off, with a softer body under it.
+    const len = vary(0.2, 0.15);
+    noise(a, t, len, { freq: vary(3200, 0.12), to: vary(2300, 0.1), q: 1.6, gain: 0.07, attack: 0.04 });
+    noise(a, t, len * 0.9, { freq: 900, q: 0.8, type: "lowpass", gain: 0.05, attack: 0.03 });
   },
   capture(a, t) {
     tone(a, t, vary(200), 0.09, { to: 120, gain: 0.34, attack: 0.003 });

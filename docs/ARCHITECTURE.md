@@ -270,8 +270,8 @@ then:
 1. creates a **practice room** (`POST /api/rooms {practice: true}`; the usual room
    limits apply). Practice is fixed when a room is created and shows as a small
    *Practice* tag by the room code;
-2. joins it (your saved name, or "You"), adds the built-in bots the scenario needs the
-   same way *Add a bot* does, and waits for them to join;
+2. joins it (your saved name, or "You"), invites the built-in bots the scenario needs
+   (yours, or new ones made if you haven't enough), and waits for them to join;
 3. builds the state with the real member ids and sends it to
    `POST /api/rooms/:code/scenario {secret, gameId, name, state}`;
 4. goes to the room, where the bots play from your tab as usual.
@@ -500,6 +500,40 @@ calling the game off if you leave before moving, Fischer clocks).
   the same column. It opens in the middle and varies its first moves among near-best ones.
   With `quick` it looks 4 moves ahead with no time limit, so set-up positions are repeatable.
 
+### Luffarschack (`src/games/luffarschack`)
+
+The Swedish pen-and-paper five in a row, for two, on a sheet of squared paper of 15×15, 19×19
+(the default) or 25×25, built like Four in a Row (seating, calling the game off if you leave
+before your first mark, the first cross alternating between games) with a turn timer.
+- **The rules** (`rules.ts`) work on the sheet as a string of n² cells ("x" for whoever starts
+  this game, "o", "."), row by row from the top. Squares are named like spreadsheet cells: a
+  column letter and a row from 1 at the top ("A1" is the top left), which is also the move:
+  `{type: "mark", square: "J10"}`. Five or more in a row wins (the Swedish way, with no
+  setting for exactly five), across, down or diagonally. `winningRuns` gives each winning
+  line's ends (two at once included); a full sheet is a draw.
+- **The turn timer** (`turnSeconds`, default 60, 0 for none) is per mark: run out and you lose.
+- **The sheet** (`ui/Sheet.tsx`) is one SVG in squares of 100 units: faint blue rulings over
+  the whole paper (with grain and a little light from tokens), a red margin, letters and
+  numbers in pencil and a ruled pencil frame around the playing area. Marks are hand-drawn
+  (`ui/ink.ts`): each cross is two slightly bowed strokes ending in a flick, each circle one
+  lopsided loop that runs on past its start, with jitter from a seed made from the game, the
+  move and the square, so every mark is different but the same on every render and refresh.
+  An SVG filter roughens their edges and makes the ink uneven. Ink is the player's color at a
+  pen's lightness (`oklch(from …)`, dark on light paper, light on the dim paper of dark mode;
+  clashing colors are split as in Four in a Row). A new mark is drawn stroke by stroke
+  (`stroke-dashoffset`) with a soft pen scratch (sound `pen`), live moves only; the last mark
+  gets a stroke of highlighter, and a winning five is ringed by hand, in a rough loop, in the winner's
+  ink. Pointing at a square pencils your mark in; on touch screens it takes two taps; the
+  arrow keys move a dotted cursor and Enter marks. Colors are tokens (`--lfs-*`).
+- **The built-in bot** (`bot.ts`) reads threats rather than searching: for each empty square
+  near the marks it asks what a mark there makes, line by line, for itself and (as a block)
+  for the other side: five, an open four, a four, an open three, a closed three, or room to
+  grow, with extra for a four and an open three at once or two open threes. It takes a five,
+  then stops one, then plays a win by fours (VCF: fours the other side must answer, until one
+  can't be), and otherwise takes the best square (a little randomness among near-equals),
+  with a bonus for the first square of the other side's win by fours. It takes a few
+  milliseconds a move.
+
 ### Go (`src/games/go`)
 
 Go for two on 9×9, 13×13 or 19×19, built like Othello (seating, colors swapping every
@@ -624,10 +658,17 @@ needs its `anthropic-dangerous-direct-browser-access` opt-in, which its SDK send
 
 A bot is just another member of the room, played from its owner's browser:
 
-- **Identity.** "Add a bot" (in the members panel) suggests a free name and color,
-  which you can change (then or later, by clicking the bot), makes a secret for
-  the bot and keeps it all with the room code in localStorage (`gg.bots`,
-  `src/client/bots/store.ts`). Renames go to the room like anyone's (`setProfile`).
+- **Identity.** Your bots are kept in localStorage like your own name (`gg.bots`,
+  `src/client/bots/store.ts`): each has its own secret, so it's the same player in
+  every room, and a name, color, personality and (optionally) an AI key, model and
+  effort. You make, edit and delete them in /settings (the *Bots & AI* tab), or make
+  one on the spot from a room. In a room, *+ Invite a bot* lists your bots that aren't
+  there yet; each bot remembers the rooms it's in (`rooms`). Clicking yourself or one
+  of your bots (members panel, or *Here now* before a game) edits it; a bot's change
+  applies in every room. Others click a bot to see what it is: built-in or AI, model,
+  effort, provider and personality (`BotInfo`; never the key). Changes go to the room
+  like anyone's (`setProfile`). The token usage of AI bots is counted per bot and per
+  key. Bots made per room by older versions become one bot per name.
   The bot connects with its own `RoomClient` and says hello with that secret plus
   its owner's (`hello.owner`), so the room records it as `kind: "bot"` with an
   `ownerId`. The owner must be a person in the room (bots can't own bots, so one
@@ -652,7 +693,8 @@ A bot is just another member of the room, played from its owner's browser:
   tickets and claims routes on the cheapest path to them, chess looks one move ahead
   (mates, material, no free pieces for the other side) with some randomness, Othello
   weighs squares (corners, edges) and the replies it leaves, Go runs a few
-  thousand random playouts per move, Four in a Row searches with alpha-beta, Fem
+  thousand random playouts per move, Four in a Row searches with alpha-beta, Luffarschack
+  answers threats and looks for a win by fours, Fem
   kort keeps its strongest card for the last trick and dumps low cards early, and
   Cannons aims like a person, correcting from where its last shots landed. The bot runs on the page, so it decides within
   a few hundred ms; `{ quick: true }` (the conformance suite, building /try
@@ -665,11 +707,14 @@ A bot is just another member of the room, played from its owner's browser:
 - **Looks.** Bots' avatars are a robot in their color instead of an initial, in
   the members list and on every game board (`PlayerPlate` reads who's a bot from
   `PlayersProvider`).
-- **Removing** a bot (× in the members panel) marks it `removing` in localStorage;
+- **Removing** a bot from a room (× in the members panel) marks that room `removing`;
   the tab playing it sends `leaveRoom` once connected. The room takes it out of the
   game (`removePlayer`) and the room in one step, and closes its connections with
-  `Left` so it doesn't come back. Only then is the record (with the bot's secret)
-  forgotten, so a removal made offline still happens later.
+  `Left`. Only then does the bot forget the room (it stays yours, and can be invited
+  back). **Deleting** a bot (in settings, one or all) marks all its rooms `removing`
+  and leaves them at once from the settings page (`bots/leave.ts`); a room it can't
+  reach is left the next time you open it. The bot is forgotten once it's out of
+  every room.
 
 ### AI bots (`src/client/bots/ai`)
 
@@ -685,7 +730,10 @@ it out of it (the bot form says so).
   Schema, minus table moves (those stay with `botMove`'s table logic), checked
   with the schema before it's sent; `say` is one chat message; neither is a pass.
   Tool choice stays `auto` (the newest Claude models reject forced tool use), and a
-  pass on its own move gets one nudge before the built-in bot moves for it.
+  pass on its own move gets one nudge before the built-in bot moves for it. It's
+  "its move" only when the game waits on it (`waitingOn`); moves it has otherwise (a
+  draw offer, playing again) are offered as optional, with no nudge. Bots never
+  resign: it isn't among their moves, and `act` refuses it.
 - **An append-only conversation** per game (`prompt.ts`): instructions (being a bot
   in gg, the persona, the game's `rules` and `botNotes`), the tool, then one user
   turn per wake-up: chat and game news since the last one, the bot's view if it

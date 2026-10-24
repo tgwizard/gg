@@ -9,9 +9,9 @@
  * Only one tab plays a given bot: each holds a Web Lock while playing, and other tabs
  * of the room wait for it (taking over if that tab closes).
  *
- * Removing a bot is one request to the room, which takes it out of the game and the
- * room together. Until the room confirms, the bot's record stays (marked `removing`),
- * so a removal made offline happens when you're back.
+ * Removing a bot from a room (or deleting it) is one request to the room, which takes it
+ * out of the game and the room together. Until the room confirms, the bot keeps the room
+ * (marked `removing`), so a removal made while the room wasn't open happens when it is.
  */
 import { BOT_MIN_MOVE_MS, botMove, tableMove } from "../../games/kit/bot";
 import type { AnyGameDefinition } from "../../games/types";
@@ -21,7 +21,7 @@ import { getConnection, PROVIDERS } from "../llm/connections";
 import { RequestError, RoomClient } from "../net/RoomClient";
 import { AiBrain } from "./ai/AiBrain";
 import { gameMoves } from "./ai/prompt";
-import { addBotStandIn, addBotUsage, type BotRecord, forgetBot, setBotError } from "./store";
+import { addBotStandIn, addBotUsage, type BotRecord, leftRoom, setBotError } from "./store";
 
 /** How long a bot "thinks" before moving. */
 const THINK_MS: [number, number] = [BOT_MIN_MOVE_MS, 1800];
@@ -49,8 +49,14 @@ export class BotPlayer {
 
   constructor(
     private bot: BotRecord,
+    private readonly roomId: string,
     private readonly ownerSecret: string,
   ) {}
+
+  /** Taken out of this room, or deleted: it's to leave. */
+  private removing() {
+    return !!(this.bot.deleted || this.bot.rooms[this.roomId]?.removing);
+  }
 
   start() {
     // Held until stop(). A player stopped before (or just as) the lock comes through
@@ -72,13 +78,13 @@ export class BotPlayer {
   }
 
   private lockName() {
-    return `gg.bot.${this.bot.id}`;
+    return `gg.bot.${this.bot.id}.${this.roomId}`;
   }
 
   /** Its setup changed (name, color, AI connection, persona), or it's been removed. */
   update(bot: BotRecord) {
     this.bot = bot;
-    if (bot.removing) return this.onChange();
+    if (this.removing()) return this.onChange();
     this.client?.setProfile(bot.name, bot.color, botInfo(bot));
     if (this.client) this.setBrain();
   }
@@ -97,12 +103,12 @@ export class BotPlayer {
   /** Removed: leave the room for good once connected (retried on every change until it's done). */
   private leave(client: RoomClient) {
     const status = client.getSnapshot().status;
-    if (status === "left") return forgetBot(this.bot.id);
+    if (status === "left" || status === "not_found") return leftRoom(this.bot.id, this.roomId);
     if (this.leaving || status !== "connected") return;
     this.leaving = true;
     this.log("leaving the room");
     client.leaveRoom().then(
-      () => forgetBot(this.bot.id),
+      () => leftRoom(this.bot.id, this.roomId),
       (e: unknown) => {
         this.leaving = false;
         this.log("couldn't leave yet", { error: e instanceof Error ? e.message : String(e) });
@@ -111,15 +117,15 @@ export class BotPlayer {
   }
 
   private log(event: string, data?: unknown) {
-    devLog(this.bot.roomId, `bot ${this.bot.name}`, event, data);
+    devLog(this.roomId, `bot ${this.bot.name}`, event, data);
   }
 
   private async connect() {
     // Game rules are only needed once you have a bot, so they load separately.
     this.games ??= (await import("../../games/registry")).games;
     if (this.stopped) return this.releaseLock?.();
-    const { roomId, secret, name, color } = this.bot;
-    const client = new RoomClient(roomId, secret, name, color, this.ownerSecret, botInfo(this.bot));
+    const { secret, name, color } = this.bot;
+    const client = new RoomClient(this.roomId, secret, name, color, this.ownerSecret, botInfo(this.bot));
     this.client = client;
     this.setBrain();
     client.subscribe(() => this.onChange());
@@ -128,8 +134,8 @@ export class BotPlayer {
 
   /** AI bots get a brain; switching a bot to built-in (or to another connection) replaces it. */
   private setBrain() {
-    const { level, connectionId, name, persona, model, effort, removing } = this.bot;
-    if (level !== "ai" || !connectionId || removing) {
+    const { level, connectionId, name, persona, model, effort } = this.bot;
+    if (level !== "ai" || !connectionId || this.removing()) {
       this.brain?.stop();
       this.brain = null;
       return;
@@ -156,7 +162,7 @@ export class BotPlayer {
   }
 
   private onChange() {
-    if (this.bot.removing) {
+    if (this.removing() || this.client?.getSnapshot().status === "not_found") {
       clearTimeout(this.timer);
       this.brain?.stop();
       this.brain = null;
@@ -183,7 +189,7 @@ export class BotPlayer {
     const client = this.client;
     const game = client?.getSnapshot().game;
     const def = game && this.games?.[game.gameId];
-    if (!client || !game || !def || this.bot.removing) return;
+    if (!client || !game || !def || this.removing()) return;
     // AI bots only make table moves here; their brain plays the game.
     const op = this.brain ? tableMove(game.legalOps ?? [], random) : botMove(def, game.view, game.legalOps ?? [], random);
     if (op == null) return;
@@ -211,7 +217,8 @@ export class BotPlayer {
 
 /** What the room is told about how a bot plays. */
 function botInfo(bot: BotRecord): BotInfo {
-  if (bot.level !== "ai" || !bot.connectionId) return { level: "easy" };
+  const persona = bot.persona ? { persona: bot.persona } : {};
+  if (bot.level !== "ai" || !bot.connectionId) return { level: "easy", ...persona };
   const connection = getConnection(bot.connectionId);
   const model = bot.model ?? connection?.model;
   return {
@@ -219,5 +226,6 @@ function botInfo(bot: BotRecord): BotInfo {
     ...(model ? { model } : {}),
     ...(connection ? { provider: PROVIDERS[connection.provider].short } : {}),
     effort: bot.effort ?? "low",
+    ...persona,
   };
 }

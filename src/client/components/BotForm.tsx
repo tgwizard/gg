@@ -1,19 +1,30 @@
 import { useState } from "react";
 import { type BotRecord, type BotSetup } from "../bots/store";
-import { defaultModel, EFFORTS, PROVIDERS, useConnections, useModels } from "../llm/connections";
-import type { Effort } from "../llm/types";
+import { defaultModel, EFFORTS, getConnection, PROVIDERS, useConnections, useModels } from "../llm/connections";
+import type { Effort, Usage } from "../llm/types";
 import { ProfileForm } from "./Profile";
 import { SettingsLink } from "./SettingsLink";
 
+/** "Built-in bot · no AI", "AI bot · muse-spark-1.3 · low effort". */
+export function botCaption(bot: BotSetup): string {
+  if (bot.level !== "ai" || !bot.connectionId) return "Built-in bot · no AI";
+  const model = bot.model ?? getConnection(bot.connectionId)?.model;
+  return ["AI bot", model, `${bot.effort ?? "low"} effort`].filter(Boolean).join(" · ");
+}
+
 /**
- * A bot's setup: name and color, and how it plays: built-in (no AI), or with one of your
- * AI connections and an optional personality. Editing also shows what it has used.
+ * A bot's setup: name and color, a personality, and how it plays: built-in (no AI), or
+ * with one of your AI connections. Editing also shows what it has used.
  */
 export function BotForm(props: {
   initial: BotSetup;
   bot?: BotRecord;
   submitLabel: string;
-  taken: ReadonlyMap<number, string>;
+  taken?: ReadonlyMap<number, string>;
+  /** A line above the form. */
+  intro?: string;
+  /** On the settings page itself: no link to it. */
+  inSettings?: boolean;
   onSubmit(setup: BotSetup): void;
   onCancel(): void;
 }) {
@@ -42,10 +53,23 @@ export function BotForm(props: {
       submitLabel={props.submitLabel}
       taken={props.taken}
       onSubmit={(name, color) =>
-        props.onSubmit(connection ? { name, color, level: "ai", connectionId: connection.id, model, effort, persona } : { name, color, level: "easy" })
+        props.onSubmit(connection ? { name, color, level: "ai", connectionId: connection.id, model, effort, persona } : { name, color, level: "easy", persona })
       }
       onCancel={props.onCancel}
+      intro={props.intro}
     >
+      <label className="field">
+        <span>
+          Personality <span className="hint">optional, and everyone sees it</span>
+        </span>
+        <textarea
+          value={persona}
+          onChange={(e) => setPersona(e.target.value)}
+          rows={2}
+          maxLength={300}
+          placeholder="e.g. A grumpy old sea captain who hates losing"
+        />
+      </label>
       <label className="field">
         <span>Plays</span>
         <select
@@ -89,33 +113,19 @@ export function BotForm(props: {
         </div>
       )}
       <p className="muted small bot-form-note">
-        {!connection && "It plays from this tab, and is away while you are. "}
-        {!connections.length && "AI bots use an AI key of yours, kept in this browser. "}
-        <SettingsLink>Configure AI settings</SettingsLink>
+        {connection ? "It plays the part, in the chat and at the table. " : "Built-in bots don't talk; give it AI to have it play the part. "}
+        It plays from this browser while you have its room open, and is away while you're not.{props.bot && " Changes apply in every room it's in."}{" "}
+        {!props.inSettings && <SettingsLink tab="bots">{connections.length ? "Your bots and AI keys" : "Add an AI key"}</SettingsLink>}
       </p>
       {connection && (
-        <>
-          <label className="field">
-            <span>
-              Personality <span className="hint">optional</span>
-            </span>
-            <textarea
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              rows={2}
-              maxLength={300}
-              placeholder="e.g. A grumpy old sea captain who hates losing"
-            />
-          </label>
-          <p className="muted small bot-form-note">{PROVIDERS[connection.provider].billing} It plays from this tab: the room's chat and its view of the game (its own cards too) go to{" "}
-            {PROVIDERS[connection.provider].short}, and only its moves and messages to the room. It's told to keep its cards to itself, but people in the chat can try to talk it out of that.
-          </p>
-        </>
+        <p className="muted small bot-form-note">
+          {PROVIDERS[connection.provider].billing} The room's chat and its view of the game (its own cards too) go to {PROVIDERS[connection.provider].short}, and only its moves and
+          messages to the room. It's told to keep its cards to itself, but people in the chat can try to talk it out of that.
+        </p>
       )}
       {usage && (
         <p className="muted small bot-form-note" data-testid="bot-usage">
-          Used so far: {tokens(usage.input)} tokens in ({tokens(usage.cachedInput)} cached), {tokens(usage.output)} out, over {usage.calls}{" "}
-          {usage.calls === 1 ? "call" : "calls"}.
+          {usedSoFar(usage)}
         </p>
       )}
       {props.bot?.standIns && connection && (
@@ -131,6 +141,11 @@ export function BotForm(props: {
       )}
     </ProfileForm>
   );
+}
+
+/** "Used so far: 12.3k tokens in (9.1k cached), 840 out, over 14 calls." */
+export function usedSoFar(u: Usage): string {
+  return `Used so far: ${tokens(u.input)} tokens in (${tokens(u.cachedInput)} cached), ${tokens(u.output)} out, over ${u.calls} ${u.calls === 1 ? "call" : "calls"}.`;
 }
 
 /** 950, 12.3k, 1.2M. */

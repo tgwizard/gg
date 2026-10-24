@@ -28,6 +28,7 @@ node test/e2e/screens-chess.ts http://localhost:5311 ./screens        # Chess, l
 node test/e2e/screens-othello.ts http://localhost:5311 ./screens      # Othello (from /try), light + dark
 node test/e2e/screens-go.ts http://localhost:5311 ./screens           # Go (from /try), light + dark
 node test/e2e/screens-fourinarow.ts http://localhost:5311 ./screens   # Four in a Row (from /try), light + dark
+node test/e2e/screens-luffarschack.ts http://localhost:5311 ./screens # Luffarschack (from /try), light + dark
 node test/e2e/screens-cannons.ts http://localhost:5311 ./screens      # Cannons (from /try), light + dark
 node test/e2e/screens-femkort.ts http://localhost:5311 ./screens      # Fem kort (from /try), light + dark
 ```
@@ -49,7 +50,7 @@ these through the browser and reports back.
 - [ ] Two people pick the same color: whoever joined first keeps it, the other sees "X is taken here, so you're Y" and gets the next free color; taken colors are marked in the profile picker (top right).
 - [ ] Rename the room from the top bar: everyone sees the new name and a chat note; clearing it shows "Name this room".
 - [ ] Create a room from the home page. The URL is `/r/<10-char code>`, and the status light in the top bar is green; hovering or clicking it shows latency, since when, and reconnects.
-- [ ] The people icon by the room's name shows the code and Copy invite link on hover, and stays open on click. Before a game, "Invite friends to play" shows the link, who's here, and Add a bot.
+- [ ] The people icon by the room's name shows the code and Copy invite link on hover, and stays open on click. Before a game, "Invite friends to play" shows the link, who's here (click yourself or your bots to edit), and *+ Invite a bot*.
 - [ ] On a phone the top bar is one row: the room name shortens, your name is just your avatar, and sound and light/dark share one button.
 - [ ] Type the code (lower-case, with a space) into *Room code or link* on the home page: it shows upper-case and joins the room.
 - [ ] With 1Password (or another password manager) installed, the name, code and chat inputs don't offer to autofill.
@@ -190,6 +191,19 @@ these through the browser and reports back.
 - [ ] Against a built-in bot: it answers within a couple of seconds, never misses a win or a block, and is hard to beat.
 - [ ] Laptop (1440×900): board, players, clocks and panel fit without scrolling, on 7×6 and 9×7 (`/try/fourinarow/big-board`). Phone: opponent above the board, you below, columns easy to tap. Both modes: wood, holes, discs and the winning line readable.
 
+### Luffarschack
+- [ ] Setup: sheet size (15×15, 19×19, 25×25) and the turn timer with *Disable timer*; the gear shows them during the game.
+- [ ] Nobody seated: a "Take a seat" prompt over a faded sheet; the second player sitting starts the game; seat 0 draws the first cross.
+- [ ] The sheet looks like squared paper in both modes: faint blue squares, a red margin, letters and numbers in pencil, a pencil frame round the playing area; dark mode is dim paper with light ink.
+- [ ] On your move, pointing at a square pencils your mark in faintly; clicking inks it. On a phone the first tap pencils it in and a second tap on the same square inks it. Out of turn nothing shows. Keyboard: focus the sheet, the arrows move a dotted cursor (from the last mark), Enter or Space marks.
+- [ ] A mark: drawn stroke by stroke (a cross's two strokes one after the other, a circle in one loop) with a soft pen scratch, live only (not after a refresh). Every cross and circle looks a little different and doesn't change on refresh. The last mark has a stroke of highlighter; the panel says it ("Bob drew a circle on H8. Mark 12.").
+- [ ] Ink is the players' colors, readable on the paper in both modes (also for dark colors like Charcoal, and light ones like Mustard); two similar colors are split.
+- [ ] Blocking (`/try/luffarschack/block`, `/try/luffarschack/open-three`) and winning (`/try/luffarschack/win`): five in a row gets a rough hand-drawn loop around it in the winner's ink, and the results follow a moment later. *See the board* shows it. Six in a row wins too.
+- [ ] A full sheet (`/try/luffarschack/nearly-full`) ends in a draw.
+- [ ] Turn timer: the bar runs down, with the heartbeat in the last 10 s; running out loses. *Resign* asks first. Leaving before your first mark calls the game off; after, it's a loss.
+- [ ] Against a built-in bot: it answers within about a second, never misses a five or a four to block, blocks open threes, and finishes with fours when it can.
+- [ ] Laptop (1440×900): sheet, players and panel fit without scrolling, on 19×19 and 25×25 (`/try/luffarschack/big-sheet`). Phone: opponent above the sheet, you below; squares are small but two taps make marks easy to place.
+
 ### Go
 - [ ] Setup: 9×9, 13×13 and 19×19 each offer their own clock presets; *No clock* hides the clocks.
 - [ ] Nobody seated: a "Take a seat" prompt over a greyed board; the second player sitting starts the game; seat 0 has Black, who moves first.
@@ -219,19 +233,23 @@ these through the browser and reports back.
 ### Turns, sound and the end of a game
 - [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
 - [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. A heartbeat in your last 10 s on a timed turn (not on others' turns). The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
-- [ ] End screens (Coast to Coast, chess, Othello, Go, Four in a Row, Battleship, Cannons, Finns i sjön, Fem kort): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
+- [ ] End screens (Coast to Coast, chess, Othello, Go, Four in a Row, Luffarschack, Battleship, Cannons, Finns i sjön, Fem kort): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
 
 ### Bots
-- [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.
+- [ ] With no bots yet, *+ Invite a bot* in the members panel opens a new bot's form (a free name and color, a personality); *Make and invite* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner. With bots, it lists the ones not in the room (one click invites), plus *+ New bot* and a link to *Your bots*.
+- [ ] Settings, *Bots & AI* (`/settings#bots`): your bots with their kind, rooms and usage; *+ New bot*, *Edit* inline, *Delete* (confirm; it leaves its rooms right away, also ones not open). *Delete all bots* bottom right, with a confirmation sliding in. AI keys: added without a check; the card's light shows whether the provider takes it, which bots use it and the tokens used with it; removing a key turns its bots built-in.
+- [ ] Settings, *Profile*: name and color, then Sound effects and Dark mode with the top-bar icons (On/Off), then Delete all data.
+- [ ] The same bot in two rooms is the same player; editing it in one room changes it in both. × takes it out of one room only (it's still in settings).
+- [ ] Click your own name in the members panel or *Here now*: edit your name and color there.
 - [ ] Click your bot's name: rename and recolor it, mid-game too. Chat says "Y is now known as Z" and the board updates.
 - [ ] On every game board, bots' nameplates show the robot avatar; people show their initial.
 - [ ] Start each game with a bot in the room: once you sit down it takes a free seat within a couple of seconds and plays its turns (poker: after someone deals; Battleship: places and readies its fleet by itself). If nobody sits, bots wait about 10 s before sitting down.
 - [ ] Refresh: your bots come back online with you. Close the tab: they go offline. Open the room in two tabs: each bot is online once, and closing the tab playing it hands it to the other.
 - [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list. Removed while offline, it shows *leaving…* and goes once you're back.
-- [ ] Another player sees your bot as *bot* (hover: "Adam's bot") without a ×.
+- [ ] Another player sees your bot as *bot* without a ×; clicking it shows what it is (built-in or AI, model, effort, provider, personality), never the key.
 
 ### AI bots (needs an AI key in `/settings`)
-- [ ] Add a bot, *Plays*: your key. Model and effort default to the cheapest model at low effort; the preview says so. *Configure AI settings* is always in the popup; your profile popup links to all settings, and settings has *Back to the room*.
+- [ ] Add a bot, *Plays*: your key. Model and effort default to the cheapest model at low effort; the preview says so. The bot form links to *Your bots and AI keys* (or *Add an AI key*); your profile popup links to all settings, and settings has *Back to the room*.
 - [ ] Say hello before any game: it answers in character. Start a game: it sits, plays its moves within a few seconds, and chats now and then (not after every move).
 - [ ] While its model works, a bubble over its nameplate says what it's doing, and dots show on its avatar in the members list (the name stays readable).
 - [ ] Edit it: tokens used so far; change model or effort and it uses them from its next move.

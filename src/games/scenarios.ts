@@ -14,6 +14,8 @@ import { scenarios as fourInARowScenarios } from "./fourinarow/scenarios";
 import { go } from "./go";
 import { scenarios as goScenarios } from "./go/scenarios";
 import type { Scenario } from "./kit/scenario";
+import { luffarschack } from "./luffarschack";
+import { scenarios as luffarschackScenarios } from "./luffarschack/scenarios";
 import { othello } from "./othello";
 import { scenarios as othelloScenarios } from "./othello/scenarios";
 import { poker } from "./poker";
@@ -30,6 +32,7 @@ export const scenarios: Record<string, Scenario[]> = {
   [othello.meta.id]: othelloScenarios,
   [go.meta.id]: goScenarios,
   [fourInARow.meta.id]: fourInARowScenarios,
+  [luffarschack.meta.id]: luffarschackScenarios,
   [battleship.meta.id]: battleshipScenarios,
   [cannons.meta.id]: cannonsScenarios,
   [finnsISjon.meta.id]: finnsISjonScenarios,

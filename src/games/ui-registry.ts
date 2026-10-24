@@ -6,6 +6,7 @@ import { femKortUI } from "./femkort/ui";
 import { finnsISjonUI } from "./finnsisjon/ui";
 import { fourInARowUI } from "./fourinarow/ui";
 import { goUI } from "./go/ui";
+import { luffarschackUI } from "./luffarschack/ui";
 import { othelloUI } from "./othello/ui";
 import { pokerUI } from "./poker/ui";
 import { ticketUI } from "./ticket/ui";
@@ -19,6 +20,7 @@ export const gameUIs: Record<string, GameUI> = {
   [othelloUI.meta.id]: othelloUI,
   [goUI.meta.id]: goUI,
   [fourInARowUI.meta.id]: fourInARowUI,
+  [luffarschackUI.meta.id]: luffarschackUI,
   [battleshipUI.meta.id]: battleshipUI,
   [cannonsUI.meta.id]: cannonsUI,
   [finnsISjonUI.meta.id]: finnsISjonUI,

@@ -6,6 +6,7 @@ import { femKort } from "./femkort";
 import { finnsISjon } from "./finnsisjon";
 import { fourInARow } from "./fourinarow";
 import { go } from "./go";
+import { luffarschack } from "./luffarschack";
 import { othello } from "./othello";
 import { poker } from "./poker";
 import { ticketToRide } from "./ticket";
@@ -19,6 +20,7 @@ export const games: Record<string, AnyGameDefinition> = {
   [othello.meta.id]: othello,
   [go.meta.id]: go,
   [fourInARow.meta.id]: fourInARow,
+  [luffarschack.meta.id]: luffarschack,
   [battleship.meta.id]: battleship,
   [cannons.meta.id]: cannons,
   [finnsISjon.meta.id]: finnsISjon,

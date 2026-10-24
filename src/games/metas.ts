@@ -6,10 +6,11 @@ import { femKortMeta } from "./femkort/meta";
 import { finnsISjonMeta } from "./finnsisjon/meta";
 import { fourInARowMeta } from "./fourinarow/meta";
 import { goMeta } from "./go/meta";
+import { luffarschackMeta } from "./luffarschack/meta";
 import { othelloMeta } from "./othello/meta";
 import { pokerMeta } from "./poker/meta";
 import { ticketMeta } from "./ticket/meta";
 import { ticTacToeMeta } from "./tictactoe/meta";
 import type { GameMeta } from "./types";
 
-export const gameMetas: GameMeta[] = [ticketMeta, pokerMeta, chessMeta, othelloMeta, goMeta, fourInARowMeta, battleshipMeta, cannonsMeta, finnsISjonMeta, femKortMeta, ticTacToeMeta];
+export const gameMetas: GameMeta[] = [ticketMeta, pokerMeta, chessMeta, othelloMeta, goMeta, fourInARowMeta, luffarschackMeta, battleshipMeta, cannonsMeta, finnsISjonMeta, femKortMeta, ticTacToeMeta];

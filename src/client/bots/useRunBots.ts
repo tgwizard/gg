@@ -1,24 +1,24 @@
 import { useEffect } from "react";
 import { BotPlayer } from "./BotPlayer";
-import { getBots, subscribeBots } from "./store";
+import { botsIn, subscribeBots } from "./store";
 
 /**
- * Play your bots for this room while it's open: new ones join, renamed ones tell the
- * room, removed ones leave it (in whichever tab is playing them, which then forgets
- * them), and closing the room stops them.
+ * Play your bots for this room while it's open: invited ones join, edited ones tell the
+ * room, removed (or deleted) ones leave it (in whichever tab is playing them, which then
+ * forgets them there), and closing the room stops them.
  */
 export function useRunBots(roomId: string, ownerSecret: string) {
   useEffect(() => {
     const players = new Map<string, BotPlayer>();
     const sync = () => {
-      const bots = getBots().filter((b) => b.roomId === roomId);
+      const bots = botsIn(roomId);
       for (const bot of bots) {
         const playing = players.get(bot.id);
         if (playing) {
           playing.update(bot);
           continue;
         }
-        const player = new BotPlayer(bot, ownerSecret);
+        const player = new BotPlayer(bot, roomId, ownerSecret);
         players.set(bot.id, player);
         player.start();
       }

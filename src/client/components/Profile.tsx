@@ -67,6 +67,8 @@ export function ProfileForm(props: {
   caption?: string;
   /** More fields, between the color and the buttons. */
   children?: ReactNode;
+  /** A line above it all. */
+  intro?: string;
 }) {
   const nameLabel = props.whose ? `${props.whose}'s name` : "Your name";
   const colorLabel = props.whose ? `${props.whose}'s color` : "Your color";
@@ -78,6 +80,7 @@ export function ProfileForm(props: {
   }
   return (
     <form className="profile-form" onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && props.onCancel?.()}>
+      {props.intro && <p className="muted small">{props.intro}</p>}
       <div className="profile-preview">
         <Avatar name={name || "?"} color={color} bot={props.bot} size="lg" />
         <div className="profile-preview-text">
@@ -131,7 +134,7 @@ export function ProfileMenu(props: { name: string; color: number; onSave(name: s
             onCancel={() => setOpen(false)}
           >
             <p className="muted small profile-settings-link">
-              <SettingsLink>All settings</SettingsLink>: AI keys, and the data gg keeps in this browser.
+              <SettingsLink>All settings</SettingsLink>: sound, your bots, AI keys, and the data gg keeps in this browser.
             </p>
           </ProfileForm>
         </Popover>
@@ -174,13 +177,15 @@ export function Popover({
     // Re-placed whenever its content grows or shrinks (e.g. a field appears).
     const place = () => {
       setTop(Math.max(12, Math.min(below, window.innerHeight - el.offsetHeight - 12)));
-      setLeft(Math.max(12, Math.min(rect.left, window.innerWidth - el.offsetWidth - 12)));
+      // Lined up with the anchor's left or right edge, but never off either side of the window.
+      const want = align === "left" ? rect.left : rect.right - el.offsetWidth;
+      setLeft(Math.max(12, Math.min(want, window.innerWidth - el.offsetWidth - 12)));
     };
     place();
     const observer = new ResizeObserver(place);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [below, rect.left]);
+  }, [below, rect.left, rect.right, align]);
   useEffect(() => {
     const close = (e: PointerEvent) => {
       const t = e.target as Node;
@@ -200,7 +205,7 @@ export function Popover({
       className={`profile-pop box ${className}`}
       role="dialog"
       aria-label={label}
-      style={align === "left" ? { top, left } : { top, right: Math.max(12, window.innerWidth - rect.right) }}
+      style={{ top, left }}
       {...hover}
     >
       {children}

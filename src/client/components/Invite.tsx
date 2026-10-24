@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { MAX_BOTS_PER_PLAYER } from "../../shared/protocol";
-import { Avatar, Panel, PlayerName } from "../../ui";
-import type { BotRecord } from "../bots/store";
+import { Panel } from "../../ui";
+import { type BotRecord, playingIn } from "../bots/store";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { AddBot } from "./Members";
+import { InviteBot, MemberButton } from "./Members";
 import { Popover, usePeek } from "./Profile";
 
 /** A people icon by the room's name: hover or click it for the room code and invite link. */
@@ -35,7 +35,8 @@ export function InviteButton({ roomId }: { roomId: string }) {
 }
 
 /**
- * Before a game: who's here, the link to send to friends, and bots to fill the table.
+ * Before a game: who's here (click yourself or your bots to edit), the link to send to
+ * friends, and your bots to fill the table.
  */
 export function InviteSection({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[] }) {
   const here = snapshot.members.filter((m) => m.online);
@@ -52,13 +53,12 @@ export function InviteSection({ snapshot, roomId, bots }: { snapshot: RoomSnapsh
         <ul className="invite-people">
           {here.map((m) => (
             <li key={m.id} className="invite-person">
-              <Avatar name={m.name} color={m.color} online bot={m.kind === "bot"} size="sm" />
-              <PlayerName name={m.name} color={m.color} />
+              <MemberButton member={m} snapshot={snapshot} bots={bots} roomId={roomId} />
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
             </li>
           ))}
           <li>
-            <AddBot roomId={roomId} members={snapshot.members} disabled={snapshot.status !== "connected" || bots.length >= MAX_BOTS_PER_PLAYER} className="btn small" />
+            <InviteBot roomId={roomId} members={snapshot.members} disabled={snapshot.status !== "connected" || playingIn(roomId, bots).length >= MAX_BOTS_PER_PLAYER} className="btn small" />
           </li>
         </ul>
       </div>

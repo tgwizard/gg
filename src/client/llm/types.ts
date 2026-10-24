@@ -128,4 +128,14 @@ export interface Connection {
   models?: string[];
   /** How hard it thinks; low when unset. */
   effort?: Effort;
+  /** Tokens its bots have used with it, all told. */
+  usage?: Usage;
+}
+
+/** Tokens used, all told. */
+export interface Usage {
+  input: number;
+  cachedInput: number;
+  output: number;
+  calls: number;
 }
