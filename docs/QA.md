@@ -27,6 +27,9 @@ node test/e2e/screens-ticket.ts http://localhost:5311 ./screens       # Coast to
 node test/e2e/screens-chess.ts http://localhost:5311 ./screens        # Chess, light + dark
 node test/e2e/screens-othello.ts http://localhost:5311 ./screens      # Othello (from /try), light + dark
 node test/e2e/screens-go.ts http://localhost:5311 ./screens           # Go (from /try), light + dark
+node test/e2e/screens-fourinarow.ts http://localhost:5311 ./screens   # Four in a Row (from /try), light + dark
+node test/e2e/screens-cannons.ts http://localhost:5311 ./screens      # Cannons (from /try), light + dark
+node test/e2e/screens-femkort.ts http://localhost:5311 ./screens      # Fem kort (from /try), light + dark
 ```
 
 End screens and late-game situations, without playing a whole game (local dev server
@@ -103,6 +106,18 @@ these through the browser and reports back.
 - [ ] Motion: the deal flies from the lake to each seat (into your hand for you); cards handed over after an ask fly from one player to the other; "Finns i sjön!" splashes the lake and the catch flies to whoever fished (face up only for them, or for everyone when it was the rank asked for); a book's four cards fly to its badge, which pops in. Nothing moves with reduced motion.
 - [ ] Your hand groups cards of a rank together; three of a kind is marked "one more!". Once the game's going, seated players don't see open-seat boxes.
 
+### Fem kort
+- [ ] Setup: deals to win, turn timer, and the överstick / two in a row / bättre kort checkboxes; the gear shows them during the game.
+- [ ] Two to six sit down; *Deal* gives five cards each (three, then two, flying from the middle). Nobody sees anyone else's cards (DevTools → WS: no card codes from other hands, no stock). Once the game's going the table closes up around the players.
+- [ ] Your lead: "Your lead: any card." Following: only legal cards are lit, the rest dimmed; the hint says "Follow hearts and beat the K♥: you have to if you can", "Follow hearts: you can't beat the K♥" or "No hearts: play any card". With överstick off, any card of the suit led.
+- [ ] Played cards fly to the felt in front of each player; the card winning so far is ringed in gold; a taken trick stays a moment, then is gathered to its winner, who leads (the news strip says so).
+- [ ] The last trick (`/try/femkort/last-trick`): the fifth pip lights gold, "Last trick!" pops in, the felt ring glows, and the hint says "Last trick!". Taking it: the card pulses gold, a star pops onto the plate, "You win deal N"; the next deal comes after a few seconds with the dealer chip moved on.
+- [ ] *Keep the king?* (`/try/femkort/fourth-trick`): leading the 4♥ keeps the K♠ to take the last trick; leading the K♠ loses it.
+- [ ] The end (`/try/femkort/game-over`): the end screen with deals and the cards that took each last trick; *Play again* deals a new game.
+- [ ] Bättre kort (`/try/femkort/better-cards`): *Ask for better cards* on your lead; the others' plates glow while they answer; all yes deals again, any no plays on ("Bot said no to new cards: play on"). Once a deal each.
+- [ ] Let the turn clock run out: a card is played for you and you're marked away; later turns are quick until *I'm back*. *Leave game* mid-deal deals the cards again without you.
+- [ ] Phone: the plates, the cards on the felt, the pips and your five cards all fit; cards are tappable. Both modes readable.
+
 ### Tic-tac-toe
 - [ ] Entering with no side picked: the board is greyed out with a "Pick a side" prompt (buttons in your color); seated alone, it says you're waiting for an opponent; watching a full game, the board is live and the status says you're watching.
 - [ ] Two players take X and O; the round starts at once; a win highlights the line, scores it and announces it in chat.
@@ -121,6 +136,18 @@ these through the browser and reports back.
 - [ ] Sink the fleet: winner announced in chat, both fleets revealed, *Play again* starts placing with the other player shooting first.
 - [ ] Leaving while placing calls the game off; leaving while firing forfeits.
 - [ ] Phone: while placing, your sea and the dock fit with the other side as just a nameplate; while firing, the sea you aim at comes first.
+
+### Cannons
+- [ ] Setup: players (2–4), landscape (gentle, hilly, mountains), wind (none, light, strong) and the turn timer. The game starts when every seat is taken; a new field each game.
+- [ ] Nobody seated: a "Take a seat" prompt over a greyed field; seated alone, "Waiting for an opponent".
+- [ ] Aiming on your turn: dragging from your cannon sets the angle and power (a dotted line with the numbers); the ◀ ▶ and − + steppers and sliders, and ← → / ↑ ↓ (Shift for 5) do too; Space or *Fire!* fires. Out of turn there are no controls.
+- [ ] A shot: everyone sees the ball fly with a trail, a soft thump, then a burst and a crater where it lands; a ball high or wide makes the camera widen to follow it. The news says where it went ("Your shot landed 40 m short of Bob (to the left)"), and the shooter's faint trail stays until their next shot.
+- [ ] The wind badge shows the flag, a number and an arrow; it changes between turns, and the clouds drift with it.
+- [ ] A hit (`/try/cannons/one-more`): the cannon is wrecked with smoke, the chat says who hit whom only once the ball has landed, and the end screen comes up after the burst. Refresh mid-flight: the field shows the result, nothing replays.
+- [ ] Free for all (`/try/cannons/free-for-all`): plates left to right as the cannons stand, knocked-out cannons are skipped, last standing wins.
+- [ ] Clock: let it run out and your last aim is fired ("Out of time"); three in a row and your cannon is out. Leaving before anyone fires calls it off; after, your cannon is out.
+- [ ] Against a built-in bot: its first shot is off, then it closes in, usually hitting within 3–5 shots.
+- [ ] Laptop (1440×900): field, plates and controls fit without scrolling. Phone: the field fills the width with the controls below; dragging aims without scrolling the page. Both modes: sky, ground, cannons, trails and labels readable.
 
 ### Chess
 - [ ] Setup: the time-control presets fill in minutes and increment; *No clock* hides the clocks.
@@ -146,6 +173,18 @@ these through the browser and reports back.
 - [ ] Clocks: only the side to move runs, the increment is added per move; running out loses. *Resign* asks first. Leaving before your first move calls the game off; after, it's a loss.
 - [ ] Against a built-in bot: it answers within a couple of seconds and grabs corners when it can.
 - [ ] Laptop (1440×900): board, players, clocks and panel fit without scrolling. Phone: opponent above the board, you below. Both modes: discs, hints and coordinates readable.
+
+### Four in a Row
+- [ ] Setup: board size (7×6, 8×7, 9×7), who starts (take turns / loser starts) and clock presets; *No clock* hides the clocks.
+- [ ] Nobody seated: a "Take a seat" prompt over a greyed board; the second player sitting starts the game; seat 0 starts.
+- [ ] On your move, pointing at a column holds your disc over it, lights the column and shows a faint disc where it would land; a full column shows the disc faded and can't be clicked. Out of turn nothing shows and clicks do nothing. Keyboard: focus the board, ←/→ (or Home/End) and Enter/Space drop; a digit drops straight into that column.
+- [ ] A move: the disc falls behind the front of the board (seen through the holes), bounces a little and knocks; the last disc has a dot. The panel says it ("Bob dropped a disc in column 4.") and the move list follows.
+- [ ] Discs are the players' colors and easy to tell apart in both modes; with two similar profile colors (e.g. Terracotta and Tomato) the other side's discs switch to a contrasting color, and the plates' small discs match.
+- [ ] Blocking (`/try/fourinarow/block`) and winning (`/try/fourinarow/win`): dropping the four draws a gold line through it, the four glow and the rest dim, and the results follow a moment later. *See the board* shows the line. *Play again* says who starts (taking turns, or the loser).
+- [ ] A full board (`/try/fourinarow/nearly-full`) ends in a draw.
+- [ ] Clocks: only the side to move runs, the increment is added per move; running out loses. *Resign* asks first. Leaving before your first disc calls the game off; after, it's a loss.
+- [ ] Against a built-in bot: it answers within a couple of seconds, never misses a win or a block, and is hard to beat.
+- [ ] Laptop (1440×900): board, players, clocks and panel fit without scrolling, on 7×6 and 9×7 (`/try/fourinarow/big-board`). Phone: opponent above the board, you below, columns easy to tap. Both modes: wood, holes, discs and the winning line readable.
 
 ### Go
 - [ ] Setup: 9×9, 13×13 and 19×19 each offer their own clock presets; *No clock* hides the clocks.
@@ -176,7 +215,7 @@ these through the browser and reports back.
 ### Turns, sound and the end of a game
 - [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
 - [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
-- [ ] End screens (Coast to Coast, chess, Othello, Go, Battleship, Finns i sjön): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
+- [ ] End screens (Coast to Coast, chess, Othello, Go, Four in a Row, Battleship, Cannons, Finns i sjön, Fem kort): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
 
 ### Bots
 - [ ] *+ Add a bot* in the members panel opens a popup with a free name and color to keep or change; *Add bot* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner.

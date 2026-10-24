@@ -61,6 +61,8 @@ export interface GameMeta {
   rules: string;
   /** For AI bots only: how the game's view and moves are written (coordinates, card codes). */
   botNotes?: string;
+  /** Still being tuned: marked "WIP" wherever the game is named. */
+  wip?: boolean;
 }
 
 export interface GameDefinition<State = unknown, Op = unknown, View = unknown, Config = unknown> {

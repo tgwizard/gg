@@ -22,6 +22,8 @@ export type Sfx =
   | "place"
   /** A Go stone clacked down on wood. */
   | "stone"
+  /** A disc dropping into a slot and landing with a little bounce (Four in a Row). */
+  | "drop"
   /** A piece taking another. */
   | "capture"
   /** Check, or something pointed at you. */
@@ -36,12 +38,16 @@ export type Sfx =
   | "knock"
   /** A run of train cars set down. */
   | "claim"
+  /** A cannon firing (a soft thump). */
+  | "cannon"
+  /** A cannonball bursting on the ground. */
+  | "boom"
   /** Something done well (a book, a ticket). */
   | "good"
   | "win"
   | "lose";
 
-export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "capture", "check", "splash", "hit", "sink", "knock", "claim", "good", "win", "lose"];
+export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "good", "win", "lose"];
 
 const KEY = "gg.sound";
 const VOLUME = 0.18;
@@ -176,6 +182,12 @@ const SOUNDS: Record<Sfx, (a: AudioContext, t: number) => void> = {
     tone(a, t, vary(2400, 0.06), 0.025, { gain: 0.07, attack: 0.001 });
     tone(a, t, vary(330), 0.07, { to: 210, gain: 0.26, attack: 0.002 });
   },
+  drop(a, t) {
+    // A wooden disc landing in its slot: a knock with a bright edge, then a smaller one as it settles from the bounce.
+    tone(a, t, vary(1700, 0.06), 0.03, { gain: 0.06, attack: 0.001 });
+    tone(a, t, vary(260), 0.09, { to: 170, gain: 0.3, attack: 0.002 });
+    tone(a, t + 0.11, vary(300), 0.05, { to: 210, gain: 0.1, attack: 0.002 });
+  },
   capture(a, t) {
     tone(a, t, vary(200), 0.09, { to: 120, gain: 0.34, attack: 0.003 });
     tone(a, t + 0.07, vary(160), 0.08, { to: 110, gain: 0.22, attack: 0.003 });
@@ -198,6 +210,16 @@ const SOUNDS: Record<Sfx, (a: AudioContext, t: number) => void> = {
   },
   claim(a, t) {
     for (let i = 0; i < 3; i++) tone(a, t + i * 0.08, vary(220, 0.06), 0.06, { to: 150, gain: 0.18, attack: 0.003 });
+  },
+  cannon(a, t) {
+    // A muffled thump and a short puff, like a toy cannon: low, round, quick to fade.
+    tone(a, t, vary(120), 0.22, { to: 55, gain: 0.3, attack: 0.004 });
+    noise(a, t, 0.25, { freq: 700, to: 180, q: 0.6, type: "lowpass", gain: 0.14, attack: 0.006 });
+  },
+  boom(a, t) {
+    // A soft, distant crump: a low tone under a puff of dark noise.
+    tone(a, t, vary(75), 0.4, { to: 40, gain: 0.28, attack: 0.008 });
+    noise(a, t + 0.01, 0.45, { freq: 420, to: 90, q: 0.5, type: "lowpass", gain: 0.16, attack: 0.02 });
   },
   good(a, t) {
     tone(a, t, 659.25, 0.45, { gain: 0.12, attack: 0.015 });

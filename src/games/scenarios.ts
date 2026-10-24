@@ -1,10 +1,16 @@
 /** Every game's scenarios for /try, by game id (see kit/scenario.ts). */
 import { battleship } from "./battleship";
 import { scenarios as battleshipScenarios } from "./battleship/scenarios";
+import { cannons } from "./cannons";
+import { scenarios as cannonsScenarios } from "./cannons/scenarios";
 import { chess } from "./chess";
 import { scenarios as chessScenarios } from "./chess/scenarios";
+import { femKort } from "./femkort";
+import { scenarios as femKortScenarios } from "./femkort/scenarios";
 import { finnsISjon } from "./finnsisjon";
 import { scenarios as finnsISjonScenarios } from "./finnsisjon/scenarios";
+import { fourInARow } from "./fourinarow";
+import { scenarios as fourInARowScenarios } from "./fourinarow/scenarios";
 import { go } from "./go";
 import { scenarios as goScenarios } from "./go/scenarios";
 import type { Scenario } from "./kit/scenario";
@@ -23,7 +29,10 @@ export const scenarios: Record<string, Scenario[]> = {
   [chess.meta.id]: chessScenarios,
   [othello.meta.id]: othelloScenarios,
   [go.meta.id]: goScenarios,
+  [fourInARow.meta.id]: fourInARowScenarios,
   [battleship.meta.id]: battleshipScenarios,
+  [cannons.meta.id]: cannonsScenarios,
   [finnsISjon.meta.id]: finnsISjonScenarios,
+  [femKort.meta.id]: femKortScenarios,
   [ticTacToe.meta.id]: ticTacToeScenarios,
 };

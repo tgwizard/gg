@@ -1,0 +1,181 @@
+.cannons { container-type: inline-size; position: relative; display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- the players ---------- */
+.cn-plates { display: flex; gap: 10px; }
+.cn-plates > * { flex: 1 1 0; min-width: 0; }
+.cn-plates .plate { width: auto; padding: 7px 12px; }
+.cn-open-seat {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+@container (max-width: 520px) {
+  .cn-plates { flex-wrap: wrap; gap: 6px; }
+  .cn-plates.n3 > *, .cn-plates.n4 > * { flex-basis: calc(50% - 3px); }
+  .cn-plates .plate { padding: 5px 8px; }
+}
+
+/* ---------- the field ---------- */
+/* As wide as there's room for, but short enough that the controls fit under it. */
+.cn-scene {
+  position: relative;
+  width: min(100%, max(320px, (100dvh - 370px) * 800 / 516));
+  aspect-ratio: 800 / 516;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--wood-edge);
+  box-shadow: var(--table-shadow);
+  background: var(--cannons-sky-bottom);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cn-scene.aiming { cursor: crosshair; touch-action: none; }
+.cn-svg { display: block; width: 100%; height: 100%; }
+
+.cn-stars circle { fill: var(--cannons-star); }
+.cn-sun { fill: var(--cannons-sun); filter: drop-shadow(0 0 14px var(--cannons-sun)); }
+.cn-cloud ellipse { fill: var(--cannons-cloud); }
+.cn-clouds { animation: cn-drift 60s linear infinite; }
+@keyframes cn-drift { from { transform: translateX(0); } to { transform: translateX(800px); } }
+.cn-clouds:not([style]) { animation: none; }
+.cn-far { fill: var(--cannons-far); }
+.cn-ground { stroke: var(--cannons-earth-2); stroke-width: 1.5; }
+.cn-grass { fill: none; stroke: var(--cannons-grass); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+.cn-grass-tip { fill: none; stroke: var(--cannons-grass-2); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; opacity: 0.8; }
+.cn-ground-grain { pointer-events: none; }
+#cn-grain circle { fill: var(--cannons-earth-2); opacity: 0.35; }
+.cn-scorch { fill: var(--cannons-scorch); }
+
+/* Each player's last shot, faintly, in their color. */
+.cn-trace polyline { fill: none; stroke: var(--pc); stroke-width: 2; stroke-dasharray: 2 6; stroke-linecap: round; opacity: 0.55; }
+.cn-trace circle { fill: none; stroke: var(--pc); stroke-width: 2; opacity: 0.7; }
+.cn-trace.mine polyline { opacity: 0.8; stroke-width: 2.5; }
+
+/* ---------- cannons ---------- */
+.cn-cannon .cn-body { fill: var(--pc); stroke: var(--cannons-outline); stroke-width: 1.2; }
+.cn-cannon .cn-barrel { fill: color-mix(in srgb, var(--pc), black 30%); stroke: var(--cannons-outline); stroke-width: 1; }
+.cn-cannon .cn-muzzle { fill: color-mix(in srgb, var(--pc), black 45%); }
+.cn-cannon .cn-wheel { fill: var(--cannons-wheel); stroke: var(--cannons-wheel-rim); stroke-width: 1.6; }
+.cn-cannon .cn-hub { fill: var(--cannons-wheel-rim); }
+.cn-cannon .cn-name { fill: var(--cannons-label); stroke: var(--cannons-label-halo); stroke-width: 3px; paint-order: stroke; font-weight: 800; text-anchor: middle; font-family: var(--font-body); }
+.cn-cannon.out .cn-body, .cn-cannon.out .cn-barrel, .cn-cannon.out .cn-muzzle { fill: var(--cannons-wreck); stroke: var(--cannons-earth-2); }
+.cn-cannon.out { opacity: 0.85; }
+.cn-turn-glow { fill: var(--gold); opacity: 0.35; animation: cn-glow 1.6s ease-in-out infinite alternate; }
+@keyframes cn-glow { from { opacity: 0.18; } to { opacity: 0.45; } }
+.cn-wisps circle { fill: var(--cannons-smoke); animation: cn-wisp 3.2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.cn-wisps circle + circle { animation-delay: 1.6s; }
+@keyframes cn-wisp { from { opacity: 0.8; transform: translateY(4px) scale(0.6); } to { opacity: 0; transform: translateY(-14px) scale(1.4); } }
+
+/* Your aim: a dotted line from the barrel, longer with more power. */
+.cn-aim line { stroke: var(--cannons-aim); stroke-width: 2.5; stroke-dasharray: 1 7; stroke-linecap: round; }
+.cn-aim circle { fill: none; stroke: var(--cannons-aim); stroke-width: 2.5; }
+.cn-aim text { fill: var(--cannons-label); stroke: var(--cannons-label-halo); stroke-width: 3px; paint-order: stroke; font-weight: 800; font-family: var(--font-body); }
+
+/* ---------- a shot ---------- */
+.cn-trail { fill: none; stroke: var(--pc); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.75; }
+.cn-ball { fill: var(--cannons-ball); stroke: var(--cannons-label-halo); stroke-width: 1.2; }
+.cn-boom circle { transform-box: fill-box; transform-origin: center; }
+.cn-boom-flash { fill: var(--cannons-boom); animation: cn-flash 520ms ease-out forwards; }
+.cn-boom-ring { fill: none; stroke: var(--accent); stroke-width: 3; animation: cn-ring 600ms ease-out forwards; }
+.cn-boom-smoke { fill: var(--cannons-smoke); opacity: 0; animation: cn-smoke 1100ms ease-out forwards; }
+@keyframes cn-flash { 0% { transform: scale(0.2); opacity: 1; } 60% { opacity: 0.85; } 100% { transform: scale(1.1); opacity: 0; } }
+@keyframes cn-ring { from { transform: scale(0.3); opacity: 0.9; } to { transform: scale(1.6); opacity: 0; } }
+@keyframes cn-smoke { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 25% { opacity: 0.85; } 100% { transform: translateY(-26px) scale(1.5); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-clouds, .cn-turn-glow, .cn-wisps circle { animation: none; }
+}
+
+/* ---------- on the field: wind, notes, prompts ---------- */
+.cn-wind {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px 3px 6px;
+  border-radius: var(--pill);
+  background: color-mix(in srgb, var(--surface), transparent 15%);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.cn-flag { width: 34px; height: 21px; }
+.cn-flag line { stroke: var(--text-2); stroke-width: 2; stroke-linecap: round; }
+.cn-flag path { fill: var(--accent); }
+.cn-wind.calm .cn-flag path { fill: var(--text-muted); }
+.cn-off {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  translate: -50% -50%;
+  padding: 4px 12px;
+  border-radius: var(--pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  animation: cn-pop 1.1s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes cn-pop { 0% { opacity: 0; scale: 0.8; } 15% { opacity: 1; scale: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+.cn-prompt-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg), transparent 45%);
+  backdrop-filter: grayscale(0.8);
+}
+.cn-prompt {
+  width: min(360px, 88%);
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.cn-prompt h3 { font-size: 1.4rem; }
+.cn-prompt p { font-size: 14px; }
+.cn-prompt .btn { margin-top: 6px; }
+
+/* ---------- news and the tray ---------- */
+.cn-news.good .herald-text { color: var(--gold-text); font-weight: 700; }
+.cn-news.bad .herald-text { color: var(--danger); font-weight: 700; }
+.cn-tray-text { color: var(--text); font-size: 15px; }
+.cn-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; width: 100%; }
+.cn-dial { display: grid; grid-template-columns: auto auto 4.2em auto; grid-template-rows: auto auto; align-items: center; gap: 4px 6px; }
+.cn-dial-label { grid-column: 1; grid-row: 1 / span 2; width: 3.6em; }
+.cn-value { min-width: 3.4em; font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; color: var(--text); }
+.cn-step { min-width: 34px; padding-inline: 0; }
+.cn-range { grid-column: 2 / span 3; width: 100%; accent-color: var(--gold); }
+.cn-fire-wrap { display: flex; align-items: center; gap: 12px; flex: 1 1 260px; }
+.cn-fire { min-width: 110px; }
+.cn-hint { font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.cn-hint kbd { font-size: 11px; }
+.cn-log-aim { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* A phone: the two dials side by side, Fire under them across the width. */
+@container (max-width: 560px) {
+  .cn-controls { gap: 10px; }
+  .cn-dial { flex: 1 1 140px; grid-template-columns: auto 1fr auto; }
+  .cn-dial-label { grid-column: 1 / span 3; grid-row: 1; width: auto; text-align: center; }
+  .cn-dial .cn-step { grid-row: 2; }
+  .cn-value { grid-row: 2; font-size: 18px; }
+  .cn-range { grid-column: 1 / span 3; grid-row: 3; }
+  .cn-fire-wrap { flex-direction: column; align-items: stretch; flex-basis: 100%; gap: 6px; }
+  .cn-fire { width: 100%; }
+  .cn-hint { text-align: center; }
+}
+
+/* ---------- setup ---------- */
+.cn-setup-row { display: flex; flex-direction: column; gap: 6px; }
+.cn-presets { display: flex; flex-wrap: wrap; gap: 6px; }

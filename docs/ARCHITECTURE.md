@@ -147,6 +147,8 @@ display type and Nunito for everything else.
 
 A game is a server-side `GameDefinition` (`src/games/types.ts`) plus a client
 `GameUI` (`src/games/ui.ts`), registered in `registry.ts` and `ui-registry.ts`.
+A new game still being tuned sets `meta.wip`, which puts a small "WIP" tag next to
+its name in the picker and the game header.
 
 ```ts
 interface GameDefinition<State, Op, View, Config> {
@@ -308,6 +310,40 @@ wins.
 This was the generality test: the room and protocol needed no changes. The
 shared deck and card UI moved from poker into the kit.
 
+### Fem kort (`src/games/femkort`)
+
+The old Swedish last-trick game for 2–6 players, built like Finns i sjön (kit seats, away
+players auto-played, new players dealt in at the next deal). Five cards each (three, then
+two, from the dealer's left), ace high, no trumps. You must follow suit if you can and,
+with överstick (the modern rule, on by default), beat the best card of that suit so far
+if you can; with none of the suit you play anything. Only the fifth trick counts: its
+winner wins the deal, and the first to win `dealsToWin` deals (default 3) wins the game.
+- **The rules** (`rules.ts`) are pure functions over a hand and the trick on the table
+  (`playable`, `winningPlay`), shared by the engine, the bot and the board, which marks
+  the cards you may play.
+- **State** keeps each player's hand, the trick on the table, the tricks taken this deal
+  and the undealt cards (secret, for the card-count invariant). After the last trick
+  there's a `nextDeal` pause (5 s, `dealOver`) with the trick still on the table; then
+  the deal passes clockwise.
+- **Settings:** deals to win, överstick (off: the older rule, just follow suit), two deals
+  in a row wins, and bättre kort: once a deal, the player on lead (not to the last trick)
+  may ask for better cards; everyone else answers (`vote`, a `concurrentOp`), and only a
+  unanimous yes deals again. No answer within 30 s, or anyone away, is a no.
+- **Hidden information:** hands and the undealt cards. Played cards are public. The view
+  lists `you.playable`, so the board and bots (built-in and AI) don't need the rules.
+- **Leaving mid-deal** deals the cards again without you; with fewer than two left at the
+  table the game ends.
+- **The table** (`ui/FemKortGame.tsx`) closes up around who's playing. Played cards sit on
+  the felt in front of each seat (the card winning so far ringed in gold); a taken trick
+  stays a moment and is gathered to its winner. Five pips count the tricks, the last one a
+  gold star. The last trick gets a "Last trick!" banner, a glowing felt ring and a chime,
+  and the card that takes it pulses gold while a star pops onto the winner's plate.
+- **The built-in bot** rates each card by its chance to stand up as the last trick's lead
+  (unseen higher cards of its suit against the cards the others hold), keeps its best,
+  dumps its weakest early and follows cheaply; on the fourth trick it weighs winning the
+  lead for the last against keeping the better card. It votes for better cards with
+  nothing strong to keep.
+
 ### Battleship (`src/games/battleship`)
 
 Classic Battleship for two: each player hides a fleet (Carrier 5, Battleship 4,
@@ -329,6 +365,49 @@ Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firin
   forfeits).
 - Leaving while placing calls the game off unscored; leaving while firing
   forfeits. *Play again* starts the next game with the opener alternating.
+
+### Cannons (`src/games/cannons`)
+
+Gorillas / Scorched Earth for 2–4, kept simple: every player is a cannon on a side-view
+landscape; take turns firing; one hit knocks a cannon out and the last one standing wins.
+- **The physics** (`physics.ts`) is pure and shared: one shot's whole flight from (angle,
+  power, wind, ground), on a fixed 20 ms step, and the crater it leaves. It only adds,
+  multiplies and divides (sines come from a Taylor-series table of whole degrees, square
+  roots from Newton's method), so a flight is the same to the last bit in any engine.
+  Distance goes with power (speed with its square root), the wind pushes sideways (more
+  on long, high shots), and a ball passing within 15 m of a cannon knocks it out (your own
+  too, once the ball has got clear of it). Balls can fly off the top and come back, or off
+  the sides for good. A crater takes what's inside its circle out of each column and lets
+  what's above settle (no overhangs); cannons sink with the ground.
+- **The field** (`terrain.ts`) is made from a seed per game (gentle, hilly, or mountains
+  with a ridge between neighbours): heights every 4 m, kept in the state, with a flat patch
+  under each cannon. Who stands where is shuffled each game.
+- **Moves are continuous**, whole numbers checked by the engine: `{type: "fire", angle:
+  0–180, power: 5–100}`. `legalOps` offers 9 example aims towards the nearest cannon
+  (a representative sample, as the contract allows), and the AI is told any angle and power
+  in range will do. No contract change was needed.
+- **A shot** is worked out on the server at once (crater and knock-out included), then the
+  game is `flying` (waiting on nobody) for as long as the ball takes on screen plus a beat;
+  a `land` timer then announces any hit, ends the game or moves to the next turn, with a
+  new wind (it drifts each turn, within the game's strength). So nobody reads about a hit
+  in the chat before seeing it. The view keeps each player's latest shot with its path
+  (whole-meter points); the browser replays that path rather than recomputing it.
+- **The view** has a `situation`, the position in words from the viewer's cannon (where
+  everyone is, the ground between, the wind, where the last shots landed: "landed 40 m
+  short of player X (to the left)"), for AI bots.
+- **Turn clock**: running out fires your last aim for you; three in a row and your cannon
+  is out. Leaving before anyone has fired calls the game off; after, your cannon is out.
+- **The scene** (`ui/Scene.tsx`) is SVG in world meters: sky, clouds drifting with the
+  wind, distant hills, the ground with scorch marks, cannons in their players' colors, and
+  each player's last shot as a faint trail. Only a shot that arrives live flies (ball,
+  trail, a burst where it lands, a camera that widens to keep the ball in view); after a
+  refresh the field is just as it is. Aim by dragging from your cannon, with the steppers
+  and sliders, or ←/→ and ↑/↓ (Space fires). Colors are tokens (`--cannons-*`).
+- **The built-in bot** aims like a person: the nearest cannon, an angle that looks like it
+  clears the hills, a first power from a rough sense of distance and wind (deliberately
+  6–18% off), then corrections by eye from where its shots landed (how far off, and roughly
+  how many meters a point of power is worth), allowing for the wind roughly. It aims higher
+  when a hill catches its shot. It hits in about 3 shots (rarely the first).
 
 ### Chess (`src/games/chess`)
 
@@ -380,6 +459,37 @@ game, calling the game off if you leave before moving, and Fischer clocks).
   tokens (`--othello-*`, `--disc-*`).
 - **The built-in bot** weighs squares the classic way (corners high, the squares next to
   an empty corner low), likes leaving few replies, and avoids opening a corner.
+
+### Four in a Row (`src/games/fourinarow`)
+
+Four in a Row for two on an upright board of 7×6, 8×7 or 9×7, built like Othello (seating,
+calling the game off if you leave before moving, Fischer clocks).
+- **The rules** (`rules.ts`) work on the board as a string of columns × rows cells ("x" for
+  whoever starts this game, "o", "."), row by row from the top; columns are numbered from 1 on
+  the left, rows from 1 at the bottom. A disc falls to the lowest empty cell. A disc that makes
+  four or more in a line wins (`fourThrough` gives every disc in such lines, two lines at
+  once included); a full board is a draw. A move is `{type: "drop", column}`.
+- **Who starts:** by default players take turns; with `opener: "loser"` the loser of each game
+  starts the next (after a draw, the other player). The next opener is kept in state
+  (`nextXSeat`), so a game called off is replayed with the same one.
+- **Colors:** discs are drawn in the players' own colors. If the two are too alike (OKLab
+  distance under 0.16, `ui/colors.ts`), the viewer keeps theirs and the other side's discs get
+  the palette color furthest from it.
+- **The board** (`ui/Board.tsx`): an SVG wooden front with a hole per cell, over the discs.
+  Pointing at a column (or ←/→, Home/End) holds your disc over it and marks where it would
+  land; click, tap, Enter, Space or a digit drops it (shown at once, taken back if refused). A
+  new disc falls in behind the front with gravity and a small bounce (sound `drop`, timed to
+  the landing), live moves only. The last disc has a dot; at the end a gold line joins the
+  winning discs, which glow while the rest dim, and the results come up 1.6 s later. Colors
+  are tokens (`--fiar-*`) plus the players' colors.
+- **The built-in bot** (`search.ts`, `bot.ts`) searches: negamax with alpha-beta (principal
+  variation search), iterative deepening, a transposition table and move ordering, within 450
+  ms and 14 moves on the page. It always takes a win it can see, blocks a threat without using
+  up depth, and never drops under the other side's winning spot. Its evaluation counts the
+  lines of four still open to each side and the threats, which count most on rows of the right
+  parity (with an even number of rows) and not at all above the other side's lower threat in
+  the same column. It opens in the middle and varies its first moves among near-best ones.
+  With `quick` it looks 4 moves ahead with no time limit, so set-up positions are repeatable.
 
 ### Go (`src/games/go`)
 
@@ -530,8 +640,10 @@ A bot is just another member of the room, played from its owner's browser:
   places at random and hunts around hits, Coast to Coast keeps its cheapest
   tickets and claims routes on the cheapest path to them, chess looks one move ahead
   (mates, material, no free pieces for the other side) with some randomness, Othello
-  weighs squares (corners, edges) and the replies it leaves, and Go runs a few
-  thousand random playouts per move. The bot runs on the page, so it decides within
+  weighs squares (corners, edges) and the replies it leaves, Go runs a few
+  thousand random playouts per move, Four in a Row searches with alpha-beta, Fem
+  kort keeps its strongest card for the last trick and dumps low cards early, and
+  Cannons aims like a person, correcting from where its last shots landed. The bot runs on the page, so it decides within
   a few hundred ms; `{ quick: true }` (the conformance suite, building /try
   positions) asks a searching bot to cut its search short. It decides from the view
   only, so it can't cheat. The conformance suite seats a table of built-in bots in every game and

@@ -1,7 +1,10 @@
 /** Client-side game registry. Add new games here (and in registry.ts). */
 import { battleshipUI } from "./battleship/ui";
+import { cannonsUI } from "./cannons/ui";
 import { chessUI } from "./chess/ui";
+import { femKortUI } from "./femkort/ui";
 import { finnsISjonUI } from "./finnsisjon/ui";
+import { fourInARowUI } from "./fourinarow/ui";
 import { goUI } from "./go/ui";
 import { othelloUI } from "./othello/ui";
 import { pokerUI } from "./poker/ui";
@@ -15,7 +18,10 @@ export const gameUIs: Record<string, GameUI> = {
   [chessUI.meta.id]: chessUI,
   [othelloUI.meta.id]: othelloUI,
   [goUI.meta.id]: goUI,
+  [fourInARowUI.meta.id]: fourInARowUI,
   [battleshipUI.meta.id]: battleshipUI,
+  [cannonsUI.meta.id]: cannonsUI,
   [finnsISjonUI.meta.id]: finnsISjonUI,
+  [femKortUI.meta.id]: femKortUI,
   [ticTacToeUI.meta.id]: ticTacToeUI,
 };

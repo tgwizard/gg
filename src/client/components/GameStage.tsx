@@ -5,7 +5,7 @@ import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
 import { useServerNow } from "../useNow";
 import { Panel, play } from "../../ui";
-import { GameCard } from "./GameCard";
+import { GameCard, WipBadge } from "./GameCard";
 import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
 
@@ -86,6 +86,7 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
           <div className="game-header-title">
             <img className="game-header-icon" src={ui.icon} alt="" width={44} height={44} />
             <h2 className="display">{ui.meta.name}</h2>
+            <WipBadge wip={ui.meta.wip} />
           </div>
           <div className="game-header-actions">
             <GameHelp name={ui.meta.name} rules={ui.meta.rules} />

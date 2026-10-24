@@ -103,6 +103,19 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .game-card-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .game-card-text strong { font-size: 1.45rem; }
 .game-card-tagline { font-size: 13px; color: var(--text-2); }
+.game-card-name { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
+.wip-badge {
+  flex-shrink: 0;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 4px 6px 2.5px;
+  border-radius: var(--pill);
+  border: 1.5px solid color-mix(in srgb, currentColor 55%, transparent);
+  color: var(--text-2);
+}
 
 /* ---------- center pages ---------- */
 .center-page { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }

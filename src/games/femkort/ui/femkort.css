@@ -1,0 +1,134 @@
+.fem { position: relative; display: flex; flex-direction: column; gap: 18px; }
+
+/* Each seat: the cards still in hand peek out toward the middle, over the nameplate. */
+.fem-spot { display: flex; flex-direction: column; align-items: center; }
+.fem-fan { margin-bottom: -8px; z-index: 1; min-height: 20px; display: flex; align-items: flex-end; }
+.side-top .fem-spot { flex-direction: column-reverse; }
+.side-top .fem-fan { margin: -8px 0 0; align-items: flex-start; }
+
+/* Deals won: a star each, out of the deals it takes. */
+.fem-stars { gap: 2px; font-size: 14px; line-height: 1; letter-spacing: 0; }
+/* The dealer: a small button before the stars. */
+.fem-stars .dealer-btn { width: 16px; height: 16px; margin-right: 4px; font-size: 9px; box-shadow: none; }
+.fem-star { color: var(--on-brand-2); opacity: 0.35; }
+.fem-star.on { color: var(--gold); opacity: 1; text-shadow: 0 0 6px color-mix(in oklab, var(--gold) 60%, transparent); }
+.fem-star[data-pop] { animation: fem-star-pop 700ms cubic-bezier(.3,1.7,.5,1) var(--pop-at, 0s) both; }
+@keyframes fem-star-pop {
+  0% { scale: 0.2; opacity: 0.35; color: var(--on-brand-2); }
+  60% { scale: 1.9; }
+  100% { scale: 1; opacity: 1; }
+}
+
+/* The middle of the table. */
+.fem-center { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.fem-title { font-size: 2.4rem; margin: 0; color: var(--gold); }
+.fem-center p { margin: 0; }
+.fem-pips { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.fem-pip {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--on-brand-2);
+  border: 1.5px solid color-mix(in oklab, var(--on-brand) 35%, transparent);
+}
+.fem-pip.done { color: var(--brand); background: var(--on-brand-2); border-color: var(--on-brand-2); }
+.fem-pip.now { color: var(--on-brand); border-color: var(--on-brand); box-shadow: 0 0 0 3px color-mix(in oklab, var(--on-brand) 20%, transparent); }
+.fem-pip.last { width: 28px; height: 28px; font-size: 15px; color: var(--gold); border-color: var(--gold); }
+.fem-pip.last.now { color: var(--brand); background: var(--gold); box-shadow: 0 0 14px 2px color-mix(in oklab, var(--gold) 60%, transparent); }
+.fem-pip.last.done { color: var(--brand); background: var(--gold); }
+.fem-center-line { font-size: 14px; color: var(--on-brand); text-shadow: 0 1px 2px color-mix(in oklab, black 40%, transparent); }
+.fem-center-line.label { color: var(--on-brand-2); }
+.fem-last-label { font-size: 1.9rem; line-height: 1.1; color: var(--gold); text-shadow: 0 0 18px color-mix(in oklab, var(--gold) 55%, transparent), 0 2px 3px color-mix(in oklab, black 45%, transparent); }
+.fem-last-label.pop { animation: fem-banner 900ms cubic-bezier(.25,1.5,.5,1) 0.6s both; }
+@keyframes fem-banner {
+  0% { scale: 0.3; opacity: 0; rotate: -6deg; }
+  100% { scale: 1; opacity: 1; rotate: 0deg; }
+}
+.fem-deal-won { font-size: 15px; }
+.fem-deal-won strong { font-size: 1.6rem; color: var(--gold); }
+.fem-led {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px 3px 8px;
+  border-radius: var(--pill);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--card-ink);
+  background: var(--card-face);
+  border: 1px solid var(--card-edge);
+  box-shadow: var(--card-shadow);
+}
+.fem-led-suit { font-size: 18px; line-height: 1; }
+.fem-led.red .fem-led-suit { color: var(--card-red); }
+
+/* The last trick: the felt's ring glows gold. */
+.fem-table .table-felt::after { transition: border-color 400ms ease, box-shadow 400ms ease; }
+.fem-table.fem-last .table-felt::after {
+  border-color: var(--gold);
+  box-shadow: 0 0 22px color-mix(in oklab, var(--gold) 50%, transparent), inset 0 0 22px color-mix(in oklab, var(--gold) 35%, transparent);
+  animation: fem-glow 2.4s ease-in-out infinite;
+}
+@keyframes fem-glow { 50% { box-shadow: 0 0 34px 4px color-mix(in oklab, var(--gold) 65%, transparent), inset 0 0 30px color-mix(in oklab, var(--gold) 45%, transparent); } }
+
+/* Played cards on the felt in front of each seat; the trick's winner stands up. */
+.fem-played { display: inline-flex; transition: translate 200ms ease; }
+.fem-played.took { translate: 0 -4px; }
+.fem-played.deal .pcard-face { animation: fem-took 1.6s ease-in-out infinite; }
+.fem-played.deal { scale: 1.18; }
+@keyframes fem-took {
+  0%, 100% { box-shadow: 0 0 0 3px var(--gold), 0 0 16px 2px color-mix(in oklab, var(--gold) 55%, transparent); }
+  50% { box-shadow: 0 0 0 3px var(--gold), 0 0 30px 8px color-mix(in oklab, var(--gold) 75%, transparent); }
+}
+
+/* What just happened: one line with a card in it, at a fixed height so the table doesn't jump. */
+.fem-news { height: 52px; overflow: hidden; }
+.fem-news.last { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.fem-news-line { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0 5px; }
+.fem-inline-card { display: inline-flex; margin: 0 1px; }
+
+/* your hand */
+.fem-me { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.fem-hint { font-size: 15px; color: var(--on-brand-2); min-height: 22px; }
+.fem-hint.your-turn { color: var(--on-brand); }
+.fem-hint.your-turn strong { color: var(--gold); }
+.fem-hint-last { font-family: var(--font-display); font-weight: 700; color: var(--gold); }
+.fem-hand { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 10px; min-height: 96px; align-items: flex-end; }
+.fem-card { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--radius-card); }
+.fem-card:disabled { cursor: default; }
+.fem-card:not(:disabled):hover .pcard { translate: 0 -8px; }
+.fem-card:focus-visible { outline: none; }
+.fem-card:focus-visible .pcard-face { box-shadow: 0 0 0 3px var(--focus), var(--card-shadow); }
+.fem-vote { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: 14px; }
+
+.fem-won-with { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+/* setup */
+.fem-setup { display: flex; flex-direction: column; gap: 14px; }
+.fem-setup > p { margin: 0; }
+.fem-setup-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.fem-setup > .btn { align-self: flex-start; }
+.fem-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.fem-check .muted { font-weight: 400; }
+.fem-check input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; padding: 0; box-shadow: none; accent-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fem-star[data-pop], .fem-last-label.pop, .fem-table.fem-last .table-felt::after, .fem-played.deal .pcard-face { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .fem .plate { width: 96px; padding: 5px 5px 7px; }
+  .fem-pips { gap: 4px; }
+  .fem-pip { width: 18px; height: 18px; font-size: 10px; }
+  .fem-pip.last { width: 22px; height: 22px; font-size: 12px; }
+  .fem-last-label { font-size: 1.4rem; }
+  .fem-deal-won strong { font-size: 1.2rem; }
+  .fem-news { height: 64px; }
+  .fem-hand { gap: 6px; min-height: 72px; }
+}

@@ -105,6 +105,38 @@
   --stone-white: radial-gradient(circle at 36% 30%, #ffffff, #f4efe4 50%, #cfc5b1);
   --go-territory-black: #1d1916;
   --go-territory-white: #fbf7ee;
+  /* a Four in a Row board: an upright wooden front with round holes, dark inside (the discs are player colors) */
+  --fiar-wood-1: #c08a52;
+  --fiar-wood-2: #8f5e33;
+  --fiar-grain: rgb(70 38 14 / 0.13);
+  --fiar-edge: #5e3a1c;
+  --fiar-rim: rgb(48 24 8 / 0.5);
+  --fiar-rim-light: rgb(255 236 205 / 0.4);
+  --fiar-hole: radial-gradient(circle at 50% 30%, #4a3220, #2a1b10);
+  --fiar-coord: rgb(255 244 228 / 0.8);
+  --fiar-aim: linear-gradient(rgb(255 250 240 / 0.05), rgb(255 250 240 / 0.16));
+  /* Cannons: a side view of hills under a big sky, and what flies over them */
+  --cannons-sky-top: #9ec8dc;
+  --cannons-sky-bottom: #f6e8cc;
+  --cannons-sun: #f7d58a;
+  --cannons-star: transparent;
+  --cannons-cloud: rgb(255 251 242 / 0.88);
+  --cannons-far: #b8cba8;
+  --cannons-grass: #6c9a4a;
+  --cannons-grass-2: #9cc46e;
+  --cannons-outline: rgb(43 34 25 / 0.55);
+  --cannons-earth: #c0905a;
+  --cannons-earth-2: #8a5c33;
+  --cannons-scorch: rgb(58 36 20 / 0.42);
+  --cannons-wheel: #8a5a2e;
+  --cannons-wheel-rim: #4f3018;
+  --cannons-wreck: #8f8578;
+  --cannons-smoke: rgb(110 100 92 / 0.55);
+  --cannons-ball: #2e2620;
+  --cannons-boom: #f3c77a;
+  --cannons-aim: #3a2e24;
+  --cannons-label: #3a2e24;
+  --cannons-label-halo: #fffaf2;
 
   /* type & shape */
   --font-body: "Nunito Variable", system-ui, sans-serif;
@@ -183,6 +215,35 @@
   --go-wood: linear-gradient(160deg, #c79a5c, #b98b4f 45%, #ad7f45);
   --go-line: rgb(36 22 8 / 0.82);
   --go-coord: #e4c48f;
+  --fiar-wood-1: #8a5d34;
+  --fiar-wood-2: #5a3819;
+  --fiar-grain: rgb(20 10 2 / 0.18);
+  --fiar-edge: #2a170a;
+  --fiar-rim: rgb(10 5 0 / 0.6);
+  --fiar-rim-light: rgb(255 230 190 / 0.18);
+  --fiar-hole: radial-gradient(circle at 50% 30%, #24170e, #120b06);
+  --fiar-coord: rgb(255 244 228 / 0.6);
+  --fiar-aim: linear-gradient(rgb(255 250 240 / 0.03), rgb(255 250 240 / 0.1));
+  --cannons-sky-top: #121d2a;
+  --cannons-sky-bottom: #3a3446;
+  --cannons-sun: #efe4c6;
+  --cannons-star: rgb(255 248 230 / 0.75);
+  --cannons-cloud: rgb(200 196 214 / 0.16);
+  --cannons-far: #2c3a36;
+  --cannons-grass: #4f7a3c;
+  --cannons-grass-2: #7aa65a;
+  --cannons-outline: rgb(255 246 228 / 0.55);
+  --cannons-earth: #75502f;
+  --cannons-earth-2: #46301b;
+  --cannons-scorch: rgb(0 0 0 / 0.4);
+  --cannons-wheel: #7a5230;
+  --cannons-wheel-rim: #2a170a;
+  --cannons-wreck: #6a6258;
+  --cannons-smoke: rgb(170 160 150 / 0.45);
+  --cannons-ball: #e9dfcc;
+  --cannons-aim: #f1e8d6;
+  --cannons-label: #f1e8d6;
+  --cannons-label-halo: #1b1713;
 
   color-scheme: dark;
 }
