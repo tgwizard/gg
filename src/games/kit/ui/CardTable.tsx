@@ -27,11 +27,14 @@ export function CardTable({
   center,
   testId,
   className,
+  betAt = 0.66,
 }: {
   seats: TableSeat[];
   center?: ReactNode;
   testId?: string;
   className?: string;
+  /** How far out from the middle bets sit (1 is at the seat): played cards want to be further in than chips. */
+  betAt?: number;
 }) {
   const n = seats.length;
   return (
@@ -49,7 +52,7 @@ export function CardTable({
           return (
             <div key={seat.key} className="table-spot">
               {/* Always there (empty without a bet), so chips have somewhere to fly from. */}
-              <div className="table-bet" style={at(0.66)} data-bet-spot={i}>
+              <div className="table-bet" style={at(betAt)} data-bet-spot={i}>
                 {seat.bet}
               </div>
               {seat.marker && (

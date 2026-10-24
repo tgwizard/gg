@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { GameSetupProps } from "../../ui";
+import { TimerField } from "../../kit/ui/TimerField";
 import type { FishConfig } from "../engine";
 
 export function FinnsISjonSetup({ busy, disabled, onStart }: GameSetupProps<FishConfig>) {
@@ -16,12 +17,7 @@ export function FinnsISjonSetup({ busy, disabled, onStart }: GameSetupProps<Fish
         Ask the others for cards of a rank you hold. If they have none: <em>Finns i sjön!</em> Draw from the lake. Collect fours; most
         books wins.
       </p>
-      <label className="field">
-        <span>
-          Turn timer <span className="hint">seconds, 0 = off. Run out and your turns are played for you.</span>
-        </span>
-        <input type="number" min={0} value={turnSeconds} onChange={(e) => setTurnSeconds(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
-      </label>
+      <TimerField value={turnSeconds} onChange={setTurnSeconds} hint="run out and your turns are played for you" />
       <button className="btn primary" disabled={busy || disabled}>
         {busy ? "Opening…" : "Open the table"}
       </button>

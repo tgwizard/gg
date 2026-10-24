@@ -148,7 +148,8 @@ display type and Nunito for everything else.
 A game is a server-side `GameDefinition` (`src/games/types.ts`) plus a client
 `GameUI` (`src/games/ui.ts`), registered in `registry.ts` and `ui-registry.ts`.
 A new game still being tuned sets `meta.wip`, which puts a small "WIP" tag next to
-its name in the picker and the game header.
+its name in the picker and the game header. In the picker, the chosen game's card
+grows (a view transition) into its set-up, with its rules behind a "?".
 
 ```ts
 interface GameDefinition<State, Op, View, Config> {
@@ -194,9 +195,11 @@ can once none of its players are online).
   `takeDueTimer`.
 - `cards.ts`: a standard 52-card deck, shuffling, rank names.
 - `ui/`: the card-game base. `CardTable` (a wood-and-felt table with seats spaced
-  around it, you at the bottom, bets and a dealer button in front of seats, content
-  in the middle), `PlayerPlate` (nameplate), `Cards` (faces, backs, slots, fans),
-  `Chips`/`Pot`/`DealerButton`, `TurnTimer`, and `Herald`/`ActionTray`/`GameLog`
+  around it, you at the bottom, bets and a dealer button in front of seats (`betAt`
+  sets how far in: played cards sit nearer the middle than chips), content in the
+  middle), `PlayerPlate` (nameplate), `Cards` (faces, backs, slots, fans),
+  `Chips`/`Pot`/`DealerButton`, `TurnTimer`, `TimerField` (a set-up's seconds with
+  a "Disable timer" button), and `Herald`/`ActionTray`/`GameLog`
   for the strip, tray and history under the table. `Flights` moves things across
   the table (dealt cards, chips, a catch from the lake): a game compares the new
   view with the last one, measures both ends on screen (`CardTable` marks seats with
@@ -215,7 +218,9 @@ can once none of its players are online).
 
 **Whose turn, and sound.** The game header (in the top bar) shows "Your turn" or
 "Bob's turn" for every game from the snapshot's `waitingOn`, chimes when it becomes
-your turn, and puts it in the tab's title. The active player's nameplate breathes a
+your turn, and puts it in the tab's title. With 10 s or less left on the snapshot's
+`deadline` while it's your turn, a heartbeat plays, quicker for the last 4 s
+(`src/client/heartbeat.ts`). The active player's nameplate breathes a
 gold glow. Sound effects (`src/ui/sound.ts`) are synthesized with the Web Audio API
 (tones and filtered noise, no audio files), quiet, and on unless turned off with the
 speaker in the top bar or on /settings (remembered per browser). Games play them for

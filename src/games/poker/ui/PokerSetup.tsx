@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { GameSetupProps } from "../../ui";
+import { TimerField } from "../../kit/ui/TimerField";
 import type { PokerConfig } from "../engine";
 
 export function PokerSetup({ busy, disabled, onStart }: GameSetupProps<PokerConfig>) {
@@ -29,8 +30,8 @@ export function PokerSetup({ busy, disabled, onStart }: GameSetupProps<PokerConf
         {field("startingStack", "Starting chips")}
         {field("smallBlind", "Small blind")}
         {field("bigBlind", "Big blind")}
-        {field("turnSeconds", "Turn timer", "seconds, 0 = off")}
       </div>
+      <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="run out and you check, or fold" />
       <button className="btn primary" disabled={busy || disabled}>
         {busy ? "Starting…" : "Open the table"}
       </button>

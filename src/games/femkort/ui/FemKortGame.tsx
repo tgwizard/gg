@@ -109,6 +109,8 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
       <CardTable
         className={`fem-table ${lastTrick ? "fem-last" : ""}`}
         seats={seats}
+        // Played cards are big: in toward the middle, clear of each seat's hand.
+        betAt={0.48}
         testId="fem-table"
         center={
           <div className="fem-center" data-testid="fem-center">

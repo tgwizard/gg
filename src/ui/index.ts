@@ -18,4 +18,5 @@ export { Panel } from "./Panel";
 export { ActivityBubble, Avatar, BotIcon, PlayerName, PlayersProvider, playerStyle, useActivity, useIsBot, usePlayerColors } from "./players";
 export { play, setSoundOn, SFX, type Sfx, soundOn, useSoundOn } from "./sound";
 export { Spinner } from "./Spinner";
+export { RACING_MS, URGENT_MS, urgency } from "./urgency";
 export { useMedia, useNarrow } from "./useMedia";

@@ -1,11 +1,13 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { GameSetting } from "../../games/ui";
 import { gameUIs } from "../../games/ui-registry";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
+import { useHeartbeat } from "../heartbeat";
 import { useServerNow } from "../useNow";
-import { Panel, play } from "../../ui";
-import { GameCard, WipBadge } from "./GameCard";
+import { play } from "../../ui";
+import { GameCard, morphStyle, playerCount, WipBadge } from "./GameCard";
 import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
 
@@ -20,6 +22,14 @@ function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot
   const toast = useToast();
   const connected = snapshot.status === "connected";
   const ui = selected ? gameUIs[selected] : null;
+  const picked = useRef<HTMLElement>(null);
+  // Keep the set-up's top in sight when it opens from a card further down.
+  useEffect(() => {
+    if (selected) picked.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
+
+  // The chosen card grows into the game's set-up, and shrinks back into the grid.
+  const choose = (id: string | null) => morph(() => setSelected(id));
 
   async function start(config: unknown) {
     if (!selected) return;
@@ -36,28 +46,60 @@ function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot
   return (
     <div className="picker">
       {invite}
-      <div className="picker-head">
-        <h2 className="display">Pick a game</h2>
-        <p className="muted">Everyone in the room plays, or watches, together.</p>
-      </div>
-      <div className="game-grid">
-        {Object.values(gameUIs).map((g) => (
-          <GameCard key={g.meta.id} game={g} selected={selected === g.meta.id} onClick={() => setSelected(g.meta.id)} />
-        ))}
-      </div>
-      {ui && (
-        <Panel className="setup" title={`Set up ${ui.meta.name}`}>
-          {ui.Setup ? (
-            <ui.Setup busy={busy} disabled={!connected} onStart={start} />
-          ) : (
-            <button className="btn primary" disabled={busy || !connected} onClick={() => start({})}>
-              Start {ui.meta.name}
-            </button>
-          )}
-        </Panel>
+      {ui ? (
+        <section ref={picked} className="picked box" style={morphStyle(ui.meta.id)} aria-label={`Set up ${ui.meta.name}`} data-testid="game-setup">
+          <div className="picked-head">
+            <img className="game-card-art" src={ui.icon} alt="" width={120} height={120} style={morphStyle(ui.meta.id, "art")} />
+            <div className="game-card-text">
+              <span className="game-card-name" style={morphStyle(ui.meta.id, "name")}>
+                <strong className="display">{ui.meta.name}</strong>
+                <WipBadge wip={ui.meta.wip} />
+              </span>
+              <span className="game-card-tagline" style={morphStyle(ui.meta.id, "tagline")}>
+                {ui.meta.tagline}
+              </span>
+              <span className="label" style={morphStyle(ui.meta.id, "players")}>
+                {playerCount(ui.meta.minPlayers, ui.meta.maxPlayers)}
+              </span>
+            </div>
+            <div className="picked-actions">
+              <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
+              <button type="button" className="btn ghost small" onClick={() => choose(null)}>
+                ← All games
+              </button>
+            </div>
+          </div>
+          <div className="picked-setup">
+            {ui.Setup ? (
+              <ui.Setup busy={busy} disabled={!connected} onStart={start} />
+            ) : (
+              <button className="btn primary" disabled={busy || !connected} onClick={() => start({})}>
+                Start {ui.meta.name}
+              </button>
+            )}
+          </div>
+        </section>
+      ) : (
+        <>
+          <div className="picker-head">
+            <h2 className="display">Pick a game</h2>
+            <p className="muted">Everyone in the room plays, or watches, together.</p>
+          </div>
+          <div className="game-grid">
+            {Object.values(gameUIs).map((g) => (
+              <GameCard key={g.meta.id} game={g} morph onClick={() => choose(g.meta.id)} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+/** Run a state change as a view transition where the browser has them (and motion is welcome). */
+function morph(update: () => void) {
+  if (!("startViewTransition" in document) || matchMedia("(prefers-reduced-motion: reduce)").matches) return update();
+  document.startViewTransition(() => flushSync(update));
 }
 
 function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSnapshot }) {
@@ -116,7 +158,7 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
             )}
           </div>
           {/* Last, so it never moves the buttons; on a phone it's a bar of its own under them. */}
-          <TurnPill waitingOn={game.waitingOn} me={snapshot.you!.id} members={members} instance={game.instanceId} />
+          <TurnPill waitingOn={game.waitingOn} me={snapshot.you!.id} members={members} instance={game.instanceId} deadline={game.deadline} clockOffset={snapshot.clockOffset} />
         </div>
       </InTopbar>
       <ui.Game view={game.view} snapshot={game} me={snapshot.you!.id} members={members} connected={connected} sendOp={sendOp} serverNow={serverNow} />
@@ -127,10 +169,25 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
 /**
  * Whose turn it is, for every game: "Your turn" (with a chime, and in the tab's title
  * so you notice from another tab), "Bob's turn", or an empty slot when nobody's being
- * waited on.
+ * waited on. A heartbeat when your time's nearly up.
  */
-function TurnPill({ waitingOn, me, members, instance }: { waitingOn: string[]; me: string; members: Map<string, { name: string }>; instance: string }) {
+function TurnPill({
+  waitingOn,
+  me,
+  members,
+  instance,
+  deadline,
+  clockOffset,
+}: {
+  waitingOn: string[];
+  me: string;
+  members: Map<string, { name: string }>;
+  instance: string;
+  deadline: number | null;
+  clockOffset: number;
+}) {
   const mine = waitingOn.includes(me);
+  useHeartbeat(mine, deadline, clockOffset);
   const others = waitingOn.filter((id) => id !== me).map((id) => members.get(id)?.name ?? "Someone");
   // Chime when it becomes your turn, not when you arrive and it already is.
   const was = useRef<{ instance: string; mine: boolean } | null>(null);

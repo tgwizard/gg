@@ -161,6 +161,16 @@ select:disabled { cursor: not-allowed; opacity: 0.6; }
 .meter { height: 6px; border-radius: var(--pill); background: var(--surface-2); overflow: hidden; }
 .meter-fill { height: 100%; border-radius: inherit; background: var(--meter-color, var(--gold)); transition: width 0.25s linear; }
 .meter-fill.low { --meter-color: var(--danger); }
+/* A timer's last seconds: what's left of the bar flashes and glows, faster at the very end. */
+.meter.pulse { overflow: visible; }
+.meter.pulse .meter-fill { --meter-color: var(--danger); animation: meter-flash 1s ease-in-out infinite; }
+.meter.pulse.racing .meter-fill { animation-duration: 0.5s; }
+@keyframes meter-flash {
+  35% { background: #fff1e4; box-shadow: 0 0 10px 3px color-mix(in srgb, var(--danger) 80%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .meter.pulse .meter-fill { animation: none; box-shadow: 0 0 6px 2px color-mix(in srgb, var(--danger) 70%, transparent); }
+}
 
 /* Spinner: three dots taking turns. */
 .spinner { display: inline-flex; gap: 6px; }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { GameSetupProps } from "../../ui";
+import { TimerField } from "../../kit/ui/TimerField";
 import { type CannonsConfig, WIND_MAX } from "../engine";
 import "./cannons.css";
 
@@ -52,12 +53,7 @@ export function CannonsSetup({ busy, disabled, onStart }: GameSetupProps<Cannons
       ])}
       {choices("terrain", "Landscape", TERRAIN)}
       {choices("wind", `Wind (up to ${WIND_MAX[config.wind]} either way)`, WIND)}
-      <label className="field">
-        <span>
-          Turn timer <span className="hint">seconds, 0 = off; run out and your last aim is fired</span>
-        </span>
-        <input type="number" min={0} value={config.turnSeconds} onChange={(e) => setConfig({ ...config, turnSeconds: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
-      </label>
+      <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="run out and your last aim is fired" />
       <button className="btn primary" disabled={busy || disabled}>
         {busy ? "Starting…" : "Start Cannons"}
       </button>

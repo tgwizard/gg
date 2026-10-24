@@ -109,7 +109,7 @@ these through the browser and reports back.
 - [ ] Your hand groups cards of a rank together; three of a kind is marked "one more!". Once the game's going, seated players don't see open-seat boxes.
 
 ### Fem kort
-- [ ] Setup: deals to win, turn timer, and the överstick / two in a row / bättre kort checkboxes; the gear shows them during the game.
+- [ ] Setup: deals to win (buttons), turn timer, and the överstick (off by default) / two in a row / bättre kort checkboxes; the gear shows them during the game. Played cards sit on the felt, clear of every seat's hand, with 2 to 6 players.
 - [ ] Two to six sit down; *Deal* gives five cards each (three, then two, flying from the middle). Nobody sees anyone else's cards (DevTools → WS: no card codes from other hands, no stock). Once the game's going the table closes up around the players.
 - [ ] Your lead: "Your lead: any card." Following: only legal cards are lit, the rest dimmed; the hint says "Follow hearts and beat the K♥: you have to if you can", "Follow hearts: you can't beat the K♥" or "No hearts: play any card". With överstick off, any card of the suit led.
 - [ ] Played cards fly to the felt in front of each player; the card winning so far is ringed in gold; a taken trick stays a moment, then is gathered to its winner, who leads (the news strip says so).
@@ -216,7 +216,7 @@ these through the browser and reports back.
 
 ### Turns, sound and the end of a game
 - [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
-- [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
+- [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. A heartbeat in your last 10 s on a timed turn (not on others' turns). The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
 - [ ] End screens (Coast to Coast, chess, Othello, Go, Four in a Row, Battleship, Cannons, Finns i sjön, Fem kort): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
 
 ### Bots
@@ -245,6 +245,8 @@ these through the browser and reports back.
 ### Lifecycle & layout
 - [ ] The gear next to *End game* shows the running game's settings (turn timer, and for poker chips and blinds).
 - [ ] *End game* asks for confirmation and returns everyone to the picker. A new game can start.
+- [ ] Picking a game: its card grows into the set-up (art, name and pitch stay), with *?* for the rules and *← All games* shrinking it back. With reduced motion it just switches.
+- [ ] Every timed game's set-up has *Disable timer*; once it's 0 the button looks spent, and pressing it again says "Timer already disabled".
 - [ ] A spectator can't end a game while its players are online; the game's starter or a player can.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.
 - [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table.

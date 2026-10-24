@@ -1,7 +1,7 @@
 import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
 import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { formatDateTime, formatTime } from "../format";
+import { formatDateTimeZone, formatTime } from "../format";
 import { noAutofill } from "../noAutofill";
 import { Panel, playerStyle, usePlayerColors } from "../../ui";
 import { useToast } from "./Toasts";
@@ -45,7 +45,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
         {snapshot.chat.map((m) =>
           m.kind === "user" ? (
             <div key={m.seq} className="msg" data-testid="chat-message">
-              <time className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</time>
+              <time className="msg-time" title={formatDateTimeZone(m.ts)}>{formatTime(m.ts)}</time>
               <span className="msg-body">
                 <span className="name" style={playerStyle(colorOf(m.playerId ?? ""))}>
                   {m.name}
@@ -55,7 +55,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
             </div>
           ) : (
             <div key={m.seq} className={`msg msg-${m.kind}`} data-testid="chat-message">
-              <time className="msg-time" title={formatDateTime(m.ts)}>{formatTime(m.ts)}</time>
+              <time className="msg-time" title={formatDateTimeZone(m.ts)}>{formatTime(m.ts)}</time>
               <span className="msg-body">
                 <span className="msg-text">{m.text}</span>
               </span>
@@ -64,7 +64,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
         )}
         {snapshot.pendingChat.map((p) => (
           <div key={p.cid} className="msg pending" title="Sending…" data-testid="chat-pending">
-            <time className="msg-time" title={formatDateTime(p.ts)}>{formatTime(p.ts)}</time>
+            <time className="msg-time" title={formatDateTimeZone(p.ts)}>{formatTime(p.ts)}</time>
             <span className="msg-body">
               <span className="name" style={playerStyle(snapshot.you?.color ?? 0)}>
                 {snapshot.you?.name}

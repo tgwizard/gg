@@ -1,17 +1,13 @@
 import { useState } from "react";
 import type { GameSetupProps } from "../../ui";
+import { TimerField } from "../../kit/ui/TimerField";
 import type { BsConfig } from "../engine";
 import "./battleship.css";
 
 export function BattleshipSetup({ busy, disabled, onStart }: GameSetupProps<BsConfig>) {
   const [config, setConfig] = useState<BsConfig>({ turnSeconds: 30, placeSeconds: 120, shipsMayTouch: true, hitShootsAgain: false });
   const seconds = (key: "turnSeconds" | "placeSeconds", label: string, hint: string) => (
-    <label className="field">
-      <span>
-        {label} <span className="hint">{hint}</span>
-      </span>
-      <input type="number" min={0} value={config[key]} onChange={(e) => setConfig({ ...config, [key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
-    </label>
+    <TimerField label={label} value={config[key]} onChange={(s) => setConfig({ ...config, [key]: s })} hint={hint} />
   );
   const check = (key: "shipsMayTouch" | "hitShootsAgain", label: string, hint: string) => (
     <label className="bs-check">
@@ -33,8 +29,8 @@ export function BattleshipSetup({ busy, disabled, onStart }: GameSetupProps<BsCo
         Two players hide five ships each on a 10×10 sea, then take turns firing blind. Sink the whole enemy fleet to win.
       </p>
       <div className="bs-setup-fields">
-        {seconds("turnSeconds", "Turn timer", "seconds, 0 = off")}
-        {seconds("placeSeconds", "Placement timer", "seconds, 0 = off")}
+        {seconds("turnSeconds", "Turn timer", "run out and a shot is fired at random for you")}
+        {seconds("placeSeconds", "Placement timer", "run out and the rest of your fleet is placed at random")}
       </div>
       {check("shipsMayTouch", "Ships may touch", "Side by side is fine; they never overlap.")}
       {check("hitShootsAgain", "A hit earns another shot", "Off: shots strictly alternate.")}

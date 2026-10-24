@@ -112,7 +112,10 @@
 /* setup */
 .fem-setup { display: flex; flex-direction: column; gap: 14px; }
 .fem-setup > p { margin: 0; }
-.fem-setup-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.fem-setup-row { display: flex; flex-direction: column; gap: 6px; }
+.fem-setup-row .hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
+.fem-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.fem-presets .btn { min-width: 44px; }
 .fem-setup > .btn { align-self: flex-start; }
 .fem-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .fem-check .muted { font-weight: 400; }

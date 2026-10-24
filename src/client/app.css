@@ -328,7 +328,24 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 /* ---------- stage: picker & active game ---------- */
 .picker { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
 .picker-head { display: flex; flex-direction: column; gap: 6px; }
-.setup { padding: 28px 22px 22px; }
+/* The chosen game: its card, grown to fill the picker, with the set-up under it. */
+.picked { display: flex; flex-direction: column; gap: 20px; padding: 22px; }
+.picked-head { display: flex; align-items: center; gap: 22px; }
+.picked-head .game-card-art { width: 120px; height: 120px; }
+.picked-head .game-card-text { gap: 6px; }
+.picked-head .game-card-text strong { font-size: 2.1rem; }
+.picked-head .game-card-tagline { font-size: 15px; }
+.picked-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; align-self: flex-start; }
+.picked-setup { padding-top: 20px; border-top: 1px solid var(--line); }
+::view-transition-group(*) { animation-duration: 380ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* The box grows without stretching what's in it: the old card fades, the set-up is uncovered. */
+::view-transition-group(.game-morph) { overflow: clip; border-radius: var(--radius); }
+::view-transition-old(.game-morph), ::view-transition-new(.game-morph) { height: 100%; object-fit: none; object-position: left top; }
+/* Text moves to its new place at its own size (its box changes width, which would stretch it). */
+::view-transition-old(.game-morph-text), ::view-transition-new(.game-morph-text) { height: 100%; object-fit: none; object-position: left top; }
+/* The cards that weren't picked, and the grid's heading, get out of the way quickly. */
+::view-transition-old(.game-morph):only-child, ::view-transition-old(.game-morph-art):only-child, ::view-transition-old(.game-morph-text):only-child { animation-duration: 140ms; }
+::view-transition-new(.game-morph):only-child, ::view-transition-new(.game-morph-art):only-child, ::view-transition-new(.game-morph-text):only-child { animation-delay: 180ms; animation-duration: 200ms; animation-fill-mode: both; }
 
 .active-game { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; margin: 0 auto; }
 .game-header { display: flex; align-items: center; gap: 12px; }
@@ -408,6 +425,13 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   .name-button { padding: 2px; }
   .name-button-text { display: none; }
   .game-card-art { width: 64px; height: 64px; }
+  .picked { padding: 16px; }
+  .picked-head { flex-wrap: wrap; gap: 14px; }
+  .picked-head .game-card-art { width: 80px; height: 80px; }
+  .picked-head .game-card-text { flex: 1; }
+  .picked-head .game-card-text strong { font-size: 1.6rem; }
+  /* Back and help on a row of their own, above the card. */
+  .picked-actions { order: -1; width: 100%; flex-direction: row-reverse; justify-content: space-between; margin: 0; }
 }
 
 /* ---------- /ui style guide ---------- */

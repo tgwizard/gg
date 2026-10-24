@@ -42,12 +42,14 @@ export type Sfx =
   | "cannon"
   /** A cannonball bursting on the ground. */
   | "boom"
+  /** A heartbeat: your time is nearly up. */
+  | "heartbeat"
   /** Something done well (a book, a ticket). */
   | "good"
   | "win"
   | "lose";
 
-export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "good", "win", "lose"];
+export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "heartbeat", "good", "win", "lose"];
 
 const KEY = "gg.sound";
 const VOLUME = 0.18;
@@ -220,6 +222,13 @@ const SOUNDS: Record<Sfx, (a: AudioContext, t: number) => void> = {
     // A soft, distant crump: a low tone under a puff of dark noise.
     tone(a, t, vary(75), 0.4, { to: 40, gain: 0.28, attack: 0.008 });
     noise(a, t + 0.01, 0.45, { freq: 420, to: 90, q: 0.5, type: "lowpass", gain: 0.16, attack: 0.02 });
+  },
+  heartbeat(a, t) {
+    // Lub-dub: two low thumps, the second softer, with a little overtone so laptop speakers carry it.
+    tone(a, t, 95, 0.14, { to: 58, gain: 0.5, attack: 0.008 });
+    tone(a, t, 190, 0.1, { to: 120, gain: 0.1, attack: 0.008 });
+    tone(a, t + 0.22, 82, 0.12, { to: 54, gain: 0.36, attack: 0.008 });
+    tone(a, t + 0.22, 164, 0.08, { to: 110, gain: 0.07, attack: 0.008 });
   },
   good(a, t) {
     tone(a, t, 659.25, 0.45, { gain: 0.12, attack: 0.015 });

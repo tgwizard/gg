@@ -228,7 +228,7 @@
 /* ---------- setup ---------- */
 .bs-setup { display: flex; flex-direction: column; gap: 14px; }
 .bs-setup > p { margin: 0; }
-.bs-setup-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.bs-setup-fields { display: flex; flex-direction: column; gap: 14px; }
 .bs-setup > .btn { align-self: flex-start; }
 .bs-check { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .bs-check .muted { font-weight: 400; }
