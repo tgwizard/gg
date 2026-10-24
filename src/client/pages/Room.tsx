@@ -9,7 +9,7 @@ import { RequestError } from "../net/RoomClient";
 import { useRoom } from "../net/useRoom";
 import { navigate } from "../router";
 import { Chat } from "../components/Chat";
-import { ConnectionBanner, ConnectionPill } from "../components/Connection";
+import { ConnectionBanner, ConnectionDot } from "../components/Connection";
 import { GameStage } from "../components/GameStage";
 import { Members } from "../components/Members";
 import { ProfileForm, ProfileMenu } from "../components/Profile";
@@ -17,8 +17,8 @@ import { ToastProvider, useToast } from "../components/Toasts";
 import { Avatar, Panel, PlayerName, PlayersProvider, Spinner, useMedia, usePlayerColors } from "../../ui";
 import { storage } from "../storage";
 import { noAutofill } from "../noAutofill";
-import { ModeToggle } from "../components/ModeToggle";
-import { SoundToggle } from "../components/SoundToggle";
+import { QuickSettings } from "../components/QuickSettings";
+import { InviteButton, InviteSection } from "../components/Invite";
 import { TopbarSlotProvider } from "../components/TopbarSlot";
 import { PracticeTag } from "../components/PracticeTag";
 
@@ -127,19 +127,16 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
             >
               gg<span className="logo-dot">.</span>
             </a>
-            <RoomTitle name={snapshot.roomName} client={client} connected={connected} />
-            <span className="room-id">
-              <span className="code" title="Room code" data-testid="room-code">
-                {roomId}
-              </span>
-              <InviteButton />
-              <PracticeTag roomId={roomId} />
+            {/* The room's name, with its code and invite link behind the people icon. */}
+            <span className="room-ident">
+              <RoomTitle name={snapshot.roomName} client={client} connected={connected} />
+              <InviteButton roomId={roomId} />
             </span>
+            <PracticeTag roomId={roomId} />
             <div className="topbar-game" ref={setGameSlot} />
             <div className="spacer" />
-            <ConnectionPill snapshot={snapshot} />
-            <SoundToggle />
-            <ModeToggle />
+            <ConnectionDot snapshot={snapshot} client={client} />
+            <QuickSettings />
             <ProfileMenu
               name={name}
               // What the room settled on (someone may have had your color first); yours until the welcome.
@@ -159,7 +156,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
           )}
           <main className={`room-main${sidebar.open ? "" : " sidebar-hidden"}`}>
             <section className="stage">
-              <GameStage client={client} snapshot={snapshot} />
+              <GameStage client={client} snapshot={snapshot} invite={<InviteSection snapshot={snapshot} roomId={roomId} bots={bots} />} />
             </section>
             {sidebar.open ? (
               <aside className="sidebar">
@@ -308,26 +305,6 @@ function RoomTitle({ name, client, connected }: { name: string | null; client: R
       data-testid="room-name"
     >
       {name ?? "Name this room"}
-    </button>
-  );
-}
-
-function InviteButton() {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      className="btn subtle small"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(location.href);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        } catch {
-          // Clipboard blocked; the link is in the address bar anyway.
-        }
-      }}
-    >
-      {copied ? "Link copied ✓" : "Copy invite link"}
     </button>
   );
 }

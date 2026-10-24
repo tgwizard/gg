@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PLAYER_COLORS } from "../../shared/colors";
 import { MAX_NAME_LENGTH } from "../../shared/protocol";
@@ -115,7 +115,7 @@ export function ProfileMenu(props: { name: string; color: number; onSave(name: s
     <div className="profile-menu">
       <button ref={button} className="name-button" onClick={() => setOpen(!open)} aria-expanded={open} title="Edit your profile">
         <Avatar name={props.name} color={props.color} />
-        {props.name}
+        <span className="name-button-text">{props.name}</span>
       </button>
       {open && button.current && (
         <Popover anchor={button.current} label="Your profile" onClose={() => setOpen(false)}>
@@ -141,43 +141,108 @@ export function ProfileMenu(props: { name: string; color: number; onSave(name: s
 }
 
 /**
- * A small dialog under `anchor`, right-aligned with it, moved up if it would run off
- * the bottom of the window (and scrolling inside if it's taller than the window).
- * Clicking elsewhere closes it.
+ * A small dialog under `anchor`, right-aligned with it (or left-aligned, kept on
+ * screen), moved up if it would run off the bottom of the window (and scrolling inside
+ * if it's taller than the window). Clicking elsewhere closes it.
  */
-export function Popover({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose(): void; children: ReactNode }) {
+export function Popover({
+  anchor,
+  label,
+  onClose,
+  align = "right",
+  className = "",
+  hover,
+  children,
+}: {
+  anchor: HTMLElement;
+  label: string;
+  onClose(): void;
+  align?: "left" | "right";
+  className?: string;
+  /** Hover handlers, for a popover that opens on hover (see `usePeek`). */
+  hover?: PeekHover;
+  children: ReactNode;
+}) {
   const pop = useRef<HTMLDivElement>(null);
   const rect = anchor.getBoundingClientRect();
   const [top, setTop] = useState(rect.bottom + 10);
+  const [left, setLeft] = useState(Math.max(12, rect.left));
   const below = rect.bottom + 10;
   useLayoutEffect(() => {
     const el = pop.current;
     if (!el) return;
     // Re-placed whenever its content grows or shrinks (e.g. a field appears).
-    const place = () => setTop(Math.max(12, Math.min(below, window.innerHeight - el.offsetHeight - 12)));
+    const place = () => {
+      setTop(Math.max(12, Math.min(below, window.innerHeight - el.offsetHeight - 12)));
+      setLeft(Math.max(12, Math.min(rect.left, window.innerWidth - el.offsetWidth - 12)));
+    };
     place();
     const observer = new ResizeObserver(place);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [below]);
+  }, [below, rect.left]);
   useEffect(() => {
     const close = (e: PointerEvent) => {
       const t = e.target as Node;
       if (!pop.current?.contains(t) && !anchor.contains(t)) onClose();
     };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", esc);
+    };
   }, [anchor, onClose]);
   return createPortal(
     <div
       ref={pop}
-      className="profile-pop box"
+      className={`profile-pop box ${className}`}
       role="dialog"
       aria-label={label}
-      style={{ top, right: Math.max(12, window.innerWidth - rect.right) }}
+      style={align === "left" ? { top, left } : { top, right: Math.max(12, window.innerWidth - rect.right) }}
+      {...hover}
     >
       {children}
     </div>,
     document.body,
   );
+}
+
+type PeekHover = { onPointerEnter(e: ReactPointerEvent): void; onPointerLeave(e: ReactPointerEvent): void };
+
+/**
+ * Details behind an icon: a look while the mouse is over it (or the popover), and
+ * kept open by a click. Touch has no hover, so there it's just the click.
+ */
+export function usePeek() {
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const hover: PeekHover = {
+    onPointerEnter(e) {
+      if (e.pointerType !== "mouse") return;
+      clearTimeout(timer.current);
+      setHovered(true);
+    },
+    onPointerLeave(e) {
+      if (e.pointerType !== "mouse") return;
+      clearTimeout(timer.current);
+      // Long enough to cross the gap between the icon and its popover.
+      timer.current = setTimeout(() => setHovered(false), 250);
+    },
+  };
+  const close = useCallback(() => {
+    clearTimeout(timer.current);
+    setPinned(false);
+    setHovered(false);
+  }, []);
+  return {
+    open: pinned || hovered,
+    pinned,
+    hover,
+    toggle: () => (pinned ? close() : setPinned(true)),
+    close,
+  };
 }

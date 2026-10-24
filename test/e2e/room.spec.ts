@@ -66,6 +66,8 @@ test("joining by typing the room code, in any case", async ({ browser }) => {
   const bob = await newPlayer(browser);
   const url = await createRoom(alice.page, "Alice");
   const code = url.split("/r/")[1]!;
+  // The code is behind the people icon by the room's name.
+  await alice.page.getByRole("button", { name: "Invite people" }).click();
   await expect(alice.page.getByTestId("room-code")).toHaveText(code);
 
   await bob.page.goto("/");

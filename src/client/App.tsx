@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { normalizeRoomCode } from "../shared/roomCode";
+import { AboutPage } from "./pages/About";
 import { HomePage } from "./pages/Home";
 import { RoomPage } from "./pages/Room";
 import { SettingsPage } from "./pages/Settings";
@@ -21,6 +22,7 @@ export function App() {
   if (code) return <RoomPage key={code} roomId={code} />;
   if (path === "/ui") return <StyleGuidePage />;
   if (path === "/settings") return <SettingsPage />;
+  if (path === "/about") return <AboutPage />;
   // Practice rooms are for local development only (the server refuses them elsewhere).
   if (TryPage && /^\/try(\/|$)/.test(path)) return <Suspense fallback={null}><TryPage path={path} /></Suspense>;
   return <HomePage />;

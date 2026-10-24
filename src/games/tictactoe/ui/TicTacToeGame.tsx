@@ -121,7 +121,7 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
       {prompt === "wait" && (
         <div className="ttt-prompt box" role="status">
           <h3 className="display">Waiting for an opponent</h3>
-          <p className="muted">Share the room link (Copy invite link, at the top) so someone can play {MARKS[open[0]!]}.</p>
+          <p className="muted">Share the room link (the people icon by the room name, at the top) so someone can play {MARKS[open[0]!]}.</p>
         </div>
       )}
       </div>

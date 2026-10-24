@@ -9,11 +9,12 @@ import { GameCard, WipBadge } from "./GameCard";
 import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
 
-export function GameStage({ client, snapshot }: { client: RoomClient; snapshot: RoomSnapshot }) {
-  return snapshot.game ? <ActiveGame client={client} snapshot={snapshot} /> : <GamePicker client={client} snapshot={snapshot} />;
+/** The running game, or before one: `invite` (who's here, and the link to bring more) and picking a game. */
+export function GameStage({ client, snapshot, invite }: { client: RoomClient; snapshot: RoomSnapshot; invite?: ReactNode }) {
+  return snapshot.game ? <ActiveGame client={client} snapshot={snapshot} /> : <GamePicker client={client} snapshot={snapshot} invite={invite} />;
 }
 
-function GamePicker({ client, snapshot }: { client: RoomClient; snapshot: RoomSnapshot }) {
+function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot: RoomSnapshot; invite?: ReactNode }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
@@ -34,6 +35,7 @@ function GamePicker({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
 
   return (
     <div className="picker">
+      {invite}
       <div className="picker-head">
         <h2 className="display">Pick a game</h2>
         <p className="muted">Everyone in the room plays, or watches, together.</p>

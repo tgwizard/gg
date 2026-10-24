@@ -89,6 +89,7 @@ export function BotForm(props: {
         </div>
       )}
       <p className="muted small bot-form-note">
+        {!connection && "It plays from this tab, and is away while you are. "}
         {!connections.length && "AI bots use an AI key of yours, kept in this browser. "}
         <SettingsLink>Configure AI settings</SettingsLink>
       </p>

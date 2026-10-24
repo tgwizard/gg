@@ -92,7 +92,7 @@ export function ChessGame({ view, me, members, connected, sendOp, serverNow }: P
                 ) : (
                   <div className="chess-prompt box" role="status">
                     <h3 className="display">Waiting for an opponent</h3>
-                    <p className="muted">Share the room link (Copy invite link, at the top) so someone can take the other side.</p>
+                    <p className="muted">Share the room link (the people icon by the room name, at the top) so someone can take the other side.</p>
                   </div>
                 )}
               </div>

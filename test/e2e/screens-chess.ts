@@ -51,7 +51,7 @@ const b = await ctx(true);
 await b.goto(url);
 await b.getByLabel("Your name").fill("Bob");
 await b.getByRole("button", { name: "Join room" }).click();
-await b.getByText("Connected").waitFor();
+await b.getByTestId("connection-status").filter({ hasText: "Connected" }).waitFor({ state: "attached" });
 
 await a.getByRole("button", { name: /^Chess/ }).click();
 await a.getByRole("button", { name: "Blitz 5+3" }).click();

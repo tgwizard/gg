@@ -62,7 +62,7 @@ export function HomePage() {
             <h1 className="display logo">
               gg<span className="logo-dot">.</span>
             </h1>
-            <p className="tagline">Games with friends. Make a room, share the link, play. Perhaps add an AI bot?</p>
+            <p className="tagline">Games with friends. Make a room, share the link, play. Perhaps add a bot?</p>
             <p className="label">No accounts · No installs · Private by link</p>
           </div>
           <HeroGames />
@@ -159,7 +159,16 @@ export function HomePage() {
       </main>
 
       <footer className="home-footer">
-        <a href="https://github.com/tgwizard/gg">Open source</a> · by Adam Renberg Tamm · Rooms are private to whoever has the link. ·{" "}
+        <a
+          href="/about"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/about");
+          }}
+        >
+          About
+        </a>{" "}
+        · by Adam Renberg Tamm · Rooms are private to whoever has the link. ·{" "}
         <a
           href="/settings"
           onClick={(e) => {

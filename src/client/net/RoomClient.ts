@@ -73,6 +73,17 @@ export interface RoomSnapshot {
   notice: string | null;
 }
 
+export interface ConnectionStats {
+  /** The last heartbeat's round trip. */
+  latencyMs: number | null;
+  connectedAt: number | null;
+  /** When anything last arrived from the server. */
+  lastHeardAt: number | null;
+  /** Times this tab has had to reconnect. */
+  reconnects: number;
+  heartbeatEveryMs: number;
+}
+
 export class RequestError extends Error {
   constructor(
     readonly code: string,
@@ -126,6 +137,9 @@ export class RoomClient {
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   private pingSentAt: number | null = null;
   private lastReceivedAt = 0;
+  private latencyMs: number | null = null;
+  private connectedAt: number | null = null;
+  private reconnects = 0;
 
   constructor(
     private readonly roomId: string,
@@ -177,6 +191,17 @@ export class RoomClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN && this.welcomed) return;
     this.dropSocket();
     this.connect();
+  }
+
+  /** How the connection is doing, for the details behind the status light. */
+  stats(): ConnectionStats {
+    return {
+      latencyMs: this.isConnected() ? this.latencyMs : null,
+      connectedAt: this.isConnected() ? this.connectedAt : null,
+      lastHeardAt: this.lastReceivedAt || null,
+      reconnects: this.reconnects,
+      heartbeatEveryMs: HEARTBEAT_EVERY_MS,
+    };
   }
 
   // --- store ---------------------------------------------------------------
@@ -351,6 +376,7 @@ export class RoomClient {
     this.ws = ws;
     this.welcomed = false;
     this.pingSentAt = null;
+    this.latencyMs = null;
     this.update({ status: this.snapshot.joined ? "reconnecting" : "connecting", nextRetryAt: null });
 
     clearTimeout(this.connectTimer);
@@ -375,7 +401,10 @@ export class RoomClient {
     ws.onmessage = (e) => {
       if (this.ws !== ws) return;
       this.lastReceivedAt = Date.now();
-      if (e.data === PONG) return;
+      if (e.data === PONG) {
+        if (this.pingSentAt !== null) this.latencyMs = this.lastReceivedAt - this.pingSentAt;
+        return;
+      }
       try {
         this.handle(JSON.parse(e.data as string) as ServerMessage);
       } catch (err) {
@@ -479,6 +508,8 @@ export class RoomClient {
       case "welcome": {
         this.welcomed = true;
         clearTimeout(this.connectTimer);
+        if (this.snapshot.joined) this.reconnects++;
+        this.connectedAt = Date.now();
         this.update({
           status: "connected",
           attempt: 0,

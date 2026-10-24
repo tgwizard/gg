@@ -52,7 +52,7 @@ test("an AI bot plays tic-tac-toe and chats", async ({ browser }) => {
   });
 
   await createRoom(page, "Alice");
-  await page.getByRole("button", { name: "+ Add a bot" }).click();
+  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
   const dialog = page.getByRole("dialog", { name: "Add a bot" });
   await dialog.getByLabel("Bot's name").fill("Pirate");
   await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });
@@ -140,7 +140,7 @@ test("when the model fails, the built-in bot moves for it, after a moment, and t
   );
 
   await createRoom(page, "Alice");
-  await page.getByRole("button", { name: "+ Add a bot" }).click();
+  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
   const dialog = page.getByRole("dialog", { name: "Add a bot" });
   await dialog.getByLabel("Bot's name").fill("Glitch");
   await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });
@@ -181,7 +181,7 @@ test("other people see that a bot is an AI bot, which model it runs, and whose b
   });
   const url = await createRoom(alice.page, "Alice");
   await joinRoom(bob.page, url, "Bob");
-  await alice.page.getByRole("button", { name: "+ Add a bot" }).click();
+  await alice.page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
   const dialog = alice.page.getByRole("dialog", { name: "Add a bot" });
   await dialog.getByLabel("Bot's name").fill("Luna");
   await dialog.getByLabel("Plays").selectOption({ label: "AI · Meta key" });

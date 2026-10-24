@@ -58,9 +58,7 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
       </ul>
       <div className="members-foot">
         <AddBot roomId={roomId} members={snapshot.members} disabled={!connected || bots.length >= MAX_BOTS_PER_PLAYER} />
-        <span className="muted small">
-          {bots.length >= MAX_BOTS_PER_PLAYER ? `Up to ${MAX_BOTS_PER_PLAYER} bots each.` : "Built-in, or AI with your own key. Plays from this tab."}
-        </span>
+        {bots.length >= MAX_BOTS_PER_PLAYER && <span className="muted small">Up to {MAX_BOTS_PER_PLAYER} bots each.</span>}
       </div>
     </Panel>
   );
@@ -128,7 +126,8 @@ function takenColors(members: Member[], except?: string): Map<number, string> {
   return new Map(members.filter((m) => m.id !== except).map((m) => [m.color, m.name]));
 }
 
-function AddBot({ roomId, members, disabled }: { roomId: string; members: Member[]; disabled: boolean }) {
+/** "+ Add a bot", which opens the bot's set-up next to it. */
+export function AddBot({ roomId, members, disabled, className = "btn ghost small" }: { roomId: string; members: Member[]; disabled: boolean; className?: string }) {
   const [suggestion, setSuggestion] = useState<BotSetup | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const close = () => setSuggestion(null);
@@ -136,7 +135,7 @@ function AddBot({ roomId, members, disabled }: { roomId: string; members: Member
     <>
       <button
         ref={button}
-        className="btn ghost small"
+        className={className}
         disabled={disabled}
         aria-expanded={!!suggestion}
         onClick={() =>

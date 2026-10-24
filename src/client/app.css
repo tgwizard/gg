@@ -86,7 +86,8 @@
 .home-footer { padding: 20px 24px 28px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
 /* ---------- game cards ---------- */
-.game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+/* Every card as tall as the tallest, whatever its tagline. */
+.game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); grid-auto-rows: 1fr; gap: 20px; }
 .game-card {
   font: inherit;
   color: var(--text);
@@ -141,9 +142,26 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 /* The serif "gg" has deep descenders: size it by its x-height, and nudge it onto the bar's center line. */
 .topbar .brand { font-size: 2.1rem; font-weight: 700; line-height: 1; margin: -4px 6px 0 0; color: var(--gold); text-decoration: none; }
 .topbar .brand:hover { color: #f7d696; }
-.room-id { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.room-id .code { user-select: all; font-size: 14px; color: var(--on-brand); background: rgb(0 0 0 / 0.15); }
-.topbar .pill { color: var(--on-brand-2); }
+/* The icon's own round hit area adds space around the glyph: pull it in, and pad the end to match. */
+.room-ident { display: inline-flex; align-items: center; gap: 2px; min-width: 0; padding: 2px 4px 2px 2px; border-radius: var(--pill); background: rgb(0 0 0 / 0.15); }
+.room-ident .room-title { border-radius: var(--pill); padding: 3px 10px 3px 12px; }
+.room-ident .invite-btn { margin-left: -6px; }
+.room-ident .room-title.unnamed { padding: 5px 12px; }
+.invite-btn, .connection-dot {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: var(--on-brand-2);
+  background: transparent;
+  cursor: pointer;
+}
+.invite-btn:hover, .invite-btn[aria-expanded="true"], .connection-dot:hover, .connection-dot[aria-expanded="true"] { color: var(--on-brand); background: rgb(255 255 255 / 0.1); }
+.connection-dot .light { width: 10px; height: 10px; }
 .topbar .mode-toggle { color: var(--on-brand-2); }
 .topbar .mode-toggle:hover { color: var(--on-brand); background: rgb(255 255 255 / 0.08); }
 .name-button {
@@ -382,9 +400,13 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   .hero-games { width: 320px; height: 200px; scale: 0.82; transform-origin: left top; }
   .home-hero { padding: 40px 16px 40px; }
   .home-main { padding: 36px 16px 24px; }
-  .topbar { padding: 8px 12px; }
-  .topbar .brand { font-size: 1.8rem; }
-  .room-id .label { display: none; }
+  /* One row on a phone: the room's name gives way first, your name is just your avatar. */
+  .topbar { flex-wrap: nowrap; gap: 6px; padding: 8px 12px; }
+  .topbar .brand { font-size: 1.8rem; margin-right: 2px; }
+  .room-ident .room-title { min-width: 0; max-width: none; }
+  .room-ident .room-title.display { font-size: 1.1rem; }
+  .name-button { padding: 2px; }
+  .name-button-text { display: none; }
   .game-card-art { width: 64px; height: 64px; }
 }
 
@@ -414,6 +436,67 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .profile-menu { position: relative; }
 /* Rendered into <body> (outside the green bar, so it gets page colors); placed by JS. */
 .profile-pop { position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; padding: 18px; }
+
+/* ---------- peeks: details behind a top-bar icon ---------- */
+.profile-pop.peek-pop { width: min(300px, calc(100vw - 24px)); padding: 14px 16px; }
+.profile-pop.invite-pop { width: min(380px, calc(100vw - 24px)); }
+.peek { display: flex; flex-direction: column; gap: 10px; }
+.peek p { margin: 0; }
+.peek-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 800; }
+.peek-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; font-size: 14px; }
+.peek-facts dt { color: var(--text-2); }
+.peek-facts dd { margin: 0; }
+.invite-code { display: flex; align-items: center; gap: 10px; }
+.invite-code .code { font-size: 14px; user-select: all; }
+.quick-pop { display: flex; flex-direction: column; gap: 2px; padding: 6px; }
+.quick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.quick-row:hover { background: var(--surface-2); }
+.quick-state { margin-left: auto; font-size: 13px; color: var(--text-2); }
+
+/* ---------- invite (before a game) ---------- */
+.invite { padding: 26px 22px 22px; gap: 16px; }
+.invite-head { display: flex; flex-direction: column; gap: 4px; }
+.invite-head p { margin: 0; }
+.invite-link { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.invite-url {
+  flex: 1 1 12em;
+  min-width: 0;
+  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.invite-link.large .invite-url { padding: 11px 16px; font-size: 1.05rem; }
+.swap-label { display: inline-grid; }
+.swap-label > * { grid-area: 1 / 1; }
+.swap-label > :last-child, .swap-label.alt > :first-child { visibility: hidden; }
+.swap-label.alt > :last-child { visibility: visible; }
+.invite-here { display: flex; flex-direction: column; gap: 8px; }
+.invite-people { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.invite-person { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 3px; border-radius: var(--pill); background: var(--surface-2); border: 1px solid var(--line); font-weight: 700; }
+.invite-person:has(.tag) { padding-right: 5px; }
+
+/* ---------- /about ---------- */
+.about-list { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
 
 /* ---------- room title ---------- */
 .room-title {

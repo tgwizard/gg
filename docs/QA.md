@@ -48,7 +48,9 @@ these through the browser and reports back.
 - [ ] Home: Profile (name + color, saved in the browser), Start a room (optional name), Join a room. A new browser starts with a random color.
 - [ ] Two people pick the same color: whoever joined first keeps it, the other sees "X is taken here, so you're Y" and gets the next free color; taken colors are marked in the profile picker (top right).
 - [ ] Rename the room from the top bar: everyone sees the new name and a chat note; clearing it shows "Name this room".
-- [ ] Create a room from the home page. The URL is `/r/<10-char code>`, the code shows in the top bar, and the status pill says *Connected*.
+- [ ] Create a room from the home page. The URL is `/r/<10-char code>`, and the status light in the top bar is green; hovering or clicking it shows latency, since when, and reconnects.
+- [ ] The people icon by the room's name shows the code and Copy invite link on hover, and stays open on click. Before a game, "Invite friends to play" shows the link, who's here, and Add a bot.
+- [ ] On a phone the top bar is one row: the room name shortens, your name is just your avatar, and sound and light/dark share one button.
 - [ ] Type the code (lower-case, with a space) into *Room code or link* on the home page: it shows upper-case and joins the room.
 - [ ] With 1Password (or another password manager) installed, the name, code and chat inputs don't offer to autofill.
 - [ ] Open the invite link in another profile: you're asked for a name once, then you join. Both member lists show two people online.
@@ -247,6 +249,6 @@ these through the browser and reports back.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.
 - [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table.
 - [ ] Long names (24 chars) and 9 seated players.
-- [ ] Light and dark mode (toggle in the top bar and on the home page): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
+- [ ] Light and dark mode (toggle in the top bar and on the home page, or Ctrl+Shift+L anywhere, ⌃⇧L on a Mac): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
 - [ ] `/ui` style guide: nothing broken after design changes, in both modes.
 - [ ] Bump `PROTOCOL_VERSION` with a tab open: the tab shows "gg has been updated, reload".

@@ -3,7 +3,7 @@ import { chat, createRoom, expectConnected, newPlayer } from "./helpers";
 
 /** Add a bot, keeping its suggested name and color unless given a name. */
 async function addBot(page: Page, rename?: string): Promise<string> {
-  await page.getByRole("button", { name: "+ Add a bot" }).click();
+  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
   const dialog = page.getByRole("dialog", { name: "Add a bot" });
   if (rename) await dialog.getByLabel("Bot's name").fill(rename);
   const name = await dialog.getByLabel("Bot's name").inputValue();
@@ -114,7 +114,7 @@ test("settings are a click away from the bot and profile popups, with a way back
   const { page } = await newPlayer(browser);
   const url = await createRoom(page, "Alice");
 
-  await page.getByRole("button", { name: "+ Add a bot" }).click();
+  await page.getByRole("complementary").getByRole("button", { name: "+ Add a bot" }).click();
   await page.getByRole("dialog", { name: "Add a bot" }).getByRole("link", { name: "Configure AI settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
   await page.getByRole("link", { name: "← Back to the room" }).click();

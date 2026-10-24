@@ -24,7 +24,7 @@ for (const name of ["Bob", "Carol", "Dave"]) {
   await p.getByRole("button", { name: "Join room" }).click();
   players.push(p);
 }
-await a.getByText("Connected").waitFor();
+await a.getByTestId("connection-status").filter({ hasText: "Connected" }).waitFor({ state: "attached" });
 await players[1]!.getByLabel("Chat message").fill("evening all 👋");
 await players[1]!.getByLabel("Chat message").press("Enter");
 await a.waitForTimeout(300);

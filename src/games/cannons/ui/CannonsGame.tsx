@@ -63,7 +63,7 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
             ) : (
               <div className="cn-prompt box" role="status">
                 <h3 className="display">Waiting for {open.length === 1 ? "an opponent" : `${open.length} more players`}</h3>
-                <p className="muted">Share the room link (Copy invite link, at the top), or add a bot, to fill the {open.length === 1 ? "other seat" : "seats"}.</p>
+                <p className="muted">Share the room link (the people icon by the room name, at the top), or add a bot, to fill the {open.length === 1 ? "other seat" : "seats"}.</p>
               </div>
             )}
           </div>

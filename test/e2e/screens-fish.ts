@@ -27,7 +27,7 @@ for (const name of ["Bob", "Carol"]) {
   await p.goto(url);
   await p.getByLabel("Your name").fill(name);
   await p.getByRole("button", { name: "Join room" }).click();
-  await p.getByText("Connected").waitFor();
+  await p.getByTestId("connection-status").filter({ hasText: "Connected" }).waitFor({ state: "attached" });
   players.push(p);
 }
 await a.getByRole("button", { name: /Finns i sjön/ }).click();

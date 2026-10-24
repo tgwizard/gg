@@ -39,7 +39,7 @@ const b = await ctx(true);
 await b.goto(url);
 await b.getByLabel("Your name").fill("Bob");
 await b.getByRole("button", { name: "Join room" }).click();
-await b.getByText("Connected").waitFor();
+await b.getByTestId("connection-status").filter({ hasText: "Connected" }).waitFor({ state: "attached" });
 
 await a.getByRole("button", { name: /Battleship/ }).click();
 await a.screenshot({ path: `${out}/bs-0-setup.png` });
