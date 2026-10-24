@@ -6,7 +6,6 @@ export const femKortMeta: GameMeta = {
   tagline: "The old Swedish trick game where only the last trick counts.",
   minPlayers: 2,
   maxPlayers: 6,
-  wip: true,
   rules: `Fem kort ("five cards") is an old Swedish game for 2–6 players. Five tricks are played, but only the last one counts: whoever takes the fifth trick wins the deal. The first to win 3 deals wins the game (the table can choose another number).
 - Everyone gets five cards. Ace is high and two is low; there are no trumps.
 - The player to the dealer's left leads any card. Everyone else plays one card in turn, clockwise.

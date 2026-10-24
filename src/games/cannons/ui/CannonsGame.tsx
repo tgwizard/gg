@@ -70,8 +70,9 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
         )}
       </Scene>
 
-      {view.phase !== "waiting" && (
-        <ActionTray testId="cannons-tray" aside={<TrayAside view={view} busy={busy} connected={connected} send={send} />}>
+      {/* Once it's over, the result has Play again; the tray stays only for whoever's watching. */}
+      {view.phase !== "waiting" && !(over && mySeat !== null) && (
+        <ActionTray testId="cannons-tray" aside={!replay && <TrayAside view={view} busy={busy} connected={connected} send={send} />}>
           {myTurn ? (
             <Controls aim={aim.value} set={aim.set} nudge={aim.nudge} fire={fire} disabled={busy || !connected} last={view.shots.findLast((s) => s.by === me) ?? null} name={name} me={me} />
           ) : (
@@ -82,7 +83,7 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
         </ActionTray>
       )}
 
-      <CannonsResult view={view} open={over} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={busy || !connected} />
+      <CannonsResult view={view} open={over} me={me} name={name} seated={mySeat !== null} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={busy || !connected} />
 
       <TableFooter
         log={
@@ -208,56 +209,62 @@ function Controls(props: {
   return (
     <div className="cn-controls" data-testid="cannons-controls">
       <div className="cn-dial">
-        <span className="cn-dial-label label">Angle</span>
-        <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(1, 0)} aria-label="Turn left">
-          ◀
-        </button>
-        <output className="cn-value" data-testid="cannons-angle" aria-label={`Angle ${aim.angle}`}>
-          {up}° {arrow(aim.angle)}
-        </output>
-        <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(-1, 0)} aria-label="Turn right">
-          ▶
-        </button>
-        <input
-          type="range"
-          className="cn-range"
-          min={0}
-          max={180}
-          value={180 - aim.angle}
-          disabled={disabled}
-          aria-label="Angle (left to right)"
-          onChange={(e) => set({ ...aim, angle: 180 - Number(e.target.value) })}
-        />
+        <div className="cn-dial-head">
+          <span className="label">Angle</span>
+          <output className="cn-value" data-testid="cannons-angle" aria-label={`Angle ${aim.angle}`}>
+            {up}° {arrow(aim.angle)}
+          </output>
+        </div>
+        <div className="cn-dial-row">
+          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(1, 0)} aria-label="Turn left">
+            ◀
+          </button>
+          <input
+            type="range"
+            className="cn-range"
+            min={0}
+            max={180}
+            value={180 - aim.angle}
+            disabled={disabled}
+            aria-label="Angle (left to right)"
+            onChange={(e) => set({ ...aim, angle: 180 - Number(e.target.value) })}
+          />
+          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(-1, 0)} aria-label="Turn right">
+            ▶
+          </button>
+        </div>
       </div>
       <div className="cn-dial">
-        <span className="cn-dial-label label">Power</span>
-        <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(0, -1)} aria-label="Less power">
-          −
-        </button>
-        <output className="cn-value" data-testid="cannons-power">
-          {aim.power}
-        </output>
-        <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(0, 1)} aria-label="More power">
-          +
-        </button>
-        <input type="range" className="cn-range" min={MIN_POWER} max={MAX_POWER} value={aim.power} disabled={disabled} aria-label="Power" onChange={(e) => set({ ...aim, power: Number(e.target.value) })} />
+        <div className="cn-dial-head">
+          <span className="label">Power</span>
+          <output className="cn-value" data-testid="cannons-power">
+            {aim.power}
+          </output>
+        </div>
+        <div className="cn-dial-row">
+          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(0, -1)} aria-label="Less power">
+            −
+          </button>
+          <input type="range" className="cn-range" min={MIN_POWER} max={MAX_POWER} value={aim.power} disabled={disabled} aria-label="Power" onChange={(e) => set({ ...aim, power: Number(e.target.value) })} />
+          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(0, 1)} aria-label="More power">
+            +
+          </button>
+        </div>
       </div>
-      <div className="cn-fire-wrap">
-        <button type="button" className="btn primary big cn-fire" disabled={disabled} onClick={props.fire} data-testid="cannons-fire">
-          Fire!
-        </button>
-        <span className="cn-hint">
-          {props.last ? (
-            <>
-              Last: {elevation(props.last.angle).up}° {arrow(props.last.angle)} · {props.last.power}, {shotWords(props.last, (id) => (id === props.me ? "you" : props.name(id)))}
-            </>
-          ) : (
-            <>
-              Drag on the field to aim · <kbd>←</kbd> <kbd>→</kbd> angle · <kbd>↑</kbd> <kbd>↓</kbd> power · <kbd>Space</kbd> fires
-            </>
-          )}
-        </span>
-      </div>
+      <button type="button" className="btn primary big cn-fire" disabled={disabled} onClick={props.fire} data-testid="cannons-fire">
+        Fire!
+      </button>
+      <p className="cn-hint">
+        {props.last ? (
+          <>
+            <span className="label">Your last shot</span> {elevation(props.last.angle).up}° {arrow(props.last.angle)} · power {props.last.power}: {shotWords(props.last, (id) => (id === props.me ? "you" : props.name(id)))}
+          </>
+        ) : (
+          <>
+            Drag on the field to aim · <kbd>←</kbd> <kbd>→</kbd> angle · <kbd>↑</kbd> <kbd>↓</kbd> power · <kbd>Space</kbd> fires
+          </>
+        )}
+      </p>
     </div>
   );
 }
@@ -320,7 +327,7 @@ const nameFor = (me: string, name: (id: string) => string) => (id: string) => (i
 function shotSentence(s: ShotView, me: string, name: (id: string) => string): string {
   const shooter = s.by === me ? "Your shot" : `${name(s.by)}'s shot`;
   const words = shotWords(s, nameFor(me, name)).replace("hit its own cannon", s.by === me ? "hit your own cannon" : "hit their own cannon");
-  return `${s.auto ? "Out of time: " : ""}${shooter} ${words}${s.hit ? "!" : "."}`;
+  return `${shooter} ${words}${s.hit ? "!" : "."}`;
 }
 
 function logLine(s: ShotView, me: string, name: (id: string) => string) {
@@ -330,8 +337,7 @@ function logLine(s: ShotView, me: string, name: (id: string) => string) {
       <span className="cn-log-aim">
         {who(s.by, me, name)}: {elevation(s.angle).up}° {arrow(s.angle)} · {s.power} · {s.wind === 0 ? "no wind" : `wind ${Math.abs(s.wind)} ${s.wind > 0 ? "→" : "←"}`}
       </span>{" "}
-      — {s.auto ? "out of time, fired for them: " : ""}
-      {words}
+      — {words}
     </>
   );
 }
@@ -348,7 +354,8 @@ function News(props: { view: CannonsView; me: string; name(id: string): string; 
   } else {
     const last = (replay ? replay.shot : null) ?? view.shots.at(-1);
     text = last ? shotSentence(last, me, name) : props.myTurn ? "You fire first." : `${name(view.turn ?? "")} fires first.`;
-    if (last?.hit) tone = last.hit === me ? "bad" : last.by === me ? "good" : "";
+    if (view.passed && !replay) text = `${view.passed === me ? "You" : name(view.passed)} ran out of time: no shot. ${props.myTurn ? "Your turn." : `${name(view.turn ?? "")}'s turn.`}`;
+    else if (last?.hit) tone = last.hit === me ? "bad" : last.by === me ? "good" : "";
   }
   return (
     <Herald testId="cannons-news" className={`cn-news ${tone}`}>
@@ -358,16 +365,14 @@ function News(props: { view: CannonsView; me: string; name(id: string): string; 
 }
 
 function trayText(view: CannonsView, me: string, name: (id: string) => string, replaying: boolean, shooter: string | null): string {
+  if (replaying) return "Watch it fly…";
   if (view.phase === "aiming" || view.phase === "flying") {
-    if (replaying || view.phase === "flying") return "Watch it fly…";
+    if (view.phase === "flying") return "Watch it fly…";
     if (shooter === me) return "Your shot.";
     const mine = view.cannons.find((c) => c.playerId === me);
     return `${name(shooter ?? "")} is aiming${mine && !mine.alive ? "" : mine ? " (maybe at you)" : ""}…`;
   }
-  if (view.phase === "over") {
-    if (view.you.seat === null) return view.seats.some((s) => !s) ? "Take the open seat to play the next game." : "You're watching.";
-    return view.canRematch ? "Fancy another?" : "Waiting for every seat to fill.";
-  }
+  if (view.phase === "over") return view.seats.some((s) => !s) ? "Take the open seat to play the next game." : "You're watching.";
   return "";
 }
 
@@ -375,23 +380,16 @@ function TrayAside(props: { view: CannonsView; busy: boolean; connected: boolean
   const { view } = props;
   const disabled = props.busy || !props.connected;
   if (view.phase !== "over") return null;
-  if (view.you.seat === null) {
-    const open = view.seats.findIndex((s) => !s);
-    return open < 0 ? null : (
-      <button className="btn subtle" disabled={disabled} onClick={() => props.send({ type: "sit", seat: open })}>
-        Take the open seat
-      </button>
-    );
-  }
-  return view.canRematch ? (
-    <button className="btn primary" disabled={disabled} onClick={() => props.send({ type: "rematch" })}>
-      Play again
+  const open = view.seats.findIndex((s) => !s);
+  return open < 0 ? null : (
+    <button className="btn subtle" disabled={disabled} onClick={() => props.send({ type: "sit", seat: open })}>
+      Take the open seat
     </button>
-  ) : null;
+  );
 }
 
 /** The end: the last cannon standing, and how everyone shot. */
-function CannonsResult(props: { view: CannonsView; open: boolean; me: string; name(id: string): string; rematch: (() => void) | null; disabled: boolean }) {
+function CannonsResult(props: { view: CannonsView; open: boolean; me: string; name(id: string): string; seated: boolean; rematch: (() => void) | null; disabled: boolean }) {
   const { view, me, name } = props;
   const r = view.result;
   const you = (id: string) => id === me;
@@ -424,10 +422,12 @@ function CannonsResult(props: { view: CannonsView; open: boolean; me: string; na
         };
       })}
       actions={
-        props.rematch && (
+        props.rematch ? (
           <button className="btn primary" disabled={props.disabled} onClick={props.rematch}>
             Play again
           </button>
+        ) : (
+          props.seated && <span className="muted small">Waiting for every seat to fill.</span>
         )
       }
     />

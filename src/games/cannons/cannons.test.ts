@@ -200,7 +200,7 @@ describe("cannons", () => {
     expect(state.turn).not.toBe(target);
   });
 
-  it("fires your last aim when your clock runs out, and three in a row puts you out", () => {
+  it("skips your shot when your clock runs out, and three in a row puts you out", () => {
     const { state, ctx, land, setNow, announcements } = setup({ turnSeconds: 10 });
     onFlat(state, [100, 700]);
     game.apply(state, "alice", { type: "fire", angle: 50, power: 12 }, ctx());
@@ -210,8 +210,12 @@ describe("cannons", () => {
       setNow(game.nextDeadline!(state)!);
       onDeadline(state, ctx());
       if (i < 3) {
-        expect(state.shots.at(-1)).toMatchObject({ by: "bob", auto: true, angle: 135, power: 60 });
-        land();
+        // No shot: the turn just passes back to alice.
+        expect(state.shots.filter((s) => s.by === "bob")).toHaveLength(0);
+        expect(state.phase).toBe("aiming");
+        expect(game.waitingOn(state)).toEqual(["alice"]);
+        expect(game.view(state, "alice").passed).toBe("bob");
+        expect(announcements.at(-1)).toMatch(new RegExp(`ran out of time: no shot this turn \\(${i} of 3\\)`));
         game.apply(state, "alice", { type: "fire", angle: 50, power: 12 }, ctx());
         land();
       }

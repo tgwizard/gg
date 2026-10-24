@@ -47,6 +47,8 @@ export const PIVOT = 9;
 export const BARREL = 14;
 /** The middle of a cannon, above the ground under it (for hits). */
 export const BODY = 7;
+/** The sea beyond the cliffs at either edge: a ball that comes down off the side splashes in at this height. */
+export const SEA_LEVEL = 6;
 /** Beyond this far past either edge, a ball is gone for good. */
 const LOST_BEYOND = WIDTH / 2;
 
@@ -211,8 +213,8 @@ export function flight(input: FlightInput): Flight {
     }
     x = x0 + dx * SUBSTEPS;
     y = y0 + dy * SUBSTEPS;
-    // Off the side and below the edge it can't come back up; far off to the side it's gone.
-    if (((x < 0 || x > WIDTH) && y < -40) || x < -LOST_BEYOND || x > WIDTH + LOST_BEYOND) return done("off", x, y, tick);
+    // Off the side and down in the sea it can't come back up; far off to the side it's gone.
+    if (((x < 0 || x > WIDTH) && y < SEA_LEVEL) || x < -LOST_BEYOND || x > WIDTH + LOST_BEYOND) return done("off", x, y, tick);
     if (tick % PATH_EVERY === 0) path.push(whole(x), whole(y));
   }
   return done("off", x, y, MAX_TICKS);

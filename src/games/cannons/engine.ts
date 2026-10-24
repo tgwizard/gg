@@ -11,15 +11,15 @@
  *
  * The first game starts when every seat is taken; "Play again" starts the next on a new
  * field, with the next seat opening. Leaving before anyone has fired calls the game off;
- * after that, your cannon is out. A turn clock (if set) fires your last aim for you when
- * it runs out; three in a row and you're out.
+ * after that, your cannon is out. When a turn clock (if set) runs out, the turn goes by
+ * without a shot (a shot fired for you might win you the game); three in a row and you're out.
  *
  * Nothing is hidden, but the view is still built field by field.
  */
 import { emptySeating, requireSeat, type Seat, type Seating, seatOf, sitDown, standUp } from "../kit/seating";
 import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
 import { type GameContext, GameError } from "../types";
-import { COLUMNS, crater, elevation, type Flight, flight, groundAt, MAX_GROUND, MAX_POWER, MIN_POWER, STEP, TICK_MS, WIDTH, whole } from "./physics";
+import { COLUMNS, crater, elevation, type Flight, flight, groundAt, MAX_GROUND, MAX_POWER, MIN_POWER, SEA_LEVEL, STEP, TICK_MS, WIDTH, whole } from "./physics";
 import { makeField, type TerrainStyle } from "./terrain";
 
 export const WIND_LEVELS = ["none", "light", "strong"] as const;
@@ -74,8 +74,6 @@ export interface Shot {
   angle: number;
   power: number;
   wind: number;
-  /** Fired for them when their clock ran out. */
-  auto: boolean;
   end: Flight["end"];
   x: number;
   y: number;
@@ -111,6 +109,8 @@ export interface CannonsState extends Seating<CannonsSeat> {
   shots: Shot[];
   /** Shots fired this game. */
   fired: number;
+  /** Whose clock just ran out (their turn went by without a shot), until the next shot. */
+  passed: string | null;
   result: CannonsResult | null;
   timers: Timers<"turn" | "land">;
 }
@@ -128,6 +128,7 @@ export function createState(config: CannonsConfig): CannonsState {
     wind: 0,
     shots: [],
     fired: 0,
+    passed: null,
     result: null,
     timers: {},
   };
@@ -190,6 +191,7 @@ function startGame(state: CannonsState, ctx: GameContext) {
   state.opener = (state.opener + 1) % state.seats.length;
   state.shots = [];
   state.fired = 0;
+  state.passed = null;
   state.result = null;
   const max = WIND_MAX[state.config.wind];
   state.wind = max ? ctx.randomInt(2 * max + 1) - max : 0;
@@ -212,7 +214,7 @@ function shiftWind(state: CannonsState, ctx: GameContext) {
   state.wind = Math.max(-max, Math.min(max, state.wind + ctx.randomInt(2 * step + 1) - step));
 }
 
-export function fire(state: CannonsState, actor: string, angle: number, power: number, ctx: GameContext, auto = false) {
+export function fire(state: CannonsState, actor: string, angle: number, power: number, ctx: GameContext) {
   requireSeat(state, actor);
   if (state.phase === "flying") throw new GameError("flying", "Wait for the ball to land.");
   if (state.phase !== "aiming") throw new GameError("not_playing", "There's no game on.");
@@ -220,7 +222,8 @@ export function fire(state: CannonsState, actor: string, angle: number, power: n
   if (cannon.playerId !== actor) throw new GameError("not_your_turn", "It's not your turn.");
   if (!Number.isInteger(angle) || angle < 0 || angle > 180) throw new GameError("bad_angle", "The angle is a whole number from 0 to 180.");
   if (!Number.isInteger(power) || power < MIN_POWER || power > MAX_POWER) throw new GameError("bad_power", `The power is a whole number from ${MIN_POWER} to ${MAX_POWER}.`);
-  if (!auto) cannon.timeouts = 0;
+  cannon.timeouts = 0;
+  state.passed = null;
 
   const f = flight({ terrain: state.terrain, cannons: state.cannons, shooter: state.turn, angle, power, wind: state.wind });
   const hit = f.hit === null ? null : state.cannons[f.hit]!;
@@ -230,7 +233,6 @@ export function fire(state: CannonsState, actor: string, angle: number, power: n
     angle,
     power,
     wind: state.wind,
-    auto,
     end: f.end,
     x: f.x,
     y: f.y,
@@ -328,9 +330,10 @@ export function onDeadline(state: CannonsState, ctx: GameContext) {
     if (!settle(state, "timeouts", ctx)) nextTurn(state, ctx);
     return;
   }
-  // Out of time: whatever they fired last, or a first guess.
-  const aim = lastAim(state, cannon.playerId) ?? defaultAim(state.cannons, state.cannons.indexOf(cannon));
-  fire(state, cannon.playerId, aim.angle, aim.power, ctx, true);
+  // Out of time: the turn goes by without a shot (firing for them could win them the game).
+  state.passed = cannon.playerId;
+  ctx.announce(`${ctx.nameOf(cannon.playerId)} ran out of time: no shot this turn (${cannon.timeouts} of ${MAX_TIMEOUTS}).`);
+  nextTurn(state, ctx);
 }
 
 const lastAim = (state: CannonsState, playerId: string) => state.shots.findLast((s) => s.by === playerId) ?? null;
@@ -412,6 +415,8 @@ export interface CannonsView {
   windMax: number;
   /** This game's shots, oldest first; each player's latest has its `path`. */
   shots: ShotView[];
+  /** Whose clock just ran out, so their turn went by without a shot. */
+  passed: string | null;
   result: CannonsResult | null;
   canRematch: boolean;
   you: { seat: number | null };
@@ -452,7 +457,6 @@ export function viewFor(state: CannonsState, viewer: string): CannonsView {
       angle: s.angle,
       power: s.power,
       wind: s.wind,
-      auto: s.auto,
       end: s.end,
       x: s.x,
       y: s.y,
@@ -461,6 +465,7 @@ export function viewFor(state: CannonsState, viewer: string): CannonsView {
       ticks: s.ticks,
       path: s.path ? [...s.path] : null,
     })),
+    passed: state.passed ?? null,
     result: state.result ? { winner: state.result.winner, reason: state.result.reason, shots: state.result.shots } : null,
     canRematch: canRematch(state),
     you: { seat: seat < 0 ? null : seat },
@@ -489,7 +494,8 @@ export function shotWords(shot: ShotView, name: (playerId: string) => string, he
   if (shot.hit) return shot.hit === shot.by ? "hit its own cannon" : `hit ${name(shot.hit)}`;
   if (shot.end === "off") {
     const edge = shot.x < 0 ? "left" : shot.x > WIDTH ? "right" : null;
-    return edge ? `went off the ${edge} edge` : "flew off for good";
+    if (!edge) return "flew off for good";
+    return shot.y < SEA_LEVEL + 2 ? `went off the ${edge} edge, into the sea` : `went off the ${edge} edge`;
   }
   const n = shot.near;
   if (!n) return `landed at x = ${shot.x} m`;
@@ -507,7 +513,7 @@ function situation(view: CannonsView, viewer: string): string[] {
   const me = view.cannons[meIndex];
   const name = (id: string) => (id === viewer ? "you" : `player ${id}`);
   const lines: string[] = [];
-  lines.push(`The field runs from x = 0 m (the left edge) to x = ${WIDTH} m (the right edge); heights are meters above the bottom.`);
+  lines.push(`The field runs from x = 0 m (the left edge) to x = ${WIDTH} m (the right edge), with cliffs down to the sea at both; heights are meters above the bottom.`);
   if (!me || !me.alive) {
     for (const c of view.cannons) lines.push(`${name(c.playerId)}: x = ${c.x} m, ground ${c.y} m high${c.alive ? "" : " (out)"}.`);
   } else {

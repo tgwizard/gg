@@ -137,6 +137,24 @@
   --cannons-aim: #3a2e24;
   --cannons-label: #3a2e24;
   --cannons-label-halo: #fffaf2;
+  --cannons-far-2: #c8d6c6;
+  --cannons-tree: #7f9c6c;
+  --cannons-subsoil: #a06f3f;
+  --cannons-rock: #a38e72;
+  --cannons-rock-2: #7a6650;
+  --cannons-sea: #5a9ab0;
+  --cannons-sea-2: #2c6680;
+  --cannons-foam: #f6f3ea;
+  --cannons-steel: #4d5142;
+  --cannons-steel-2: #2c2f26;
+  --cannons-tire: #26231f;
+  --cannons-drab: #5f6440;
+  --cannons-fire: #fff1b8;
+  --cannons-fire-2: #f59a3c;
+  --cannons-fire-3: #b8361a;
+  --cannons-smoke-dark: rgb(52 46 41 / 0.78);
+  --cannons-dirt: #7a5432;
+  --cannons-spray: rgb(196 226 238 / 0.95);
 
   /* type & shape */
   --font-body: "Nunito Variable", system-ui, sans-serif;
@@ -244,6 +262,24 @@
   --cannons-aim: #f1e8d6;
   --cannons-label: #f1e8d6;
   --cannons-label-halo: #1b1713;
+  --cannons-far-2: #212c30;
+  --cannons-tree: #22302b;
+  --cannons-subsoil: #5e3f22;
+  --cannons-rock: #54483b;
+  --cannons-rock-2: #392f26;
+  --cannons-sea: #23435a;
+  --cannons-sea-2: #10243a;
+  --cannons-foam: rgb(222 232 238 / 0.75);
+  --cannons-steel: #6a705c;
+  --cannons-steel-2: #2a2d24;
+  --cannons-tire: #121110;
+  --cannons-drab: #50553a;
+  --cannons-fire: #fff1b8;
+  --cannons-fire-2: #f59a3c;
+  --cannons-fire-3: #b8361a;
+  --cannons-smoke-dark: rgb(18 16 14 / 0.82);
+  --cannons-dirt: #5a3d22;
+  --cannons-spray: rgb(200 220 232 / 0.85);
 
   color-scheme: dark;
 }

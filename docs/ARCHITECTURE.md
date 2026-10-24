@@ -400,11 +400,15 @@ landscape; take turns firing; one hit knocks a cannon out and the last one stand
 - **The view** has a `situation`, the position in words from the viewer's cannon (where
   everyone is, the ground between, the wind, where the last shots landed: "landed 40 m
   short of player X (to the left)"), for AI bots.
-- **Turn clock**: running out fires your last aim for you; three in a row and your cannon
-  is out. Leaving before anyone has fired calls the game off; after, your cannon is out.
+- **Turn clock**: running out passes your turn without a shot (firing for you could win
+  you the game); three in a row and your cannon is out. Leaving before anyone has fired calls the game off; after, your cannon is out.
 - **The scene** (`ui/Scene.tsx`) is SVG in world meters: sky, clouds drifting with the
-  wind, distant hills, the ground with scorch marks, cannons in their players' colors, and
-  each player's last shot as a faint trail. Only a shot that arrives live flies (ball,
+  wind, hazy mountains and wooded hills far off, the ground in layers (topsoil, clay,
+  rock) ending in cliffs down to the sea at both edges (`SEA_LEVEL`: a ball off the side
+  ends there, with a splash), 1940s-style field guns painted in their players' colors
+  (a ring of light on the ground under whoever's aiming), and each player's last shot as
+  a faint trail. A miss throws up dirt; a hit is a fireball with flying wreckage, a shake
+  and a flash, and leaves a burning wreck. Only a shot that arrives live flies (ball,
   trail, a burst where it lands, a camera that widens to keep the ball in view); after a
   refresh the field is just as it is. Aim by dragging from your cannon, with the steppers
   and sliders, or ←/→ and ↑/↓ (Space fires). Colors are tokens (`--cannons-*`).

@@ -142,12 +142,14 @@ these through the browser and reports back.
 ### Cannons
 - [ ] Setup: players (2–4), landscape (gentle, hilly, mountains), wind (none, light, strong) and the turn timer. The game starts when every seat is taken; a new field each game.
 - [ ] Nobody seated: a "Take a seat" prompt over a greyed field; seated alone, "Waiting for an opponent".
-- [ ] Aiming on your turn: dragging from your cannon sets the angle and power (a dotted line with the numbers); the ◀ ▶ and − + steppers and sliders, and ← → / ↑ ↓ (Shift for 5) do too; Space or *Fire!* fires. Out of turn there are no controls.
+- [ ] The field: layered ground with grass tufts, cliffs into the sea at both edges (seen when a shot flies off the side: it splashes in, and the camera stays on it a moment), field guns that face the way they aim with the trail resting on the ground; the gun whose turn it is has a ring of light under it.
+- [ ] Aiming on your turn: dragging from your cannon sets the angle and power (a dotted line with the numbers); the ◀ ▶ and − + steppers and sliders, and ← → / ↑ ↓ (Shift for 5) do too; Space or *Fire!* fires. Out of turn there are no controls. Each dial has its label and value above its slider, with the steppers either side; your last shot is in a line under them.
 - [ ] A shot: everyone sees the ball fly with a trail, a soft thump, then a burst and a crater where it lands; a ball high or wide makes the camera widen to follow it. The news says where it went ("Your shot landed 40 m short of Bob (to the left)"), and the shooter's faint trail stays until their next shot.
 - [ ] The wind badge shows the flag, a number and an arrow; it changes between turns, and the clouds drift with it.
-- [ ] A hit (`/try/cannons/one-more`): the cannon is wrecked with smoke, the chat says who hit whom only once the ball has landed, and the end screen comes up after the burst. Refresh mid-flight: the field shows the result, nothing replays.
+- [ ] A hit (`/try/cannons/one-more`): a fireball, flying wreckage, a flash and a shake; the cannon is left a burning wreck with black smoke, the chat says who hit whom only once the ball has landed, and the end screen comes up after the burst. Refresh mid-flight: the field shows the result, nothing replays.
+- [ ] Game over: one *Play again*, on the result (no second one in the tray below); if a seat emptied, it says it's waiting for every seat instead.
 - [ ] Free for all (`/try/cannons/free-for-all`): plates left to right as the cannons stand, knocked-out cannons are skipped, last standing wins.
-- [ ] Clock: let it run out and your last aim is fired ("Out of time"); three in a row and your cannon is out. Leaving before anyone fires calls it off; after, your cannon is out.
+- [ ] Clock: let it run out and the turn goes by without a shot ("ran out of time: no shot"); three in a row and your cannon is out. Leaving before anyone fires calls it off; after, your cannon is out.
 - [ ] Against a built-in bot: its first shot is off, then it closes in, usually hitting within 3–5 shots.
 - [ ] Laptop (1440×900): field, plates and controls fit without scrolling. Phone: the field fills the width with the controls below; dragging aims without scrolling the page. Both modes: sky, ground, cannons, trails and labels readable.
 

@@ -53,7 +53,7 @@ export function CannonsSetup({ busy, disabled, onStart }: GameSetupProps<Cannons
       ])}
       {choices("terrain", "Landscape", TERRAIN)}
       {choices("wind", `Wind (up to ${WIND_MAX[config.wind]} either way)`, WIND)}
-      <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="run out and your last aim is fired" />
+      <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="run out and your turn goes by without a shot" />
       <button className="btn primary" disabled={busy || disabled}>
         {busy ? "Starting…" : "Start Cannons"}
       </button>
