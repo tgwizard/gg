@@ -553,8 +553,9 @@ before your first mark, the first cross alternating between games) with a turn t
   clashing colors are split as in Four in a Row). A new mark is drawn stroke by stroke
   (`stroke-dashoffset`) with a soft pen scratch (sound `pen`), live moves only; the last mark
   gets a stroke of highlighter, and a winning five is ringed by hand, in a rough loop, in the winner's
-  ink. Pointing at a square pencils your mark in; on touch screens the first tap pencils it in, boxed, with a *Mark J10* button by
-  it (or tap the square again); the
+  ink. Pointing at a square pencils your mark in; on touch screens the first tap pencils it in, boxed in the
+  accent color with its row and column shaded (nothing goes over the sheet), and a second tap
+  inks it (or *Mark J10* under the sheet); the
   arrow keys move a dotted cursor and Enter marks. Colors are tokens (`--lfs-*`).
 - **The built-in bot** (`bot.ts`) reads threats rather than searching: for each empty square
   near the marks it asks what a mark there makes, line by line, for itself and (as a block)

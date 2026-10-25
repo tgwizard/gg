@@ -19,8 +19,9 @@ export const sheetRatio = (n: number) => (n + LEFT + RIGHT) / (n + TOP + BOTTOM)
  * The sheet of squared paper. Marks are drawn in ink in their players' colors; a new one is
  * drawn stroke by stroke (live moves only), with the soft scratch of a pen. On your move,
  * pointing at a square shows a faint pencil mark there; click to ink it. On a touch screen
- * it takes two taps, since the squares are small: the first pencils it in, boxed, with a
- * "Mark J10" button by it; that button or the same square again inks it. The arrow keys move a dotted cursor, and Enter or Space marks. The
+ * it takes two taps, since the squares are small: the first pencils it in (`picked`: boxed,
+ * with its row and column shaded, and nothing over the sheet), and the same square again
+ * inks it (so does the game's Mark button, under the sheet). The arrow keys move a dotted cursor, and Enter or Space marks. The
  * last mark gets a stroke of highlighter; the winner rings a winning five with a loop.
  */
 export function Sheet(props: {
@@ -41,6 +42,9 @@ export function Sheet(props: {
   /** The piece you can mark now, or null. */
   movable: Piece | null;
   onMark(square: string): void;
+  /** On touch, the square tapped once (pencilled in): a second tap there marks it. */
+  picked: number | null;
+  onPick(cell: number | null): void;
   /** Overlays (a prompt to sit down). */
   children?: ReactNode;
 }) {
@@ -50,15 +54,11 @@ export function Sheet(props: {
   const svg = useRef<SVGSVGElement>(null);
   const ink = `lfs-ink-${useId().replace(/:/g, "")}`;
   const [hover, setHover] = useState<number | null>(null);
-  /** On touch, the square tapped once: a second tap there marks it. */
-  const [picked, setPicked] = useState<number | null>(null);
+  const { picked, onPick: setPicked } = props;
   const [cursor, setCursor] = useState<number | null>(null);
   const pointer = useRef("mouse");
 
-  useEffect(() => {
-    setPicked(null);
-    setHover(null);
-  }, [board, movable]);
+  useEffect(() => setHover(null), [board, movable]);
 
   // Each mark's seed: the move it was, so a mark looks the same whenever it's drawn.
   const moveOf = useMemo(() => new Map(props.order.map((cell, i) => [cell, i])), [props.order]);
@@ -166,7 +166,11 @@ export function Sheet(props: {
           <rect className="lfs-last" x={(props.last % n) * 100 + 6} y={Math.floor(props.last / n) * 100 + 10} width={88} height={80} rx={14} transform={`rotate(-4 ${(props.last % n) * 100 + 50} ${Math.floor(props.last / n) * 100 + 50})`} />
         )}
         {picked !== null && movable && open(picked) && (
-          <rect className="lfs-picked" x={(picked % n) * 100 + 4} y={Math.floor(picked / n) * 100 + 4} width={92} height={92} rx={8} aria-hidden />
+          <g aria-hidden>
+            <rect className="lfs-picked-band" x={-LEFT * 100} y={Math.floor(picked / n) * 100} width={(n + LEFT) * 100} height={100} />
+            <rect className="lfs-picked-band" x={(picked % n) * 100} y={-TOP * 100} width={100} height={(n + TOP) * 100} />
+            <rect className="lfs-picked" x={(picked % n) * 100 + 4} y={Math.floor(picked / n) * 100 + 4} width={92} height={92} rx={8} />
+          </g>
         )}
         {cursor !== null && movable && <rect className="lfs-cursor" x={(cursor % n) * 100 + 7} y={Math.floor(cursor / n) * 100 + 7} width={86} height={86} rx={6} />}
         <g className="lfs-marks" filter={`url(#${ink})`}>
@@ -189,7 +193,6 @@ export function Sheet(props: {
           </g>
         )}
       </svg>
-      {picked !== null && movable && open(picked) && <Confirm cell={picked} n={n} onMark={() => mark(picked)} onCancel={() => setPicked(null)} />}
       {props.children}
     </div>
   );
@@ -210,28 +213,6 @@ function Ink({ id }: { id: string }) {
         <feComposite in="line" in2="density" operator="in" />
       </filter>
     </defs>
-  );
-}
-
-/**
- * After the first tap on a touch screen: a button to ink the pencilled square, just above
- * it (below it near the top edge), so it's plain the mark isn't made yet.
- */
-function Confirm({ cell, n, onMark, onCancel }: { cell: number; n: number; onMark(): void; onCancel(): void }) {
-  const W = n + LEFT + RIGHT;
-  const H = n + TOP + BOTTOM;
-  const row = Math.floor(cell / n);
-  const below = row < 2;
-  const style = { "--x": `${(((cell % n) + LEFT + 0.5) / W) * 100}%`, top: `${((row + TOP + (below ? 1 : 0)) / H) * 100}%` } as CSSProperties;
-  return (
-    <div className={`lfs-confirm ${below ? "below" : ""}`} style={style} data-testid="lfs-confirm">
-      <button type="button" className="btn primary small" onClick={onMark}>
-        Mark {squareName(n, cell)}
-      </button>
-      <button type="button" className="lfs-confirm-cancel" onClick={onCancel} aria-label="Pick another square">
-        ×
-      </button>
-    </div>
   );
 }
 

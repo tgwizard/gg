@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DuelControls, DuelFooter, DuelResult, DuelSide, DuelStatus, DuelTable, nextStarter, playerOf, SeatPrompt, useResultDelay, winsText } from "../../kit/ui/Duel";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import { usePending, useSend } from "../../kit/ui/useSend";
@@ -6,7 +6,7 @@ import { playerStyle, useMedia, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type LuffaView, resultText, SPEC } from "../engine";
 import type { LuffaOp } from "../index";
-import { other, parseSquare, type Piece, place, winningRuns } from "../rules";
+import { other, parseSquare, type Piece, place, squareName, winningRuns } from "../rules";
 import { circlePath, crossPaths } from "./ink";
 import { inkColors } from "./inkColors";
 import { Sheet, sheetRatio } from "./Sheet";
@@ -44,6 +44,11 @@ export function LuffaGame({ view, snapshot, me, members, connected, sendOp, serv
 
   const playing = view.phase === "playing";
   const myTurn = playing && myPiece === view.turn;
+  const movable = myTurn && connected && shown.board === view.board ? myPiece : null;
+  // On touch, the square tapped once (pencilled in), until it's inked or the sheet changes.
+  const [picked, setPicked] = useState<number | null>(null);
+  useEffect(() => setPicked(null), [shown.board, movable]);
+  const pencilled = picked !== null && movable && shown.board[picked] === "." ? squareName(n, picked) : null;
   const bottom: Piece = myPiece ?? "x";
   const colorOf = usePlayerColors();
   const colorFor = (p: Piece) => {
@@ -87,8 +92,10 @@ export function LuffaGame({ view, snapshot, me, members, connected, sendOp, serv
           runs={shown.runs}
           winner={shown.winner}
           colors={colors}
-          movable={myTurn && connected && shown.board === view.board ? myPiece : null}
+          movable={movable}
           onMark={mark}
+          picked={picked}
+          onPick={setPicked}
         >
           <SeatPrompt
             view={view}
@@ -111,9 +118,19 @@ export function LuffaGame({ view, snapshot, me, members, connected, sendOp, serv
             myTurn={myTurn}
             result={(who) => resultText(view.result!, who)}
             intro="Get five in a row: across, up and down, or diagonally."
-            yourMove={touch ? "Your move: tap a square, then Mark to ink it." : "Your move."}
+            yourMove={pencilled ? `${pencilled} is pencilled in: tap it again to ink it.` : touch ? "Your move: tap a square, then tap it again to ink it." : "Your move."}
             testId="lfs-status"
           />
+          {pencilled && (
+            <div className="lfs-pencilled" data-testid="lfs-confirm">
+              <button type="button" className="btn primary small" onClick={() => void mark(pencilled)}>
+                Mark {pencilled}
+              </button>
+              <button type="button" className="btn small" onClick={() => setPicked(null)}>
+                Pick another
+              </button>
+            </div>
+          )}
           {playing && view.config.turnSeconds > 0 && (
             <div className="lfs-timer">
               <TurnTimer deadline={view.turnDeadline} totalMs={view.config.turnSeconds * 1000} serverNow={serverNow} />

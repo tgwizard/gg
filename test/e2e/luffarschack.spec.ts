@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { devices, expect, type Page, test } from "@playwright/test";
 import { createRoom, joinRoom, newPlayer } from "./helpers";
 
 /** Where a square ("C5": column letter, row from the top) is on screen. */
@@ -84,4 +84,23 @@ test("Luffarschack: sit, mark by click and keyboard, five in a row, play again",
   await a.getByTestId("lfs-resign").click();
   await a.getByTestId("lfs-resign-yes").click();
   await expect(b.getByTestId("lfs-status")).toHaveText("You win (Alice resigned).");
+});
+
+test("Luffarschack on a phone: the first tap pencils a square in, the second inks it, nothing covers the sheet", async ({ browser }) => {
+  const context = await browser.newContext({ ...devices["Pixel 7"], extraHTTPHeaders: { "CF-Connecting-IP": `10.31.${Math.floor(Math.random() * 250)}.7` } });
+  const page = await context.newPage();
+  await page.goto("/try/luffarschack/opening");
+  const status = page.getByTestId("lfs-status");
+  await expect(status).toHaveText(/^Your move: tap a square/, { timeout: 20_000 });
+  const at = await squareAt(page, "C3");
+  await page.touchscreen.tap(at.x, at.y);
+  await expect(status).toHaveText("C3 is pencilled in: tap it again to ink it.");
+  await expect(page.getByTestId("lfs-confirm").getByRole("button", { name: "Mark C3" })).toBeVisible();
+  // Nothing over the sheet: the confirm sits below it.
+  const sheet = (await page.getByTestId("lfs-sheet").boundingBox())!;
+  expect((await page.getByTestId("lfs-confirm").boundingBox())!.y).toBeGreaterThan(sheet.y + sheet.height);
+  await page.touchscreen.tap(at.x, at.y);
+  await expect(page.getByTestId("lfs-confirm")).toHaveCount(0);
+  await expect(page.getByTestId("lfs-last")).toContainText("on C3");
+  await context.close();
 });
