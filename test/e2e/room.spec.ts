@@ -135,3 +135,38 @@ test("the chat sidebar folds away and counts what's new", async ({ browser }) =>
   await alice.page.getByTestId("sidebar-rail").getByRole("button", { name: /Show chat/ }).click();
   await expect(chat(alice.page)).toContainText("are you there?");
 });
+
+test("home, once you have a name: your profile in the corner, and your rooms one click away", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const bob = await newPlayer(browser);
+  const url = await createRoom(alice.page, "Alice");
+  await joinRoom(bob.page, url, "Bob");
+  await alice.page.getByTestId("room-name").click();
+  await alice.page.getByLabel("Room name").fill("Game night");
+  await alice.page.getByLabel("Room name").press("Enter");
+  await expect(alice.page.getByTestId("room-name")).toHaveText("Game night");
+
+  await alice.page.goto("/");
+  // No profile card: the name is in the corner, by the settings cog.
+  await expect(alice.page.getByLabel("Your name")).toHaveCount(0);
+  await expect(alice.page.getByRole("button", { name: "Settings" })).toBeVisible();
+  const room = alice.page.getByTestId("recent-room");
+  await expect(room).toHaveCount(1);
+  await expect(room).toContainText("Game night");
+  await expect(room).toContainText("With Bob");
+  await room.click();
+  await expect(alice.page).toHaveURL(url);
+  await expectConnected(alice.page);
+});
+
+test("home, someone new: Save asks for a name, then the profile goes up to the corner", async ({ browser }) => {
+  const { page } = await newPlayer(browser);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Please give your name first.");
+  await page.getByLabel("Your name").fill("Ada");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByLabel("Your name")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Ada/ })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("gg.name"))).toBe("Ada");
+});

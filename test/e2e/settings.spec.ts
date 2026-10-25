@@ -19,36 +19,35 @@ test("change your name and color in settings", async ({ page }) => {
   await page.getByLabel("Your name").fill("Robin");
   await page.getByLabel("Your name").press("Enter");
   await page.getByRole("radio").nth(5).click();
+  // At home: you, in the corner.
   await page.goto("/");
-  await expect(page.getByLabel("Your name")).toHaveValue("Robin");
-  await expect(page.getByRole("radio").nth(5)).toBeChecked();
+  await page.getByRole("button", { name: /Robin/ }).click();
+  await expect(page.getByRole("dialog", { name: "Your profile" }).getByLabel("Your name")).toHaveValue("Robin");
+  await expect(page.getByRole("dialog", { name: "Your profile" }).getByRole("radio").nth(5)).toBeChecked();
 });
 
-test("delete all data keeps only the player secret", async ({ page }) => {
+test("delete all data deletes everything, the player secret too", async ({ page }) => {
   await page.goto("/settings");
   await page.getByLabel("Your name").fill("Robin");
   await page.getByLabel("Your name").press("Enter");
   await page.evaluate(() => {
     localStorage.setItem("gg.mode", "dark");
     localStorage.setItem("gg.llm.connections", JSON.stringify([{ id: "1", provider: "meta", label: "Meta key", addedAt: "2026-10-23T00:00:00Z", apiKey: "k" }]));
-    localStorage.setItem("someone-else", "untouched");
-  });
-  const secret = await page.evaluate(() => {
-    // Any room visit creates it; make sure there's one to keep.
-    if (!localStorage.getItem("gg.secret")) localStorage.setItem("gg.secret", "s3cret");
-    return localStorage.getItem("gg.secret");
+    localStorage.setItem("gg.secret", "s3cret");
+    sessionStorage.setItem("gg.pendingChat.ROOM", "[]");
   });
 
   await page.getByRole("button", { name: "Delete all data" }).click();
   await page.getByRole("button", { name: "Yes, delete everything" }).click();
-  await page.waitForLoadState("load");
+  // Back home, as someone new.
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByLabel("Your name")).toHaveValue("");
-  await expect(page.getByTestId("ai-connection")).toHaveCount(0);
 
-  const left = await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)])));
-  expect(left["gg.secret"]).toBe(secret);
-  expect(left["someone-else"]).toBe("untouched");
-  for (const key of ["gg.name", "gg.mode", "gg.llm.connections"]) expect(left).not.toHaveProperty(key);
+  const left = await page.evaluate(() => ({ local: { ...localStorage }, session: { ...sessionStorage } }));
+  for (const key of ["gg.name", "gg.mode", "gg.llm.connections"]) expect(left.local).not.toHaveProperty(key);
+  // A page that needs an identity makes a new one; the old one is gone.
+  expect(left.local["gg.secret"]).not.toBe("s3cret");
+  expect(left.session).toEqual({});
 });
 
 test("add Meta keys, make an AI bot with one, remove it", async ({ page, context }) => {

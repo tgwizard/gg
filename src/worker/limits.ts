@@ -3,7 +3,7 @@
  * frustrated Cmd+R loop on a bad connection, or a household sharing one IP);
  * they exist to stop scripts. See "Limits" in docs/ARCHITECTURE.md.
  */
-import { CloseCode, MAX_OWNED_PER_PLAYER, type ServerMessage } from "../shared/protocol";
+import { CloseCode, MAX_OWNED_PER_PLAYER, ROOM_IDLE_TTL_MS, type ServerMessage } from "../shared/protocol";
 import { ipKey } from "../shared/ip";
 import { TokenBucket } from "../shared/token-bucket";
 
@@ -42,7 +42,7 @@ export const HELLO_TIMEOUT_MS = 10_000;
 /** Members remembered per room; the longest-gone offline ones are forgotten first. */
 export const MAX_MEMBERS = 200;
 
-export const ROOM_IDLE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export { ROOM_IDLE_TTL_MS };
 /** Rooms nobody ever joined go away sooner. */
 export const ROOM_UNUSED_TTL_MS = 24 * 60 * 60 * 1000;
 

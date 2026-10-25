@@ -1,10 +1,10 @@
 import { Component, type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
 import type { GameSetting } from "../../games/ui";
 import { gameUIs } from "../../games/ui-registry";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
 import { useHeartbeat } from "../heartbeat";
+import { morph } from "../morph";
 import { useServerNow } from "../useNow";
 import { Avatar, PlayerName, play } from "../../ui";
 import type { Member } from "../../shared/protocol";
@@ -102,11 +102,6 @@ function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot
   );
 }
 
-/** Run a state change as a view transition where the browser has them (and motion is welcome). */
-function morph(update: () => void) {
-  if (!("startViewTransition" in document) || matchMedia("(prefers-reduced-motion: reduce)").matches) return update();
-  document.startViewTransition(() => flushSync(update));
-}
 
 function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot: RoomSnapshot; guests: ReadonlyMap<string, RoomClient> }) {
   const game = snapshot.game!;

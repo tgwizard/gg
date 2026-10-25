@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useId, useRef, useState } from "react";
 import { PLAYER_COLORS } from "../../shared/colors";
 import { MAX_NAME_LENGTH } from "../../shared/protocol";
 import { Avatar, playerStyle, useMedia } from "../../ui";
@@ -34,21 +34,39 @@ export function ColorPicker(props: { value: number; onChange(color: number): voi
   );
 }
 
-export function NameField(props: { value: string; onChange(v: string): void; onBlur?(): void; autoFocus?: boolean; label?: string }) {
-  const { value, onChange, onBlur, autoFocus, label = "Your name" } = props;
+/** The name input; `lead` (your avatar, say) sits before it. */
+export function NameField(props: { value: string; onChange(v: string): void; onBlur?(): void; autoFocus?: boolean; label?: string; lead?: ReactNode }) {
+  const { value, onChange, onBlur, autoFocus, label = "Your name", lead } = props;
+  const id = useId();
+  const input = (
+    <input
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      placeholder="e.g. Ada"
+      maxLength={MAX_NAME_LENGTH}
+      autoFocus={autoFocus}
+      {...noAutofill}
+    />
+  );
+  if (!lead)
+    return (
+      <label className="field">
+        <span>{label}</span>
+        {input}
+      </label>
+    );
   return (
-    <label className="field">
-      <span>{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        placeholder="e.g. Ada"
-        maxLength={MAX_NAME_LENGTH}
-        autoFocus={autoFocus}
-        {...noAutofill}
-      />
-    </label>
+    <div className="field">
+      <span>
+        <label htmlFor={id}>{label}</label>
+      </span>
+      <div className="field-row">
+        {lead}
+        {input}
+      </div>
+    </div>
   );
 }
 

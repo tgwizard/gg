@@ -46,12 +46,13 @@ profile is a separate identity). With Claude: "run the QA playbook". It drives
 these through the browser and reports back.
 
 ### Rooms & identity
-- [ ] Home: Profile (name + color, saved in the browser), Start a room (optional name), Join a room. A new browser starts with a random color.
+- [ ] Home, new browser: Profile (name + color, saved in the browser, a random color to start), Start a room (optional name), Join a room.
+- [ ] Home, once you have a name: your avatar and name in the corner (click to edit) by a settings cog; Start a room and Join a room side by side (stacked on a phone, with *Create a room* on the first screen); *Your rooms* lists rooms you've been in, newest first, with the game that was on (a waiting table before one) and who you played with, bots too (avatars, and "(bot)" in the line); one click goes back in. A room that's gone drops off the list once you've tried it.
 - [ ] Two people pick the same color: whoever joined first keeps it, the other sees "X is taken here, so you're Y" and gets the next free color; taken colors are marked in the profile picker (top right).
 - [ ] Rename the room from the top bar: everyone sees the new name and a chat note; clearing it shows "Name this room".
 - [ ] Create a room from the home page. The URL is `/r/<10-char code>`, and the status light in the top bar is green; hovering or clicking it shows latency, since when, and reconnects.
 - [ ] The people icon by the room's name shows the code and Copy invite link on hover, and stays open on click. Before a game, "Invite friends to play" shows the link, who's here (click yourself or your bots to edit), and *+ Invite a bot*.
-- [ ] On a phone the top bar is one row: the room name shortens, your name is just your avatar, and sound and light/dark share one button.
+- [ ] The top bar: the status light, the sound switch (not on a phone) and a cog (sound, dark mode, *All settings*) by your name. On a phone it's one row: the room name shortens and your name is just your avatar.
 - [ ] Type the code (lower-case, with a space) into *Room code or link* on the home page: it shows upper-case and joins the room.
 - [ ] With 1Password (or another password manager) installed, the name, code and chat inputs don't offer to autofill.
 - [ ] Open the invite link in another profile: you're asked for a name once, then you join. Both member lists show two people online.
@@ -238,7 +239,7 @@ these through the browser and reports back.
 ### Bots
 - [ ] With no bots yet, *+ Invite a bot* in the members panel opens a new bot's form (a free name and color, a personality); *Make and invite* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner. With bots, it lists the ones not in the room (one click invites), plus *+ New bot* and a link to *Your bots*.
 - [ ] Settings, *Bots & AI* (`/settings#bots`): your bots with their kind, rooms and usage; *+ New bot*, *Edit* inline, *Delete* (confirm; it leaves its rooms right away, also ones not open). *Delete all bots* bottom right, with a confirmation sliding in. AI keys: added without a check; the card's light shows whether the provider takes it, which bots use it and the tokens used with it; removing a key turns its bots built-in.
-- [ ] Settings, *Profile*: name and color, the players on this device (if any), then Sound effects and Dark mode with the top-bar icons (On/Off), then Delete all data.
+- [ ] Settings, *Profile*: name and color, the players on this device (if any), then Sound effects and Dark mode (On/Off), then Delete all data, which clears everything, your player identity too (you're someone new in rooms you've been in), and takes you to the home page as someone new.
 - [ ] The same bot in two rooms is the same player; editing it in one room changes it in both. × takes it out of one room only (it's still in settings).
 - [ ] Click your own name in the members panel or *Here now*: edit your name and color there.
 - [ ] Click your bot's name: rename and recolor it, mid-game too. Chat says "Y is now known as Z" and the board updates.
@@ -282,6 +283,6 @@ these through the browser and reports back.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.
 - [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table.
 - [ ] Long names (24 chars) and 9 seated players.
-- [ ] Light and dark mode (toggle in the top bar and on the home page, or Ctrl+Shift+L anywhere, ⌃⇧L on a Mac): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
+- [ ] Light and dark mode (the settings cog, /settings, or Ctrl+Shift+L anywhere, ⌃⇧L on a Mac): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
 - [ ] `/ui` style guide: nothing broken after design changes, in both modes.
 - [ ] Bump `PROTOCOL_VERSION` with a tab open: the tab shows "gg has been updated, reload".

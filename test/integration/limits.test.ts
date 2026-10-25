@@ -256,13 +256,13 @@ describe("room expiry", () => {
     expect(await exists(room)).toBe(false);
   });
 
-  it("deletes idle rooms after 30 days, with everything in them", async () => {
+  it("deletes idle rooms after a week, with everything in them", async () => {
     const room = await createRoom();
     const { client } = await TestClient.join(room, secret("old"), "Old");
     await client.request({ type: "chat", text: "remember me" });
     client.close();
     await sleep(20);
-    await age(room, ROOM_UNUSED_TTL_MS * 2); // a joined room outlives the unused TTL
+    await age(room, ROOM_UNUSED_TTL_MS + 60_000); // a joined room outlives the unused TTL
     await runDurableObjectAlarm(stub(room));
     expect(await exists(room)).toBe(true);
 

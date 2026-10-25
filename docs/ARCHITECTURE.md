@@ -61,8 +61,17 @@ and the UI uses it everywhere: avatars, names in chat, nameplates, tic-tac-toe
 marks (via `PlayerColorsProvider` / `usePlayerColors` in `src/ui/players.tsx`).
 
 `/settings` edits the profile, holds the AI connections (below), and can delete
-everything gg keeps in the browser (`deleteLocalData`): every `gg.*` key except
-`gg.secret`, so the player stays the same person in rooms they've joined.
+everything gg keeps in the browser (`deleteLocalData`): all of its localStorage and
+sessionStorage, `gg.secret` too, so the next visit is a new player.
+
+**The home page** asks someone new for a name and color first. After that the profile
+is a chip in the corner (as in a room's top bar), and the page is for getting into a
+room: start one, join one by code or link, or go back to one of *Your rooms*
+(`recentRooms.ts`, `gg.rooms`: rooms you've been in, noted while you're there with
+their name, the game on and who you played with (people and bots), listed for as long as they may
+still exist and forgotten once one turns out to be gone). Everywhere your profile is,
+a cog by it opens sound, dark mode and a link to all settings (`SettingsMenu`); on a
+wide screen a room's top bar also has the sound switch beside it.
 
 ## Protocol (`src/shared/protocol.ts`)
 
@@ -139,8 +148,8 @@ display type and Nunito for everything else.
 - `components.css` + `Panel`, `Meter`, `Spinner`: boxes, panels with titles set
   into the border, buttons (`primary`, `subtle`, `ghost`, `danger`), fields, tags,
   status lights, banners, toasts.
-- `mode.ts`: light/dark. Follows the system until you use the toggle; the choice is
-  remembered per browser. `index.html` applies it before first paint.
+- `mode.ts`: light/dark. Follows the system until you choose (the settings cog, /settings, or
+  Ctrl+Shift+L); the choice is remembered per browser. `index.html` applies it before first paint.
 - Artwork lives in `public/icons/` (generated illustrations for gg and each game;
   a game's `GameUI.icon` points at its own).
 - Small panels behind a button (your profile, a member, inviting a bot, the game's rules
@@ -902,7 +911,7 @@ networks.
 ## Room expiry
 
 Rooms are deleted (`storage.deleteAll()`, after which the link shows "Room not
-found") when nobody is connected and they've been idle **30 days**, or **24 hours**
+found") when nobody is connected and they've been idle **7 days**, or **24 hours**
 if nobody ever joined. Activity is recorded on joins and messages (written at most
 once a minute). The check runs on the DO alarm, which is scheduled for the
 expiry time whenever the room empties, so an empty room costs nothing until that

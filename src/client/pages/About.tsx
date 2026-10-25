@@ -1,6 +1,6 @@
 /** /about: what gg is, how it treats your data, and where the code is. */
 import { useState } from "react";
-import { ModeToggle } from "../components/ModeToggle";
+import { SettingsMenu } from "../components/SettingsMenu";
 import { cameFrom, navigate } from "../router";
 
 export function AboutPage() {
@@ -20,7 +20,9 @@ export function AboutPage() {
         </a>
         <h1 className="display">About gg</h1>
         <p>Games with friends, in the browser.</p>
-        <ModeToggle />
+        <span className="guide-head-menu">
+          <SettingsMenu />
+        </span>
       </header>
 
       <main className="guide-main settings-main">
@@ -44,7 +46,7 @@ export function AboutPage() {
               AI keys stay in this browser too. An AI bot's requests go straight from your browser to the AI provider, never through gg, and they include the
               room's chat and the bot's view of the game.
             </li>
-            <li>Rooms are deleted after 30 days without anyone in them.</li>
+            <li>Rooms are deleted after a week without anyone in them. Rooms you've been in are on the home page, under Your rooms.</li>
           </ul>
         </section>
 

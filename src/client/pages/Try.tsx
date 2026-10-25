@@ -12,7 +12,7 @@ import { gameUIs } from "../../games/ui-registry";
 import type { LoadScenario } from "../../shared/protocol";
 import { Panel, Spinner } from "../../ui";
 import { type BotRecord, createBot, getBots, inviteBot, suggestBot } from "../bots/store";
-import { ModeToggle } from "../components/ModeToggle";
+import { SettingsMenu } from "../components/SettingsMenu";
 import { getColor, getName, getSecret, saveName } from "../identity";
 import { RoomClient } from "../net/RoomClient";
 import { navigate } from "../router";
@@ -40,7 +40,9 @@ function TryIndex() {
         </a>
         <h1 className="display">Try a game</h1>
         <p>Jump into a game at an interesting moment, with built-in bots in the other seats. Each one opens a new practice room.</p>
-        <ModeToggle />
+        <span className="guide-head-menu">
+          <SettingsMenu />
+        </span>
       </header>
       <main className="guide-main">
         {Object.entries(scenarios).map(([gameId, list]) => {

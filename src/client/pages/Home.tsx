@@ -1,18 +1,29 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
 import { MAX_ROOM_NAME_LENGTH } from "../../shared/protocol";
-import { Avatar, Panel, playerStyle } from "../../ui";
-import { ColorPicker, NameField } from "../components/Profile";
-import { ModeToggle } from "../components/ModeToggle";
+import { Avatar, Panel } from "../../ui";
+import { ColorPicker, NameField, ProfileMenu } from "../components/Profile";
+import { SettingsMenu } from "../components/SettingsMenu";
 import { GameCard } from "../components/GameCard";
+import { formatTime } from "../format";
 import { saveColor, saveName, useColor, useName } from "../identity";
 import { noAutofill } from "../noAutofill";
+import { type RecentRoom, useRecentRooms } from "../recentRooms";
+import { morph } from "../morph";
 import { navigate } from "../router";
 
+/**
+ * The home page. Someone new picks a name and color first; after that, your profile is
+ * the chip in the corner (by the settings cog), and the page is for getting into a room:
+ * starting one, joining one, or going back to one you've been in.
+ */
 export function HomePage() {
   const savedName = useName();
-  const [name, setName] = useState(savedName ?? "");
+  // Someone new until they save their profile (typing a name saves it too, but leaves the card where it is).
+  const [isNew, setIsNew] = useState(!savedName);
+  const [typed, setName] = useState(savedName ?? "");
+  const name = isNew ? typed : (savedName ?? "");
   const color = useColor();
   const [roomName, setRoomName] = useState("");
   const [link, setLink] = useState("");
@@ -43,6 +54,22 @@ export function HomePage() {
     }
   }
 
+  // Save without a name: a word by the button, for a moment.
+  const [nameNeeded, setNameNeeded] = useState(false);
+  useEffect(() => {
+    if (!nameNeeded) return;
+    const t = setTimeout(() => setNameNeeded(false), 2500);
+    return () => clearTimeout(t);
+  }, [nameNeeded]);
+
+  /** The card goes up to the corner, where your profile lives from now on. */
+  function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return setNameNeeded(true);
+    saveName(name);
+    morph(() => setIsNew(false));
+  }
+
   function join(e: FormEvent) {
     e.preventDefault();
     const id = roomCodeFromInput(link);
@@ -54,8 +81,20 @@ export function HomePage() {
   return (
     <div className="home">
       <header className="home-hero on-brand">
-        <div className="home-hero-toggle">
-          <ModeToggle />
+        <div className="home-hero-bar">
+          <SettingsMenu />
+          {!isNew && (
+            <span className="home-hero-me">
+              <ProfileMenu
+                name={name}
+                color={color}
+                onSave={(n, c) => {
+                  saveColor(c);
+                  saveName(n);
+                }}
+              />
+            </span>
+          )}
         </div>
         <div className="home-hero-inner">
           <div className="home-hero-text">
@@ -70,28 +109,39 @@ export function HomePage() {
       </header>
 
       <main className="home-main">
-        <div className="home-forms">
-          <Panel title="Profile" className="home-profile">
-            <div className="profile-preview">
-              <Avatar name={name || "?"} color={color} size="lg" />
-              <div className="profile-preview-text">
-                <strong className="name" style={playerStyle(color)}>
-                  {name.trim() || "Your name"}
-                </strong>
-                <span className="muted small">Saved in this browser, used in every room.</span>
-              </div>
-            </div>
-            <NameField
-              value={name}
-              onChange={(v) => {
-                setName(v);
-                if (error?.form === "create") setError(null);
-              }} onBlur={() => name.trim() && saveName(name)} autoFocus={!savedName} />
-            <div className="field">
-              <span>Your color</span>
-              <ColorPicker value={color} onChange={saveColor} />
-            </div>
-          </Panel>
+        <div className={`home-forms ${isNew ? "new" : "known"}`}>
+          {isNew && (
+            <Panel title="Profile" className="home-profile">
+              <form className="home-profile-form" onSubmit={saveProfile}>
+                <NameField
+                  value={name}
+                  onChange={(v) => {
+                    setName(v);
+                    setNameNeeded(false);
+                    if (error?.form === "create") setError(null);
+                  }}
+                  onBlur={() => name.trim() && saveName(name)}
+                  autoFocus={!savedName}
+                  lead={<Avatar name={name || "?"} color={color} size="lg" />}
+                />
+                <div className="field">
+                  <span>Your color</span>
+                  <ColorPicker value={color} onChange={saveColor} />
+                </div>
+                <div className="home-profile-foot">
+                  <span className="muted small">Saved in this browser, used in every room.</span>
+                  <span className="home-profile-save">
+                    <button className="btn">Save</button>
+                    {nameNeeded && (
+                      <span className="bubble bubble-quiet" role="status">
+                        Please give your name first.
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </form>
+            </Panel>
+          )}
           <Panel title="Start a room" className="home-start">
             <form onSubmit={create} className="home-form">
               <label className="field" htmlFor="room-name">
@@ -147,6 +197,7 @@ export function HomePage() {
           </Panel>
         </div>
 
+        <YourRooms />
 
         <section className="home-games">
           <h2 className="label">Games in the box</h2>
@@ -205,6 +256,69 @@ function Bubble({ text }: { text: string }) {
       {text}
     </div>
   );
+}
+
+/** Rooms you've been in lately: one click back in. */
+function YourRooms() {
+  const rooms = useRecentRooms();
+  if (!rooms.length) return null;
+  return (
+    <section className="home-rooms" aria-label="Your rooms">
+      <h2 className="label">Your rooms</h2>
+      <div className="room-grid">
+        {rooms.map((r) => (
+          <RoomCard key={r.id} room={r} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RoomCard({ room }: { room: RecentRoom }) {
+  const game = room.gameId ? gameUIs[room.gameId] : undefined;
+  const names = room.people.map((p) => (p.bot ? `${p.name} (bot)` : p.name));
+  const people = names.length ? `with ${listed(names)}` : "just you";
+  const line = game ? `${game.meta.name}, ${people}` : people[0]!.toUpperCase() + people.slice(1);
+  return (
+    <a
+      className="room-card box"
+      href={`/r/${room.id}`}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(`/r/${room.id}`);
+      }}
+      data-testid="recent-room"
+    >
+      {/* The game that was on, or a table waiting for one. */}
+      <img className="room-card-art" src={game?.icon ?? "/icons/room.jpg"} alt="" width={56} height={56} />
+      <span className="room-card-text">
+        <strong className="room-card-name">{room.name ?? `Room ${room.id}`}</strong>
+        <span className="room-card-line">{line}</span>
+        <span className="room-card-foot">
+          {room.people.length > 0 && (
+            <span className="room-card-mates" aria-hidden>
+              {room.people.map((p, i) => (
+                <Avatar key={i} name={p.name} color={p.color} bot={p.bot} size="sm" />
+              ))}
+            </span>
+          )}
+          <span className="room-card-when">{when(room.at)}</span>
+        </span>
+      </span>
+    </a>
+  );
+}
+
+/** "Sam", "Sam and Kim", "Sam, Kim and Lo". */
+const listed = (names: string[]) => (names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+
+/** "Today 21:07", "Yesterday 14:02", or the date. */
+function when(at: number): string {
+  const day = (t: number) => new Date(t).toDateString();
+  if (day(at) === day(Date.now())) return `Today ${formatTime(at)}`;
+  if (day(at) === day(Date.now() - 86_400_000)) return `Yesterday ${formatTime(at)}`;
+  const d = new Date(at);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${formatTime(at)}`;
 }
 
 /** Four of the games in the box, as a little pile of round tokens (one per spot). */

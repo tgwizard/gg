@@ -39,6 +39,12 @@ export const CloseCode = {
 export const RATE_LIMITED = "rate_limited";
 export const ROOM_FULL = "room_full";
 
+/**
+ * A room nobody's been in for this long is deleted (the server's expiry; the home page
+ * lists rooms you've been in more recently): long enough to come back next week.
+ */
+export const ROOM_IDLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** A person; a bot; or a guest: a person playing on someone else's device (hot seat). */
 export type MemberKind = "human" | "bot" | "guest";
 

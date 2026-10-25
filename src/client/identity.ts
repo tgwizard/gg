@@ -56,11 +56,17 @@ export function saveColor(color: number) {
 }
 
 /**
- * Forget everything gg keeps in this browser (profile, light/dark, AI keys, bots), except the
- * secret behind your player id, so you're still you in rooms you've joined.
+ * Forget everything gg keeps in this browser: profile, light/dark, sound, AI keys, bots,
+ * players on this device, your rooms, chat waiting to be sent, and the secret behind your
+ * player id (so rooms you've been in will see you as someone new).
  */
 export function deleteLocalData() {
-  for (const key of storage.keys()) if (key.startsWith("gg.") && key !== SECRET_KEY) storage.remove(key);
+  for (const key of storage.keys()) storage.remove(key);
+  try {
+    sessionStorage.clear();
+  } catch {
+    // Unavailable: nothing kept there either.
+  }
 }
 
 function subscribe(cb: () => void) {

@@ -248,11 +248,12 @@ function DeleteDataSection() {
       <h2 className="display settings-h2">Your data</h2>
       <Panel>
         <p className="settings-text">
-          Everything in these settings lives only in this browser: your name, color, light or dark mode, sound, the players on this device, your bots and AI keys. gg has no accounts, and
-          its server never sees your keys.
+          Everything in these settings lives only in this browser: your name, color, light or dark mode, sound, the players on this device, your bots and AI keys, and the
+          rooms you've been in. gg has no accounts, and its server never sees your keys.
         </p>
         <p className="muted small settings-text">
-          Rooms you've played in keep your name and their chat until they expire. Deleting keeps your player identity, so you can still rejoin them.
+          Deleting removes all of it, your player identity too: next time you're someone new, also in rooms you've been in. Those rooms keep your name and their chat
+          until they expire, a week after everyone's left.
         </p>
         {confirming ? (
           <div className="row wrap">
@@ -261,7 +262,8 @@ function DeleteDataSection() {
               className="btn danger"
               onClick={() => {
                 deleteLocalData();
-                location.reload();
+                // A fresh start: the home page, loaded anew, with nothing of before kept in memory either.
+                location.assign("/");
               }}
             >
               Yes, delete everything

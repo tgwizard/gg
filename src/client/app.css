@@ -19,7 +19,9 @@
 /* ---------- home ---------- */
 .home { min-height: 100%; display: flex; flex-direction: column; }
 .home-hero { position: relative; background: var(--brand); border-bottom: 1px solid var(--brand-line); padding: 56px 24px 60px; }
-.home-hero-toggle { position: absolute; top: 16px; right: 16px; }
+.home-hero-bar { position: absolute; top: 14px; right: 16px; display: flex; align-items: center; gap: 6px; }
+.home-hero .mode-toggle { color: var(--on-brand-2); }
+.home-hero .mode-toggle:hover { color: var(--on-brand); background: rgb(255 255 255 / 0.08); }
 .home-hero-inner { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px 48px; flex-wrap: wrap; }
 .home-hero-text { display: flex; flex-direction: column; gap: 14px; }
 .home .logo { font-size: 6.5rem; font-weight: 700; line-height: 0.95; padding-bottom: 0.12em; color: var(--gold); }
@@ -55,6 +57,27 @@
 }
 .home-forms .panel { padding: 26px 22px 22px; }
 .home-profile { grid-area: profile; align-self: stretch; }
+.home-profile-form { display: flex; flex-direction: column; gap: 12px; }
+.home-profile .field-row { align-items: center; }
+.home-profile-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.home-profile-save { position: relative; flex-shrink: 0; }
+/* Saving your profile: the card steps away, the rest moves up into its place, and you appear in the corner. */
+.home-profile { view-transition-name: home-profile; }
+.home-hero-me { view-transition-name: home-me; }
+.home-start { view-transition-name: home-start; }
+.home-join { view-transition-name: home-join; }
+.home-forms .or-divider { view-transition-name: home-or; }
+.home-rooms { view-transition-name: home-rooms; }
+.home-games { view-transition-name: home-games; }
+.home-hero-bar .mode-toggle { view-transition-name: home-cog; }
+::view-transition-old(home-profile) { animation: home-step-away 220ms ease-in both; }
+::view-transition-new(home-me) { animation: home-appear 260ms ease-out 180ms both; }
+@keyframes home-step-away { to { opacity: 0; translate: 10px -6px; } }
+@keyframes home-appear { from { opacity: 0; scale: 0.85; } }
+/* Once you have a name: starting and joining side by side, "or" between them. */
+.home-forms.known { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-areas: "start or join"; align-items: stretch; }
+.home-forms.known .or-divider { flex-direction: column; }
+.home-forms.known .or-divider::before, .home-forms.known .or-divider::after { border-top: none; border-left: 1px solid var(--line-strong); }
 .home-start { grid-area: start; }
 .home-join { grid-area: join; }
 .or-divider { grid-area: or; display: flex; align-items: center; gap: 14px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); }
@@ -62,6 +85,10 @@
 .home-form { display: flex; flex-direction: column; gap: 8px; }
 .home-form-row { display: flex; gap: 10px; }
 .home-form-row { position: relative; }
+/* A field's input with a button beside it (a bubble under the button). */
+.field-row { position: relative; display: flex; gap: 10px; }
+.field-row input { flex: 1; min-width: 0; }
+.field-row .btn { flex-shrink: 0; }
 .home-form-row .btn { flex-shrink: 0; }
 /* An error bubble pointing up at the button at the end of the row. */
 .bubble {
@@ -81,12 +108,28 @@
   animation: bubble-in 160ms ease-out both;
 }
 .bubble::before { content: ""; position: absolute; top: -5px; right: 24px; width: 10px; height: 10px; background: inherit; rotate: 45deg; border-radius: 2px; }
+/* Not an error, just a word: dark on light. */
+.bubble.bubble-quiet { color: var(--surface); background: var(--text); white-space: nowrap; }
 @keyframes bubble-in { from { opacity: 0; translate: 0 -4px; } }
 .home-games { display: flex; flex-direction: column; gap: 16px; }
 .home-footer { padding: 20px 24px 28px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
 /* ---------- game cards ---------- */
 /* Every card as tall as the tallest, whatever its tagline. */
+/* Rooms you've been in lately. */
+.home-rooms { display: flex; flex-direction: column; gap: 14px; }
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.room-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; color: var(--text); text-decoration: none; transition: translate 120ms ease; }
+.room-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
+.room-card-art { flex-shrink: 0; width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--badge); }
+.room-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.room-card-name { font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-card-line { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.room-card-mates { display: inline-flex; }
+.room-card-mates .avatar { box-shadow: 0 0 0 2px var(--surface); }
+.room-card-mates .avatar + .avatar { margin-left: -5px; }
+.room-card-when { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); grid-auto-rows: 1fr; gap: 20px; }
 .game-card {
   font: inherit;
@@ -435,12 +478,16 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   .stage { padding: 16px 12px 24px; }
 }
 @media (max-width: 760px) {
-  .home-forms { grid-template-columns: 1fr; grid-template-areas: "profile" "start" "or" "join"; }
+  .home-forms, .home-forms.known { grid-template-columns: 1fr; grid-template-areas: "profile" "start" "or" "join"; }
+  .home-forms.known .or-divider { flex-direction: row; }
+  .home-forms.known .or-divider::before, .home-forms.known .or-divider::after { border-left: none; border-top: 1px solid var(--line-strong); }
   .home-profile { margin-bottom: 14px; }
 }
 @media (max-width: 640px) {
   .home .logo { font-size: 5rem; }
-  .hero-games { width: 320px; height: 200px; scale: 0.82; transform-origin: left top; }
+  /* Smaller on a phone, so the way into a room is near the top. */
+  .hero-games { width: 240px; height: 144px; scale: 0.6; transform-origin: left top; }
+  .home-hero-inner { gap: 20px; }
   .home-hero { padding: 40px 16px 40px; }
   .home-main { padding: 36px 16px 24px; }
   /* One row on a phone: the room's name gives way first, your name is just your avatar. */
@@ -464,7 +511,9 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .guide { min-height: 100%; }
 .guide-head { position: relative; background: var(--brand); padding: 32px 24px; display: flex; flex-direction: column; gap: 8px; }
 .guide-head h1 { color: var(--gold); }
-.guide-head .mode-toggle { position: absolute; top: 16px; right: 16px; color: var(--on-brand-2); }
+.guide-head-menu { position: absolute; top: 16px; right: 16px; }
+.guide-head .mode-toggle { color: var(--on-brand-2); }
+.guide-head .mode-toggle:hover { color: var(--on-brand); background: rgb(255 255 255 / 0.08); }
 .guide-main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px; display: flex; flex-direction: column; gap: 40px; }
 .guide-section { gap: 16px; }
 .guide-brand { background: var(--brand); padding: 14px; border-radius: var(--radius); }
@@ -518,6 +567,7 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 }
 .quick-row:hover { background: var(--surface-2); }
 .quick-state { margin-left: auto; font-size: 13px; color: var(--text-2); }
+.quick-more { margin: 4px 0 0; padding: 8px 12px 6px; border-top: 1px solid var(--line); color: var(--text-2); }
 
 /* ---------- invite (before a game) ---------- */
 .invite { padding: 26px 22px 22px; gap: 16px; }

@@ -16,9 +16,10 @@ import { Members } from "../components/Members";
 import { ProfileForm, ProfileMenu } from "../components/Profile";
 import { ToastProvider, useToast } from "../components/Toasts";
 import { Avatar, Panel, PlayerName, PlayersProvider, Spinner, useMedia, usePlayerColors } from "../../ui";
+import { forgetRoom, rememberRoom, type RoomMate } from "../recentRooms";
 import { storage } from "../storage";
 import { noAutofill } from "../noAutofill";
-import { QuickSettings } from "../components/QuickSettings";
+import { SettingsMenu } from "../components/SettingsMenu";
 import { InviteButton, InviteSection } from "../components/Invite";
 import { TopbarSlotProvider } from "../components/TopbarSlot";
 import { PracticeTag } from "../components/PracticeTag";
@@ -70,6 +71,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
   useEffect(() => client.onToast(toast), [client, toast]);
   const sidebar = useSidebar(snapshot);
   const [gameSlot, setGameSlot] = useState<HTMLElement | null>(null);
+  useRecentRoom(roomId, snapshot);
 
   if (snapshot.status === "not_found") {
     return (
@@ -139,7 +141,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
             <div className="topbar-game" ref={setGameSlot} />
             <div className="spacer" />
             <ConnectionDot snapshot={snapshot} client={client} />
-            <QuickSettings />
+            <SettingsMenu sound />
             <ProfileMenu
               name={name}
               // What the room settled on (someone may have had your color first); yours until the welcome.
@@ -327,4 +329,23 @@ function Notice({ title, children }: { title: string; children: ReactNode }) {
       </Panel>
     </div>
   );
+}
+
+/** Noted for "Your rooms" on the home page while you're here: its name, the game on, and who you've played with there, bots too (most recent first); forgotten once it's gone. */
+function useRecentRoom(roomId: string, snapshot: RoomSnapshot) {
+  const connected = snapshot.status === "connected";
+  const gameId = snapshot.game?.gameId ?? null;
+  const people = JSON.stringify(
+    snapshot.members
+      .filter((m) => m.id !== snapshot.you?.id)
+      .sort((a, b) => Number(b.online) - Number(a.online) || b.lastSeenAt - a.lastSeenAt)
+      .slice(0, 5)
+      .map((m) => ({ name: m.name, color: m.color, bot: m.kind === "bot" })),
+  );
+  useEffect(() => {
+    if (snapshot.status === "not_found") forgetRoom(roomId);
+  }, [snapshot.status, roomId]);
+  useEffect(() => {
+    if (connected) rememberRoom({ id: roomId, name: snapshot.roomName, gameId, people: JSON.parse(people) as RoomMate[] });
+  }, [connected, roomId, snapshot.roomName, gameId, people]);
 }
