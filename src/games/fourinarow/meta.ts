@@ -6,6 +6,7 @@ export const fourInARowMeta: GameMeta = {
   tagline: "Drop discs into the columns. First to line up four wins.",
   minPlayers: 2,
   maxPlayers: 2,
+  tags: ["hot-seat"],
   rules: `Two players take turns dropping a disc of their color into one of the columns of an upright board (7 columns and 6 rows, or bigger). A disc falls to the lowest empty spot in its column.
 - The first to get four of their discs in a line wins: across, up and down, or diagonally.
 - If the board fills up with no four in a row, it's a draw.

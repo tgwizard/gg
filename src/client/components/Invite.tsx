@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
-import { MAX_BOTS_PER_PLAYER } from "../../shared/protocol";
+import { MAX_OWNED_PER_PLAYER } from "../../shared/protocol";
 import { Panel } from "../../ui";
-import { type BotRecord, playingIn } from "../bots/store";
+import type { BotRecord } from "../bots/store";
+import type { GuestRecord } from "../guests";
+import { ownedIn } from "../local";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { InviteBot, MemberButton } from "./Members";
+import { AddGuest, GuestTag, InviteBot, MemberButton } from "./Members";
 import { Popover, usePeek } from "./Popover";
 
 /** A people icon by the room's name: hover or click it for the room code and invite link. */
@@ -38,9 +40,10 @@ export function InviteButton({ roomId }: { roomId: string }) {
  * Before a game: who's here (click yourself or your bots to edit), the link to send to
  * friends, and your bots to fill the table.
  */
-export function InviteSection({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[] }) {
+export function InviteSection({ snapshot, roomId, bots, guests }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[]; guests: GuestRecord[] }) {
   const here = snapshot.members.filter((m) => m.online);
   const alone = !here.some((m) => m.id !== snapshot.you?.id && m.kind !== "bot");
+  const full = snapshot.status !== "connected" || ownedIn(roomId) >= MAX_OWNED_PER_PLAYER;
   return (
     <Panel className="invite" data-testid="invite-section">
       <div className="invite-head">
@@ -53,12 +56,16 @@ export function InviteSection({ snapshot, roomId, bots }: { snapshot: RoomSnapsh
         <ul className="invite-people">
           {here.map((m) => (
             <li key={m.id} className="invite-person">
-              <MemberButton member={m} snapshot={snapshot} bots={bots} roomId={roomId} />
+              <MemberButton member={m} snapshot={snapshot} bots={bots} guests={guests} roomId={roomId} />
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
+              {m.kind === "guest" && <GuestTag member={m} owner={m.ownerId === snapshot.you?.id ? null : (snapshot.members.find((o) => o.id === m.ownerId)?.name ?? "someone")} />}
             </li>
           ))}
           <li>
-            <InviteBot roomId={roomId} members={snapshot.members} disabled={snapshot.status !== "connected" || playingIn(roomId, bots).length >= MAX_BOTS_PER_PLAYER} className="btn small" />
+            <InviteBot roomId={roomId} members={snapshot.members} disabled={full} className="btn small" />
+          </li>
+          <li>
+            <AddGuest roomId={roomId} members={snapshot.members} disabled={full} className="btn small" />
           </li>
         </ul>
       </div>

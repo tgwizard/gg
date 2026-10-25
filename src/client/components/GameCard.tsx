@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { GAME_TAGS, type GameMeta } from "../../games/types";
 import type { GameUI } from "../../games/ui";
 
 /** "2 players", "2–9 players". */
@@ -13,6 +14,20 @@ export function WipBadge({ wip }: { wip?: boolean }) {
       WIP
     </span>
   ) : null;
+}
+
+/** How many play, and the game's tags ("Hot seat"), on one line. */
+export function GameFacts({ meta, style }: { meta: GameMeta; style?: CSSProperties }) {
+  return (
+    <span className="game-facts" style={style}>
+      <span className="label">{playerCount(meta.minPlayers, meta.maxPlayers)}</span>
+      {meta.tags?.map((t) => (
+        <span key={t} className="game-tag" title={GAME_TAGS[t].hint} data-testid={`tag-${t}`}>
+          {GAME_TAGS[t].label}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /**
@@ -39,9 +54,7 @@ export function GameCard({ game, selected, morph, onClick }: { game: GameUI; sel
         <span className="game-card-tagline" style={style("tagline")}>
           {game.meta.tagline}
         </span>
-        <span className="label" style={style("players")}>
-          {playerCount(game.meta.minPlayers, game.meta.maxPlayers)}
-        </span>
+        <GameFacts meta={game.meta} style={style("players")} />
       </span>
     </>
   );

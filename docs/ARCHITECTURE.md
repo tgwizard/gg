@@ -678,7 +678,8 @@ needs its `anthropic-dangerous-direct-browser-access` opt-in, which its SDK send
 A bot is just another member of the room, played from its owner's browser:
 
 - **Identity.** Your bots are kept in localStorage like your own name (`gg.bots`,
-  `src/client/bots/store.ts`): each has its own secret, so it's the same player in
+  `src/client/bots/store.ts`, on `src/client/local.ts`, the store for every player kept
+  in this browser besides you, shared with hot-seat players): each has its own secret, so it's the same player in
   every room, and a name, color, personality and (optionally) an AI key, model and
   effort. You make, edit and delete them in /settings (the *Bots & AI* tab), or make
   one on the spot from a room. In a room, *+ Invite a bot* lists your bots that aren't
@@ -691,8 +692,8 @@ A bot is just another member of the room, played from its owner's browser:
   The bot connects with its own `RoomClient` and says hello with that secret plus
   its owner's (`hello.owner`), so the room records it as `kind: "bot"` with an
   `ownerId`. The owner must be a person in the room (bots can't own bots, so one
-  person's identities are bounded): up to 4 bots each (`MAX_BOTS_PER_PLAYER`),
-  added at a bounded rate. What a member is gets settled when they first join.
+  person's identities are bounded): up to 4 bots and hot-seat players together each
+  (`MAX_OWNED_PER_PLAYER`), added at a bounded rate. What a member is gets settled when they first join.
 - **Playing** (`BotPlayer`). The bot gets only its own redacted view, like
   anyone, plus `legalOps` (the server adds them to bots' snapshots). After every
   change it waits a moment, like a person (never under `BOT_MIN_MOVE_MS`, 1 s, for
@@ -731,7 +732,7 @@ A bot is just another member of the room, played from its owner's browser:
   game (`removePlayer`) and the room in one step, and closes its connections with
   `Left`. Only then does the bot forget the room (it stays yours, and can be invited
   back). **Deleting** a bot (in settings, one or all) marks all its rooms `removing`
-  and leaves them at once from the settings page (`bots/leave.ts`); a room it can't
+  and leaves them at once from the settings page (`leave.ts`); a room it can't
   reach is left the next time you open it. The bot is forgotten once it's out of
   every room.
 
@@ -790,6 +791,34 @@ report through `devLog` to a Vite dev-server endpoint, which writes
 `logs/<YYYY-MM-DD>/<room>.log` and a line to the terminal: each wake-up and why, the
 update sent, the answer with timing and tokens, what came of it, stand-ins and
 errors. Production builds drop it; e2e runs turn it off (`GG_DEV_LOGS=0`).
+
+## Hot seat
+
+People can take turns on one device, in games tagged `hot-seat` (`GameMeta.tags`: nothing
+in them is hidden, so one screen can show it to everyone; chess, Othello, Go, Four in a
+Row, Luffarschack, tic-tac-toe, Cannons). Tags show on the game cards ("Hot seat"), with
+room for more kinds later (`GAME_TAGS` in `games/types.ts`).
+
+- **Who.** Someone playing on your device is a player kept in this browser, like a bot
+  (`gg.guests`, `src/client/guests.ts`, on `local.ts`): a name, a color and a secret of
+  their own, added in a room (*+ Player on this device*, listing who's played here
+  before), edited by clicking them, removed with ×, and forgotten in /settings. In the
+  room they're a member of their own, `kind: "guest"` (`hello.owner` plus
+  `hello.guest`), with an `ownerId`: "Sam joined on Alice's device", tagged "with you"
+  or "with Alice". They count towards the owner's `MAX_OWNED_PER_PLAYER`, and leave a
+  room for good the way bots do (`leaveRoom`).
+- **Connections.** While the room is open, the page connects each of its guests
+  (`useGuestClients`), so each gets their own view, sends their own moves and shows as
+  online. Nothing on the server knows about turns at a screen: it's players and moves,
+  as ever.
+- **The game.** In a hot-seat game with guests here, `GameStage` shows the game as
+  whichever of you on the device it's waiting on (`useActing`: the view, `me` and moves
+  all come from that player's connection), following each turn, so the board turns to
+  them (chess, Othello and Go put your side at the bottom). A bar over the game (*On
+  this device*) shows who it's shown as and switches to someone else until the game
+  next changes, which is how a guest takes a seat. The turn pill says "Sam's turn", as
+  yours, and doesn't chime as the turn passes between you. In other games guests are
+  just members.
 
 ## Limits
 

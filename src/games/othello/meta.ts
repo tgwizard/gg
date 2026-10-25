@@ -6,6 +6,7 @@ export const othelloMeta: GameMeta = {
   tagline: "Trap their discs and turn them over. Most discs wins.",
   minPlayers: 2,
   maxPlayers: 2,
+  tags: ["hot-seat"],
   rules: `Two players, Black and White, take turns putting a disc of their color on an 8×8 board. It starts with four discs in the middle, and Black moves first.
 - Every disc you put down must trap at least one line of the other color: in a straight row, column or diagonal, between the new disc and one of yours already there, with no gaps. All the discs you trap, in every direction, turn over to your color.
 - If you have no such move, you pass and the other player goes again (that happens on its own). When neither of you can move, usually because the board is full, the game is over.

@@ -84,6 +84,9 @@ export interface ConnectionStats {
   heartbeatEveryMs: number;
 }
 
+/** Whose a bot's or guest's connection is (see the constructor). */
+export type Owned = { owner: string } & ({ bot: BotInfo } | { guest: true });
+
 export class RequestError extends Error {
   constructor(
     readonly code: string,
@@ -146,11 +149,17 @@ export class RoomClient {
     private readonly secret: string,
     private name: string,
     private color: number,
-    /** For a bot's connection: its owner's secret, */
-    private readonly owner?: string,
-    /** and how it plays. */
-    private bot?: BotInfo,
-  ) {}
+    /** For a bot's or guest's connection: its owner's secret, and for a bot how it plays. */
+    owned?: Owned,
+  ) {
+    this.owner = owned?.owner;
+    this.bot = owned && "bot" in owned ? owned.bot : undefined;
+    this.guest = !!owned && "guest" in owned;
+  }
+
+  private readonly owner: string | undefined;
+  private bot: BotInfo | undefined;
+  private readonly guest: boolean;
 
   // --- lifecycle -----------------------------------------------------------
 
@@ -223,7 +232,7 @@ export class RoomClient {
 
   /** For logs: whose connection this is. */
   private who(): string {
-    return this.owner ? `bot ${this.name}` : `you (${this.name})`;
+    return this.owner ? `${this.guest ? "guest" : "bot"} ${this.name}` : `you (${this.name})`;
   }
 
   private toast(text: string) {
@@ -241,7 +250,7 @@ export class RoomClient {
 
   // --- pending chat across refreshes ---------------------------------------
 
-  /** Only your own chat is kept (a bot's is of the moment). */
+  /** Only your own chat is kept (a bot's or guest's is of the moment). */
   private pendingKey(): string | null {
     return this.owner ? null : `gg.pendingChat.${this.roomId}`;
   }
@@ -395,6 +404,7 @@ export class RoomClient {
         color: this.color,
         chatCursor: lastSeq,
         ...(this.owner ? { owner: this.owner } : {}),
+        ...(this.guest ? { guest: true } : {}),
         ...(this.bot ? { bot: this.bot } : {}),
       });
     };

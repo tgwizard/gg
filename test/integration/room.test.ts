@@ -2,7 +2,7 @@ import { env, evictDurableObject, runDurableObjectAlarm, runInDurableObject } fr
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { PokerView } from "../../src/games/poker/engine";
-import { CloseCode, MAX_BOTS_PER_PLAYER, PROTOCOL_VERSION } from "../../src/shared/protocol";
+import { CloseCode, MAX_OWNED_PER_PLAYER, PROTOCOL_VERSION } from "../../src/shared/protocol";
 import { generateRoomCode } from "../../src/shared/roomCode";
 import { createRoom, secret, TestClient } from "./client";
 
@@ -250,10 +250,36 @@ describe("bots", () => {
   it("caps how many bots one player can add", async () => {
     const room = await createRoom();
     await TestClient.join(room, secret("alice"), "Alice");
-    for (let i = 0; i < MAX_BOTS_PER_PLAYER; i++) await TestClient.join(room, secret(`bot${i}`), `Bot ${i}`, null, 0, secret("alice"));
+    for (let i = 0; i < MAX_OWNED_PER_PLAYER; i++) await TestClient.join(room, secret(`bot${i}`), `Bot ${i}`, null, 0, secret("alice"));
     const extra = await TestClient.connect(room);
     extra.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("one-too-many"), name: "Extra", chatCursor: null, owner: secret("alice") });
     expect(await extra.next("error")).toMatchObject({ code: "rate_limited" });
+  });
+
+  it("joins a guest (hot seat) as a person on its owner's device, who can leave for good", async () => {
+    const room = await createRoom();
+    const { client: alice, welcome: aw } = await TestClient.join(room, secret("alice"), "Alice");
+    const sam = await TestClient.connect(room);
+    const joined = alice.next("chat", (c) => c.messages.some((m) => m.text === "Sam joined on Alice's device."));
+    sam.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("sam"), name: "Sam", chatCursor: null, owner: secret("alice"), guest: true });
+    const sw = await sam.next("welcome");
+    expect(sw.you).toMatchObject({ kind: "guest", ownerId: aw.you.id });
+    expect(sw.you).not.toHaveProperty("bot");
+    await joined;
+    // A guest plays like anyone: no legal moves are sent, as to a bot.
+    const started = sam.next("game", (g) => g.game !== null);
+    expect((await alice.request({ type: "selectGame", gameId: "tictactoe", config: {} })).ok).toBe(true);
+    const { instanceId } = (await started).game!;
+    const seated = sam.next("game", (g) => g.game?.players.includes(sw.you.id) ?? false);
+    expect((await sam.request({ type: "gameOp", instanceId, op: { type: "sit", seat: 1 } })).ok).toBe(true);
+    const snapshot = await seated;
+    expect(snapshot.game).not.toHaveProperty("legalOps");
+    // Taken out by its owner, it gives up its seat and the room forgets it.
+    const gone = alice.next("members", (m) => !m.members.some((x) => x.id === sw.you.id));
+    expect(await sam.request({ type: "leaveRoom" })).toMatchObject({ ok: true });
+    await gone;
+    // People can't leave that way.
+    expect(await alice.request({ type: "leaveRoom" })).toMatchObject({ ok: false, error: { code: "not_a_bot" } });
   });
 
   it("upgrades rooms made before bots had owners", async () => {

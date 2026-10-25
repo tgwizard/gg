@@ -28,8 +28,9 @@ import {
   ClientMessage,
   CloseCode,
   type GameSnapshot,
-  MAX_BOTS_PER_PLAYER,
+  MAX_OWNED_PER_PLAYER,
   type Member,
+  type MemberKind,
   PING,
   PONG,
   PROTOCOL_VERSION,
@@ -319,11 +320,11 @@ export class Room extends DurableObject<Env> {
     const owner = ownerId ? this.getMember(ownerId) : null;
     if (!existing) {
       if (ownerId) {
-        // Bots belong to a person in the room (never to another bot), who can have a few,
-        // added at a bounded rate. People are limited per network instead.
-        if (owner?.kind !== "human") return this.refuse(ws, "no_owner", "A bot's owner must be in the room.", 60_000);
-        if (this.botsOf(ownerId) >= MAX_BOTS_PER_PLAYER) {
-          return this.refuse(ws, RATE_LIMITED, `You can have up to ${MAX_BOTS_PER_PLAYER} bots in a room.`, 60_000);
+        // Bots and guests belong to a person in the room (never to another bot or guest),
+        // who can bring a few, at a bounded rate. People are limited per network instead.
+        if (owner?.kind !== "human") return this.refuse(ws, "no_owner", "Whoever brings a bot or a player on their device must be in the room.", 60_000);
+        if (this.ownedBy(ownerId) >= MAX_OWNED_PER_PLAYER) {
+          return this.refuse(ws, RATE_LIMITED, `You can bring up to ${MAX_OWNED_PER_PLAYER} bots or players on your device into a room.`, 60_000);
         }
         if (!this.bucket(this.newBots, ownerId, newBotBucket).take(now)) {
           return this.refuse(ws, RATE_LIMITED, "You've added a lot of bots just now. Try again in a minute.", 60_000);
@@ -334,7 +335,8 @@ export class Room extends DurableObject<Env> {
       this.makeRoomForMember();
     }
     // What someone is was settled when they first joined: a person can't turn into a bot.
-    const bot = existing ? existing.kind === "bot" : !!ownerId;
+    const kind: MemberKind = existing ? existing.kind : !ownerId ? "human" : msg.guest ? "guest" : "bot";
+    const bot = kind === "bot";
     const wasOnline = this.isOnline(playerId);
 
     this.sql.exec(
@@ -343,7 +345,7 @@ export class Room extends DurableObject<Env> {
       playerId,
       name,
       msg.color ?? 0,
-      bot ? "bot" : "human",
+      kind,
       ownerId,
       bot ? JSON.stringify(msg.bot ?? { level: "easy" }) : null,
       now,
@@ -355,7 +357,8 @@ export class Room extends DurableObject<Env> {
 
     let joinMessage: ChatMessage | null = null;
     if (!existing) {
-      const text = bot ? `${owner?.name ?? "Someone"} added a bot, ${name}.` : `${name} joined the room.`;
+      const text =
+        kind === "bot" ? `${owner?.name ?? "Someone"} added a bot, ${name}.` : kind === "guest" ? `${name} joined on ${owner?.name ?? "someone"}'s device.` : `${name} joined the room.`;
       joinMessage = this.insertChat("system", null, null, text);
     }
 
@@ -418,13 +421,13 @@ export class Room extends DurableObject<Env> {
   }
 
   /**
-   * A bot leaving for good: it gives up its place in the game, then it's forgotten and
-   * its connections closed, so it can't come back. All in one step, so a removed bot
-   * never keeps a seat.
+   * A bot or guest leaving for good: it gives up its place in the game, then it's
+   * forgotten and its connections closed, so it can't come back. All in one step, so a
+   * removed bot never keeps a seat.
    */
   private onLeaveRoom(ws: WebSocket, playerId: string, cid: string) {
     const member = this.getMember(playerId);
-    if (member && member.kind !== "bot") return this.ack(ws, cid, fail("not_a_bot", "Only bots leave a room for good."));
+    if (member && member.kind === "human") return this.ack(ws, cid, fail("not_a_bot", "Only bots and guests leave a room for good."));
     if (member) {
       this.removeFromGame(playerId);
       this.activities.delete(playerId);
@@ -810,7 +813,8 @@ export class Room extends DurableObject<Env> {
     };
   }
 
-  private botsOf(ownerId: string): number {
+  /** Bots and guests someone has brought into the room. */
+  private ownedBy(ownerId: string): number {
     return this.sql.exec<{ n: number }>(`SELECT COUNT(*) AS n FROM members WHERE owner_id = ?`, ownerId).one().n;
   }
 

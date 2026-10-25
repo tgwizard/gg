@@ -148,7 +148,7 @@ async function setUpRoom(gameId: string, scenario: Scenario, step: (text: string
       const bot = yours[i] ?? (await createBot({ ...suggestBot({ names: taken.map((m) => m.name), colors: taken.map((m) => m.color) }), level: "easy" }));
       if (!bot || !inviteBot(bot.id, roomId)) throw new Error("Couldn't invite a bot.");
       bots.push(bot);
-      await connect(new RoomClient(roomId, bot.secret, bot.name, bot.color, secret, { level: "easy", ...(bot.persona ? { persona: bot.persona } : {}) }));
+      await connect(new RoomClient(roomId, bot.secret, bot.name, bot.color, { owner: secret, bot: { level: "easy", ...(bot.persona ? { persona: bot.persona } : {}) } }));
     }
     const snapshot = await until(you, (s) => bots.every((b) => s.members.some((m) => m.id === b.playerId)));
 

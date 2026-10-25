@@ -1,21 +1,26 @@
 import { useRef, useState } from "react";
-import { MAX_BOTS_PER_PLAYER, type Member } from "../../shared/protocol";
+import { MAX_OWNED_PER_PLAYER, type Member } from "../../shared/protocol";
 import { ActivityBubble, Avatar, Panel, PlayerName, playerStyle } from "../../ui";
 import { type BotRecord, type BotSetup, createBot, inviteBot, removeFromRoom, suggestBot, updateBot, useMyBots } from "../bots/store";
+import { createGuest, type GuestRecord, inviteGuest, removeGuest, updateGuest, useMyGuests } from "../guests";
 import { saveColor, saveName } from "../identity";
+import { ownedIn } from "../local";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { BotForm, botCaption } from "./BotForm";
 import { Popover } from "./Popover";
 import { ProfileForm } from "./Profile";
 import { SettingsLink } from "./SettingsLink";
 
-export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[] }) {
+export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[]; guests: GuestRecord[] }) {
   const waiting = new Set(snapshot.game?.waitingOn ?? []);
   const members = [...snapshot.members].sort((a, b) => Number(b.online) - Number(a.online));
   const names = new Map(snapshot.members.map((m) => [m.id, m.name]));
-  const mine = new Map(bots.map((b) => [b.playerId, b]));
+  const mine = new Map<string, { id: string; deleted?: true; rooms: BotRecord["rooms"]; error?: string; remove(): void; kind: string }>([
+    ...bots.map((b) => [b.playerId, { ...b, kind: "bot", remove: () => removeFromRoom(b.id, roomId) }] as const),
+    ...guests.map((g) => [g.playerId, { ...g, kind: "player", remove: () => removeGuest(g.id, roomId) }] as const),
+  ]);
   const connected = snapshot.status === "connected";
-  const playing = bots.filter((b) => !b.rooms[roomId]?.removing && !b.deleted);
+  const full = ownedIn(roomId) >= MAX_OWNED_PER_PLAYER;
 
   return (
     <Panel className="members" title="In this room" actions={<span className="label">{members.filter((m) => m.online).length} online</span>}>
@@ -27,13 +32,14 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
             <li key={m.id} className={m.online ? "online" : "away"} data-testid="member">
               {/* On the avatar's corner, so it never takes room from the name. */}
               {m.activity && <ActivityBubble text={m.activity} compact />}
-              <MemberButton member={m} snapshot={snapshot} bots={bots} roomId={roomId} />
+              <MemberButton member={m} snapshot={snapshot} bots={bots} guests={guests} roomId={roomId} />
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
               {m.kind === "bot" && (
                 <span className="tag brand" title={botSummary(m, record ? "you" : (names.get(m.ownerId ?? "") ?? "Someone"))}>
-                  {(m.bot?.level ?? record?.level) === "ai" ? "AI bot" : "bot"}
+                  {m.bot?.level === "ai" ? "AI bot" : "bot"}
                 </span>
               )}
+              {m.kind === "guest" && <GuestTag member={m} owner={m.ownerId === snapshot.you?.id ? null : (names.get(m.ownerId ?? "") ?? "someone")} />}
               {record?.error && !leaving && (
                 <span className="tag danger" title={record.error}>
                   AI problem
@@ -44,9 +50,9 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
               {record && !leaving && (
                 <button
                   className="member-remove"
-                  onClick={() => removeFromRoom(record.id, roomId)}
+                  onClick={record.remove}
                   aria-label={`Remove ${m.name}`}
-                  title={`Take ${m.name} out of this room (it stays one of your bots)`}
+                  title={`Take ${m.name} out of this room (${record.kind === "bot" ? "it stays one of your bots" : "they stay on this device"})`}
                 >
                   ×
                 </button>
@@ -56,20 +62,33 @@ export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; ro
         })}
       </ul>
       <div className="members-foot">
-        <InviteBot roomId={roomId} members={snapshot.members} disabled={!connected || playing.length >= MAX_BOTS_PER_PLAYER} />
-        {playing.length >= MAX_BOTS_PER_PLAYER && <span className="muted small">Up to {MAX_BOTS_PER_PLAYER} bots each.</span>}
+        <InviteBot roomId={roomId} members={snapshot.members} disabled={!connected || full} />
+        <AddGuest roomId={roomId} members={snapshot.members} disabled={!connected || full} />
+        {full && <span className="muted small">Up to {MAX_OWNED_PER_PLAYER} bots or players on your device each.</span>}
       </div>
     </Panel>
   );
 }
 
+/** "with you" / "with Adam": someone playing on another's device (hot seat). */
+export function GuestTag({ member, owner }: { member: Member; owner: string | null }) {
+  return (
+    <span className="tag" title={`${member.name} plays on ${owner ? `${owner}'s` : "your"} device, taking turns at the same screen.`}>
+      with {owner ?? "you"}
+    </span>
+  );
+}
+
 /**
- * Someone in the room, by avatar and name: click yourself or one of your bots to edit
- * (a bot's changes apply in every room), or someone else's bot to see what it is.
+ * Someone in the room, by avatar and name: click yourself, one of your bots or someone
+ * playing on your device to edit (changes apply in every room), or someone else's bot
+ * to see what it is.
  */
-export function MemberButton({ member, snapshot, bots, roomId }: { member: Member; snapshot: RoomSnapshot; bots: BotRecord[]; roomId: string }) {
+export function MemberButton({ member, snapshot, bots, guests, roomId }: { member: Member; snapshot: RoomSnapshot; bots: BotRecord[]; guests: GuestRecord[]; roomId: string }) {
   const bot = bots.find((b) => b.playerId === member.id);
+  const guest = guests.find((g) => g.playerId === member.id);
   if (member.id === snapshot.you?.id) return <EditYou member={member} members={snapshot.members} />;
+  if (guest && !guest.deleted && !guest.rooms[roomId]?.removing) return <EditGuest guest={guest} member={member} members={snapshot.members} />;
   if (bot && !bot.deleted && !bot.rooms[roomId]?.removing) return <EditBot bot={bot} member={member} members={snapshot.members} />;
   if (member.kind === "bot") {
     const owner = snapshot.members.find((m) => m.id === member.ownerId)?.name ?? "Someone";
@@ -290,6 +309,122 @@ function EditBot({ bot, member, members }: { bot: BotRecord; member: Member; mem
             }}
             onCancel={() => setOpen(false)}
           />
+        </Popover>
+      )}
+    </>
+  );
+}
+
+/** Someone playing on your device: their name and color, in every room. */
+function EditGuest({ guest, member, members }: { guest: GuestRecord; member: Member; members: Member[] }) {
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <MemberTrigger member={member} label={`Edit ${member.name}`} open={open} onClick={() => setOpen(!open)} anchor={button} />
+      {open && button.current && (
+        <Popover anchor={button.current} label={`Edit ${member.name}`} onClose={() => setOpen(false)}>
+          <ProfileForm
+            name={guest.name}
+            color={guest.color}
+            whose="Player"
+            caption="Plays on this device with you"
+            submitLabel="Save"
+            taken={takenColors(members, member.id)}
+            onSubmit={(name, color) => {
+              setOpen(false);
+              updateGuest(guest.id, name, color);
+            }}
+            onCancel={() => setOpen(false)}
+          />
+        </Popover>
+      )}
+    </>
+  );
+}
+
+/**
+ * "+ Player on this device": someone who takes turns at this screen with you, in games
+ * where nothing is hidden (hot seat). The people who've played here before, one click
+ * each, or someone new.
+ */
+export function AddGuest({ roomId, members, disabled, className = "btn ghost small" }: { roomId: string; members: Member[]; disabled: boolean; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [making, setMaking] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const mine = useMyGuests();
+  const here = new Set(members.map((m) => m.id));
+  const free = mine.filter((g) => !here.has(g.playerId) && !(g.rooms[roomId] && !g.rooms[roomId].removing));
+  const close = () => {
+    setOpen(false);
+    setMaking(false);
+  };
+  const taken = takenColors(members);
+  const color = Array.from({ length: 16 }, (_, i) => i).find((c) => !taken.has(c)) ?? 0;
+  return (
+    <>
+      <button
+        ref={button}
+        className={className}
+        disabled={disabled}
+        aria-expanded={open}
+        onClick={() => {
+          if (open) return close();
+          setOpen(true);
+          setMaking(!free.length);
+        }}
+      >
+        + Player on this device
+      </button>
+      {open && button.current && (
+        <Popover anchor={button.current} label="Player on this device" onClose={close}>
+          {making ? (
+            <ProfileForm
+              name=""
+              color={color}
+              whose="Player"
+              caption="Plays on this device with you"
+              intro="Someone here with you. You'll take turns at this screen in games where nothing is hidden (hot seat); the game shows whoever's turn it is."
+              submitLabel="Add"
+              taken={taken}
+              onSubmit={async (name, c) => {
+                close();
+                const guest = await createGuest(name, c);
+                if (guest) inviteGuest(guest.id, roomId);
+              }}
+              onCancel={free.length ? () => setMaking(false) : close}
+            />
+          ) : (
+            <div className="invite-bots">
+              <h3 className="peek-title">Player on this device</h3>
+              <ul className="invite-bots-list">
+                {free.map((g) => (
+                  <li key={g.id}>
+                    <button
+                      type="button"
+                      className="invite-bot"
+                      onClick={() => {
+                        close();
+                        inviteGuest(g.id, roomId);
+                      }}
+                      aria-label={`Add ${g.name}`}
+                    >
+                      <Avatar name={g.name} color={g.color} size="sm" />
+                      <span className="invite-bot-text">
+                        <PlayerName name={g.name} color={g.color} />
+                      </span>
+                      <span className="invite-bot-go">Add</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="row invite-bots-foot">
+                <button type="button" className="btn small" onClick={() => setMaking(true)}>
+                  + Someone new
+                </button>
+              </div>
+            </div>
+          )}
         </Popover>
       )}
     </>

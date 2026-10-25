@@ -6,6 +6,7 @@ export const chessMeta: GameMeta = {
   tagline: "The classic, with chess clocks. Colors swap every game.",
   minPlayers: 2,
   maxPlayers: 2,
+  tags: ["hot-seat"],
   rules: `Two players, White and Black, take turns moving one piece; White moves first. Checkmate the other king (attack it so it has no way out) to win.
 - Kings move one square any way; queens any distance in a straight line or diagonal; rooks straight; bishops diagonally; knights in an L, jumping over pieces. Pawns move one square forward (two from their starting square) and take diagonally forward.
 - Castling: the king moves two squares toward a rook and the rook jumps over it. Only if neither has moved, nothing is between them, and the king isn't in check, doesn't pass through check and doesn't land in it. To castle here, move your king two squares toward the rook, or onto the rook.

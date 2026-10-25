@@ -3,7 +3,7 @@
  * frustrated Cmd+R loop on a bad connection, or a household sharing one IP);
  * they exist to stop scripts. See "Limits" in docs/ARCHITECTURE.md.
  */
-import { CloseCode, MAX_BOTS_PER_PLAYER, type ServerMessage } from "../shared/protocol";
+import { CloseCode, MAX_OWNED_PER_PLAYER, type ServerMessage } from "../shared/protocol";
 import { ipKey } from "../shared/ip";
 import { TokenBucket } from "../shared/token-bucket";
 
@@ -17,7 +17,7 @@ export const ipOpsBucket = () => new TokenBucket(80, 12);
 /** New identities (fresh browsers) per IP within a room: a few at once, then one a minute. */
 export const newMemberBucket = () => new TokenBucket(6, 1 / 60);
 /** New bots per owner: all of them at once, then one every half minute (removing and re-adding). */
-export const newBotBucket = () => new TokenBucket(MAX_BOTS_PER_PLAYER, 1 / 30);
+export const newBotBucket = () => new TokenBucket(MAX_OWNED_PER_PLAYER, 1 / 30);
 /**
  * Longest message a client may send, checked before parsing. The longest real one
  * (a chat message at its limit, all emoji) is well under this.

@@ -6,6 +6,7 @@ export const cannonsMeta: GameMeta = {
   tagline: "Set your angle and power, mind the wind, and lob one over the hill.",
   minPlayers: 2,
   maxPlayers: 4,
+  tags: ["hot-seat"],
   rules: `Every player is a cannon on a hilly landscape, seen from the side. Take turns firing at each other: one hit knocks a cannon out, and the last cannon standing wins.
 - On your turn, set the angle and the power, then fire. Everyone watches the ball fly. It lands where it lands: the same aim in the same wind always goes the same way.
 - A ball that passes close enough to a cannon knocks it out (even your own). One that lands on the ground blows a crater in it; the ground under a cannon can be blown away too.

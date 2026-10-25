@@ -63,7 +63,19 @@ export interface GameMeta {
   botNotes?: string;
   /** Still being tuned: marked "WIP" wherever the game is named. */
   wip?: boolean;
+  /** What kind of game it is, shown where games are listed (see GAME_TAGS). */
+  tags?: GameTag[];
 }
+
+/**
+ * Tags a game can have, with how they're shown. "hot-seat": nothing is hidden from
+ * anyone, so people can take turns on one device (the room then shows the game as
+ * whoever's turn it is).
+ */
+export const GAME_TAGS = {
+  "hot-seat": { label: "Hot seat", hint: "Nothing is hidden, so you can take turns on one device." },
+} as const satisfies Record<string, { label: string; hint: string }>;
+export type GameTag = keyof typeof GAME_TAGS;
 
 export interface GameDefinition<State = unknown, Op = unknown, View = unknown, Config = unknown> {
   meta: GameMeta;

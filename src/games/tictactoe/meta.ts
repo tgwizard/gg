@@ -6,6 +6,7 @@ export const ticTacToeMeta: GameMeta = {
   tagline: "Three in a row. Quick rounds, sides alternate.",
   minPlayers: 2,
   maxPlayers: 2,
+  tags: ["hot-seat"],
   rules: `Two players take turns marking squares on a 3×3 grid, X and O. Three in a row (across, down or diagonally) wins the round; a full grid with no line is a draw.
 - X moves first in the first round, and the opening side alternates each round.
 - Run out of time and you forfeit the round. A new round starts a few seconds after one ends.`,

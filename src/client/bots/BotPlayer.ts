@@ -125,7 +125,7 @@ export class BotPlayer {
     this.games ??= (await import("../../games/registry")).games;
     if (this.stopped) return this.releaseLock?.();
     const { secret, name, color } = this.bot;
-    const client = new RoomClient(this.roomId, secret, name, color, this.ownerSecret, botInfo(this.bot));
+    const client = new RoomClient(this.roomId, secret, name, color, { owner: this.ownerSecret, bot: botInfo(this.bot) });
     this.client = client;
     this.setBrain();
     client.subscribe(() => this.onChange());
@@ -197,7 +197,7 @@ export class BotPlayer {
       // Follow people to the table quickly; with nobody seated yet, give them time to choose first.
       if (this.seatOpenSince?.instanceId !== game.instanceId) this.seatOpenSince = { instanceId: game.instanceId, at: Date.now() };
       const members = client.getSnapshot().members;
-      const peopleSeated = game.players.some((id) => members.find((m) => m.id === id)?.kind === "human");
+      const peopleSeated = game.players.some((id) => members.find((m) => m.id === id)?.kind !== "bot");
       const wait = this.seatOpenSince.at + SEAT_WAIT_MS - Date.now();
       if (!peopleSeated && wait > 0) {
         this.timer = setTimeout(() => this.move(), wait);

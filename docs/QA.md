@@ -238,7 +238,7 @@ these through the browser and reports back.
 ### Bots
 - [ ] With no bots yet, *+ Invite a bot* in the members panel opens a new bot's form (a free name and color, a personality); *Make and invite* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner. With bots, it lists the ones not in the room (one click invites), plus *+ New bot* and a link to *Your bots*.
 - [ ] Settings, *Bots & AI* (`/settings#bots`): your bots with their kind, rooms and usage; *+ New bot*, *Edit* inline, *Delete* (confirm; it leaves its rooms right away, also ones not open). *Delete all bots* bottom right, with a confirmation sliding in. AI keys: added without a check; the card's light shows whether the provider takes it, which bots use it and the tokens used with it; removing a key turns its bots built-in.
-- [ ] Settings, *Profile*: name and color, then Sound effects and Dark mode with the top-bar icons (On/Off), then Delete all data.
+- [ ] Settings, *Profile*: name and color, the players on this device (if any), then Sound effects and Dark mode with the top-bar icons (On/Off), then Delete all data.
 - [ ] The same bot in two rooms is the same player; editing it in one room changes it in both. × takes it out of one room only (it's still in settings).
 - [ ] Click your own name in the members panel or *Here now*: edit your name and color there.
 - [ ] Click your bot's name: rename and recolor it, mid-game too. Chat says "Y is now known as Z" and the board updates.
@@ -247,6 +247,14 @@ these through the browser and reports back.
 - [ ] Refresh: your bots come back online with you. Close the tab: they go offline. Open the room in two tabs: each bot is online once, and closing the tab playing it hands it to the other.
 - [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list. Removed while offline, it shows *leaving…* and goes once you're back.
 - [ ] Another player sees your bot as *bot* without a ×; clicking it shows what it is (built-in or AI, model, effort, provider, personality), never the key.
+
+### Hot seat
+- [ ] Game cards for chess, Othello, Go, Four in a Row, Luffarschack, tic-tac-toe and Cannons show a *Hot seat* tag (hover: why); the others don't.
+- [ ] *+ Player on this device* (members panel or *Here now*): with nobody saved yet, a name-and-color form; *Add* joins them (chat: "Sam joined on Alice's device."), tagged *with you* (others see *with Alice*). Next time it lists who's played here before, plus *+ Someone new*.
+- [ ] Start a hot-seat game: *On this device* shows you and Sam, you selected. Sit down, click Sam, sit him down. Each move turns the game to whoever's next (board flipped to their side, "Your move."), the turn pill says *Sam's turn*, and there's no chime between you two. Against a remote player or a bot, it stays on whichever of you last moved.
+- [ ] Click Sam's name to rename or recolor him; × takes him out (he gives up his seat); *Settings → Profile → Players on this device* lists him, with *Edit* and *Forget*.
+- [ ] Up to 4 bots and players on your device together in a room.
+- [ ] In a game that isn't hot seat (poker), guests are just members: the game shows only you.
 
 ### AI bots (needs an AI key in `/settings`)
 - [ ] Add a bot, *Plays*: your key. Model and effort default to the cheapest model at low effort; the preview says so. The bot form links to *Your bots and AI keys* (or *Add an AI key*); your profile popup links to all settings, and settings has *Back to the room*.

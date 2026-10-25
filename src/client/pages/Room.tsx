@@ -3,6 +3,7 @@ import { PLAYER_COLORS } from "../../shared/colors";
 import { type ChatMessage, MAX_ROOM_NAME_LENGTH } from "../../shared/protocol";
 import { useBots } from "../bots/store";
 import { useRunBots } from "../bots/useRunBots";
+import { useGuestClients, useGuests } from "../guests";
 import { getSecret, saveColor, saveName, useColor, useName } from "../identity";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
@@ -55,6 +56,8 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
   const { client, snapshot } = useRoom(roomId, secret, name, color);
   const bots = useBots(roomId);
   useRunBots(roomId, secret);
+  const guests = useGuests(roomId);
+  const guestClients = useGuestClients(roomId, secret);
   const toast = useToast();
   const colors = useMemo(() => new Map(snapshot.members.map((m) => [m.id, m.color])), [snapshot.members]);
   const botIds = useMemo(() => new Set(snapshot.members.filter((m) => m.kind === "bot").map((m) => m.id)), [snapshot.members]);
@@ -156,7 +159,12 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
           )}
           <main className={`room-main${sidebar.open ? "" : " sidebar-hidden"}`}>
             <section className="stage">
-              <GameStage client={client} snapshot={snapshot} invite={<InviteSection snapshot={snapshot} roomId={roomId} bots={bots} />} />
+              <GameStage
+                client={client}
+                snapshot={snapshot}
+                guests={guestClients}
+                invite={<InviteSection snapshot={snapshot} roomId={roomId} bots={bots} guests={guests} />}
+              />
             </section>
             {sidebar.open ? (
               <aside className="sidebar">
@@ -165,7 +173,7 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
                     Hide chat ›
                   </button>
                 )}
-                <Members snapshot={snapshot} roomId={roomId} bots={bots} />
+                <Members snapshot={snapshot} roomId={roomId} bots={bots} guests={guests} />
                 <Chat snapshot={snapshot} onSend={(t) => client.sendChat(t)} />
               </aside>
             ) : (

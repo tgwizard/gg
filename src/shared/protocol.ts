@@ -13,8 +13,8 @@ export const PROTOCOL_VERSION = 3;
 export const MAX_NAME_LENGTH = 24;
 export const MAX_ROOM_NAME_LENGTH = 40;
 export const MAX_CHAT_LENGTH = 500;
-/** Bots one player can have in a room. */
-export const MAX_BOTS_PER_PLAYER = 4;
+/** Bots and players on their device (hot seat) one person can bring into a room. */
+export const MAX_OWNED_PER_PLAYER = 4;
 
 /** Heartbeat literals, answered by the DO's auto-response without waking it up. */
 export const PING = "ping";
@@ -39,7 +39,8 @@ export const CloseCode = {
 export const RATE_LIMITED = "rate_limited";
 export const ROOM_FULL = "room_full";
 
-export type MemberKind = "human" | "bot";
+/** A person; a bot; or a guest: a person playing on someone else's device (hot seat). */
+export type MemberKind = "human" | "bot" | "guest";
 
 /** What a bot says about itself, for everyone to see. */
 export const BotInfo = z.object({
@@ -57,7 +58,7 @@ export interface Member {
   id: string;
   name: string;
   kind: MemberKind;
-  /** For bots: the player whose browser runs it. */
+  /** For bots and guests: the person whose browser runs it. */
   ownerId: string | null;
   /** For bots: how it plays. */
   bot?: BotInfo;
@@ -125,8 +126,10 @@ export const ClientMessage = z.discriminatedUnion("type", [
     color: z.number().int().min(0).max(COLOR_COUNT - 1).optional(),
     /** Highest chat seq the client has; null on first load. */
     chatCursor: z.number().int().nullable(),
-    /** Set when a bot connects: its owner's secret (the bot has its own). */
+    /** Set when a bot or guest connects: its owner's secret (it has its own). */
     owner: z.string().min(16).max(128).optional(),
+    /** With `owner`: a person playing on the owner's device (hot seat), not a bot. */
+    guest: z.literal(true).optional(),
     bot: BotInfo.optional(),
   }),
   z.object({
@@ -139,7 +142,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("renameRoom"), cid, name: z.string().max(200) }),
   /** What you're up to right now (null when done); shown to everyone. */
   z.object({ type: z.literal("activity"), text: z.string().max(200).nullable() }),
-  /** A bot leaving for good (its owner removed it). */
+  /** A bot or guest leaving for good (its owner removed it). */
   z.object({ type: z.literal("leaveRoom"), cid }),
   z.object({ type: z.literal("chat"), cid, text: z.string().max(4 * MAX_CHAT_LENGTH) }),
   z.object({ type: z.literal("selectGame"), cid, gameId: z.string().max(64), config: z.unknown() }),

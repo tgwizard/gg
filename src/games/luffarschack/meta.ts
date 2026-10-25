@@ -6,6 +6,7 @@ export const luffarschackMeta: GameMeta = {
   tagline: "Crosses and circles on squared paper. First to five in a row wins.",
   minPlayers: 2,
   maxPlayers: 2,
+  tags: ["hot-seat"],
   wip: true,
   rules: `The Swedish pen-and-paper game, also called five in a row. Two players take turns marking an empty square on a sheet of squared paper: one draws crosses (X), the other circles (O). X goes first.
 - The first to get five of their marks in an unbroken line wins: across, up and down, or diagonally.

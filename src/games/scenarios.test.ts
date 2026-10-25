@@ -4,7 +4,7 @@
  * has a view. And it comes out the same whoever plays it.
  */
 import { describe, expect, it } from "vitest";
-import { MAX_BOTS_PER_PLAYER } from "../shared/protocol";
+import { MAX_OWNED_PER_PLAYER } from "../shared/protocol";
 import { games } from "./registry";
 import { scenarios } from "./scenarios";
 import type { GameContext } from "./types";
@@ -30,7 +30,7 @@ describe("scenarios", () => {
     for (const scenario of list) {
       it(`${gameId}/${scenario.id} builds a valid state`, () => {
         expect(scenario.bots).toBeGreaterThanOrEqual(1);
-        expect(scenario.bots).toBeLessThanOrEqual(MAX_BOTS_PER_PLAYER);
+        expect(scenario.bots).toBeLessThanOrEqual(MAX_OWNED_PER_PLAYER);
         const built = ID_SETS.map((ids) => {
           const players = ids.slice(0, scenario.bots + 1);
           const state = scenario.build(players, ctx);

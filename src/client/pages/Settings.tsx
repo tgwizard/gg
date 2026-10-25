@@ -7,11 +7,12 @@
 import { type FormEvent, type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { PLAYER_COLORS } from "../../shared/colors";
 import { Avatar, MODE_SHORTCUT, Panel, playerStyle, setSoundOn, toggleMode, useMode, useSoundOn } from "../../ui";
-import { leaveRooms } from "../bots/leave";
-import { type BotRecord, type BotSetup, createBot, deleteBot, dropConnection, getBots, MAX_BOTS, suggestBot, updateBot, useMyBots } from "../bots/store";
+import { deleteGuest, getGuests, type GuestRecord, leftRoom as leftGuestRoom, updateGuest, useMyGuests } from "../guests";
+import { leaveRooms } from "../leave";
+import { type BotRecord, type BotSetup, createBot, deleteBot, dropConnection, getBots, leftRoom, MAX_BOTS, suggestBot, updateBot, useMyBots } from "../bots/store";
 import { BotForm, botCaption, usedSoFar } from "../components/BotForm";
 import { ModeIcon } from "../components/ModeToggle";
-import { ColorPicker, NameField } from "../components/Profile";
+import { ColorPicker, NameField, ProfileForm } from "../components/Profile";
 import { SoundIcon } from "../components/SoundToggle";
 import { deleteLocalData, getSecret, saveColor, saveName, useColor, useName } from "../identity";
 import { clientFor, defaultModel, maskKey, PROVIDERS, putConnection, removeConnection, updateConnection, useConnections } from "../llm/connections";
@@ -76,6 +77,7 @@ export function SettingsPage() {
         {tab === "profile" ? (
           <>
             <ProfileSection />
+            <GuestsSection />
             <LooksSection />
             <DeleteDataSection />
           </>
@@ -123,6 +125,75 @@ function ProfileSection() {
         </div>
       </Panel>
     </section>
+  );
+}
+
+/** People who play on this device with you (hot seat), added in a room; edited and forgotten here. */
+function GuestsSection() {
+  const guests = useMyGuests();
+  if (!guests.length) return null;
+  return (
+    <section className="stack">
+      <h2 className="display settings-h2">Players on this device</h2>
+      <p className="muted settings-text">People who take turns at this screen with you, in games where nothing is hidden. Add them in a room.</p>
+      {guests.map((g) => (
+        <GuestCard key={g.id} guest={g} />
+      ))}
+    </section>
+  );
+}
+
+function GuestCard({ guest }: { guest: GuestRecord }) {
+  const [editing, setEditing] = useState(false);
+  const rooms = Object.values(guest.rooms).filter((r) => !r.removing).length;
+  if (editing) {
+    return (
+      <Panel className="bot-card" data-testid="guest-card">
+        <ProfileForm
+          name={guest.name}
+          color={guest.color}
+          whose="Player"
+          caption="Plays on this device with you"
+          submitLabel="Save"
+          onSubmit={(name, color) => {
+            setEditing(false);
+            updateGuest(guest.id, name, color);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </Panel>
+    );
+  }
+  return (
+    <Panel className="bot-card" data-testid="guest-card">
+      <div className="bot-card-head">
+        <Avatar name={guest.name} color={guest.color} size="lg" />
+        <div className="profile-preview-text">
+          <strong className="name" style={playerStyle(guest.color)}>
+            {guest.name}
+          </strong>
+          <span className="muted small">{rooms ? `In ${rooms} ${rooms === 1 ? "room" : "rooms"}` : "In no rooms now"}</span>
+        </div>
+        <div className="row bot-card-actions">
+          <button type="button" className="btn small" onClick={() => setEditing(true)} aria-label={`Edit ${guest.name}`}>
+            Edit
+          </button>
+          <button
+            type="button"
+            className="btn ghost small"
+            onClick={() => {
+              deleteGuest(guest.id);
+              const gone = getGuests().find((g) => g.id === guest.id);
+              if (gone) void leaveRooms(gone, { owner: getSecret(), guest: true }, leftGuestRoom);
+            }}
+            aria-label={`Forget ${guest.name}`}
+            title={rooms ? "They leave the rooms they're in, and any game they're playing there." : undefined}
+          >
+            Forget
+          </button>
+        </div>
+      </div>
+    </Panel>
   );
 }
 
@@ -177,7 +248,7 @@ function DeleteDataSection() {
       <h2 className="display settings-h2">Your data</h2>
       <Panel>
         <p className="settings-text">
-          Everything in these settings lives only in this browser: your name, color, light or dark mode, sound, your bots and AI keys. gg has no accounts, and
+          Everything in these settings lives only in this browser: your name, color, light or dark mode, sound, the players on this device, your bots and AI keys. gg has no accounts, and
           its server never sees your keys.
         </p>
         <p className="muted small settings-text">
@@ -274,7 +345,7 @@ function DeleteAllBots({ bots, confirming, setConfirming }: { bots: BotRecord[];
               const secret = getSecret();
               setConfirming(false);
               for (const b of bots) deleteBot(b.id);
-              for (const b of getBots().filter((g) => g.deleted)) void leaveRooms(b, secret);
+              for (const b of getBots().filter((g) => g.deleted)) void leaveRooms(b, { owner: secret, bot: { level: "easy" } }, leftRoom);
             }}
           >
             Delete all
@@ -349,7 +420,7 @@ function BotCard({ bot }: { bot: BotRecord }) {
               onClick={() => {
                 deleteBot(bot.id);
                 const gone = getBots().find((b) => b.id === bot.id);
-                if (gone) void leaveRooms(gone, getSecret());
+                if (gone) void leaveRooms(gone, { owner: getSecret(), bot: { level: "easy" } }, leftRoom);
               }}
             >
               Delete {bot.name}

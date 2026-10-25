@@ -6,6 +6,7 @@ export const goMeta: GameMeta = {
   tagline: "Surround territory, capture stones. The oldest board game there is.",
   minPlayers: 2,
   maxPlayers: 2,
+  tags: ["hot-seat"],
   rules: `Two players, Black and White, take turns putting a stone of their color on an empty point of the board (where the lines cross), or passing. Black moves first. Stones never move once they're down.
 - Stones of one color that touch along the lines form a group. The empty points next to a group are its liberties. Take away a group's last liberty and it's captured: it comes off the board.
 - You can't play where your stone would have no liberties, unless it captures something.
