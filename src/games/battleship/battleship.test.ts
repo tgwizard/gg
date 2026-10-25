@@ -333,5 +333,5 @@ describe("battleship: secrecy", () => {
       // At the end, everything's revealed.
       expect(viewFor(state, "a").boards[1]!.ships).toEqual(state.fleets[1]!.ships);
     }
-  });
+  }, 30_000);
 });

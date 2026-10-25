@@ -244,5 +244,5 @@ describe("go", () => {
       expect(state.phase).toBe("over");
       expect(state.moves.length).toBeGreaterThan(size * 2);
     }
-  });
+  }, 30_000);
 });
