@@ -72,7 +72,7 @@
 /* ---------- setup ---------- */
 .lfs-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Touch: the square tapped once is boxed in pencil, its row and column shaded so it's easy
+/* Touch: the square tapped once is boxed, its row and column shaded so it's easy
    to find; the button to ink it is under the sheet, so nothing covers it. */
 .lfs-picked { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: var(--accent); stroke-width: 7; stroke-dasharray: 16 8; animation: lfs-picked 1.1s ease-in-out infinite alternate; }
 .lfs-picked-band { fill: color-mix(in srgb, var(--accent) 10%, transparent); }
@@ -82,4 +82,3 @@
   .lfs-picked { animation: none; }
 }
 .lfs-pencilled { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
-}
