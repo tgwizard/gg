@@ -1,27 +1,37 @@
 /**
- * Othello for two, as a state machine around ./rules.
+ * Othello for two, as a state machine around ./rules, at a kit duel table (two seats,
+ * games in a series, colors swapping every game; see kit/duel).
  *
- * The first game starts when both seats fill, and "Play again" starts the next with
- * colors swapped. Black moves first. Someone with no move passes, and the server does
- * that for them at once (it's never a choice), so the game only ever waits on a player
- * who can move. It ends when neither can: most discs wins. It can also end off the
- * board: resigning, running out of time, leaving. Leaving before you've moved calls
- * the game off.
+ * Black moves first. Someone with no move passes, and the server does that for them at
+ * once (it's never a choice), so the game only ever waits on a player who can move. It
+ * ends when neither can: most discs wins. It can also end off the board: resigning,
+ * running out of time, leaving.
  *
- * Clocks work like chess clocks: each side has `minutes` and gains `increment` seconds
- * per move, and only the side to move runs down; its flag is a timer. With `minutes` 0
- * there's no clock.
- *
- * Nothing is hidden, but the view is still built field by field.
+ * Clocks are chess clocks (kit/duel `fischer`). Nothing is hidden, but the view is still
+ * built field by field.
  */
-import { emptySeating, requireSeat, type Seat, type Seating, seatOf, sitDown, standUp } from "../kit/seating";
-import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
+import {
+  actingColor,
+  beginDuel,
+  checkDuel,
+  checkRematch,
+  type Duel,
+  type DuelSpec,
+  type DuelView,
+  duelView,
+  emptyDuel,
+  endDuel,
+  fischer,
+  leaveDuel,
+  type Side,
+  sitDuel,
+  waitingOnColor,
+} from "../kit/duel";
+import { nextTimer, takeDueTimer } from "../kit/timers";
 import { type GameContext, GameError } from "../types";
 import { type Color, count, flipsFor, legalMoves, other, parseSquare, play, squareName, START_BOARD } from "./rules";
 
-/** Seat 0 or 1. */
-export type Side = 0 | 1;
-export type OthelloSeat = Seat & { wins: number };
+export type { Side };
 
 export interface OthelloConfig {
   /** Minutes on each clock; 0 = no clock. */
@@ -47,128 +57,64 @@ export interface PlayedMove {
   flips: number[];
 }
 
-export interface OthelloState extends Seating<OthelloSeat> {
+export interface OthelloState extends Duel<Color> {
   config: OthelloConfig;
-  phase: "waiting" | "playing" | "over";
-  game: number;
-  /** The seat playing Black (who opens) this game; swaps every game. */
-  blackSeat: Side;
-  /** Who plays each color this (or the last) game, kept after they leave so the result can name them. */
-  sides: { b: string; w: string } | null;
   board: string;
   turn: Color;
   moves: PlayedMove[];
-  /** Milliseconds left on each clock, as of `clockSince` for the side to move. Null when untimed. */
   clock: { b: number; w: number } | null;
   clockSince: number;
   result: OthelloResult | null;
-  draws: number;
-  timers: Timers<"flag">;
 }
+
+export const SPEC: DuelSpec<Color> = { name: "Othello", colors: ["b", "w"] };
 
 export function createState(config: OthelloConfig): OthelloState {
-  return {
-    config,
-    ...emptySeating<OthelloSeat>(2),
-    phase: "waiting",
-    game: 0,
-    // Swapped as each game starts, so seat 0 has Black in the first.
-    blackSeat: 1,
-    sides: null,
-    board: START_BOARD,
-    turn: "b",
-    moves: [],
-    clock: null,
-    clockSince: 0,
-    result: null,
-    draws: 0,
-    timers: {},
-  };
+  return { config, ...emptyDuel<Color>(), board: START_BOARD, turn: "b", moves: [], clock: null, clockSince: 0, result: null };
 }
 
-const bothSeated = (state: OthelloState) => state.seats.every(Boolean);
-export const seatColor = (state: OthelloState, seat: number): Color => (seat === state.blackSeat ? "b" : "w");
-const seatOfColor = (state: OthelloState, c: Color): Side => (c === "b" ? state.blackSeat : ((1 - state.blackSeat) as Side));
 const hasMoved = (state: OthelloState, c: Color) => state.moves.some((m) => m.by === c && m.at !== null);
-
-// --- seating -------------------------------------------------------------------
-
-export function sit(state: OthelloState, playerId: string, seat: number, ctx: GameContext) {
-  sitDown(state, playerId, seat, () => ({ wins: 0 }));
-  if (state.phase === "waiting" && bothSeated(state)) startGame(state, ctx);
-}
-
-export function leave(state: OthelloState, playerId: string, ctx: GameContext) {
-  const seat = requireSeat(state, playerId);
-  if (state.phase === "playing") {
-    const c = seatColor(state, seat);
-    if (hasMoved(state, c)) finish(state, { winner: other(c), reason: "left", score: score(state) }, ctx);
-    else {
-      // Nothing lost yet: call it off, and the next game is this one again (same colors).
-      state.phase = "waiting";
-      state.blackSeat = (1 - state.blackSeat) as Side;
-      state.game--;
-      state.sides = null;
-      setTimer(state.timers, "flag", null);
-      ctx.announce(`The Othello game was called off: ${ctx.nameOf(playerId)} left before making a move.`);
-    }
-  }
-  standUp(state, playerId);
-}
-
-export function rematch(state: OthelloState, actor: string, ctx: GameContext) {
-  requireSeat(state, actor);
-  if (state.phase !== "over") throw new GameError("in_progress", "A game is already on.");
-  if (!bothSeated(state)) throw new GameError("not_enough_players", "Two players need to be seated.");
-  startGame(state, ctx);
-}
-
-export const canRematch = (state: OthelloState) => state.phase === "over" && bothSeated(state);
-
-function startGame(state: OthelloState, ctx: GameContext) {
-  state.phase = "playing";
-  state.game++;
-  state.blackSeat = (1 - state.blackSeat) as Side;
-  state.sides = { b: state.seats[state.blackSeat]!.playerId, w: state.seats[1 - state.blackSeat]!.playerId };
-  state.board = START_BOARD;
-  state.turn = "b";
-  state.moves = [];
-  const ms = state.config.minutes * 60_000;
-  state.clock = ms > 0 ? { b: ms, w: ms } : null;
-  state.clockSince = ctx.now;
-  state.result = null;
-  setFlag(state);
-}
-
-/** The side to move's clock runs out at its flag. */
-function setFlag(state: OthelloState) {
-  setTimer(state.timers, "flag", state.clock ? state.clockSince + state.clock[state.turn] : null);
-}
-
-/** Stop the side to move's clock now. */
-function stopClock(state: OthelloState, now: number) {
-  if (state.clock) state.clock[state.turn] = Math.max(0, state.clock[state.turn] - (now - state.clockSince));
-  state.clockSince = now;
-}
-
-// --- playing -------------------------------------------------------------------
-
 const score = (state: OthelloState) => {
   const { b, w } = count(state.board);
   return { b, w };
 };
 
+// --- seating -------------------------------------------------------------------
+
+export function sit(state: OthelloState, playerId: string, seat: number, ctx: GameContext) {
+  if (sitDuel(state, playerId, seat)) startGame(state, ctx);
+}
+
+export function leave(state: OthelloState, playerId: string, ctx: GameContext) {
+  leaveDuel(state, SPEC, playerId, ctx, {
+    moved: (c) => hasMoved(state, c),
+    forfeit: (c) => finish(state, { winner: other(c), reason: "left", score: score(state) }, ctx),
+  });
+}
+
+export function rematch(state: OthelloState, actor: string, ctx: GameContext) {
+  checkRematch(state, actor);
+  startGame(state, ctx);
+}
+
+function startGame(state: OthelloState, ctx: GameContext) {
+  beginDuel(state, SPEC);
+  state.board = START_BOARD;
+  state.turn = "b";
+  state.moves = [];
+  state.result = null;
+  fischer.start(state, SPEC, ctx.now);
+}
+
+// --- playing -------------------------------------------------------------------
+
 export function move(state: OthelloState, actor: string, square: string, ctx: GameContext) {
-  const seat = requireSeat(state, actor);
-  if (state.phase !== "playing") throw new GameError("not_playing", "There's no game on.");
-  const c = seatColor(state, seat);
-  if (state.turn !== c) throw new GameError("not_your_turn", "It's not your move.");
+  const c = actingColor(state, SPEC, actor, state.turn);
   const sq = parseSquare(square);
   if (sq === null || state.board[sq] !== ".") throw new GameError("illegal_move", "That square is taken.");
   if (!flipsFor(state.board, c, sq).length) throw new GameError("illegal_move", "A disc has to trap at least one of theirs in a line.");
 
-  stopClock(state, ctx.now);
-  if (state.clock) state.clock[c] += state.config.increment * 1000;
+  fischer.stop(state, c, ctx.now, true);
   const after = play(state.board, c, sq);
   state.board = after.board;
   state.moves.push({ by: c, at: sq, flips: after.flips });
@@ -179,7 +125,7 @@ export function move(state: OthelloState, actor: string, square: string, ctx: Ga
     // They're stuck: they pass, and it's yours again.
     state.moves.push({ by: them, at: null, flips: [] });
   } else return finishOnBoard(state, ctx);
-  setFlag(state);
+  fischer.flag(state, state.turn);
 }
 
 function finishOnBoard(state: OthelloState, ctx: GameContext) {
@@ -188,21 +134,14 @@ function finishOnBoard(state: OthelloState, ctx: GameContext) {
 }
 
 export function resign(state: OthelloState, actor: string, ctx: GameContext) {
-  const seat = requireSeat(state, actor);
-  if (state.phase !== "playing") throw new GameError("not_playing", "There's no game on.");
-  finish(state, { winner: other(seatColor(state, seat)), reason: "resign", score: score(state) }, ctx);
+  const c = actingColor(state, SPEC, actor);
+  finish(state, { winner: other(c), reason: "resign", score: score(state) }, ctx);
 }
 
 function finish(state: OthelloState, result: OthelloResult, ctx: GameContext) {
-  stopClock(state, ctx.now);
-  state.phase = "over";
+  fischer.stop(state, state.turn, ctx.now);
   state.result = result;
-  setTimer(state.timers, "flag", null);
-  if (result.winner) {
-    const seat = state.seats[seatOfColor(state, result.winner)];
-    if (seat?.playerId === state.sides![result.winner]) seat.wins++;
-  } else state.draws++;
-  ctx.announce(`Othello game ${state.game}: ${resultText(result, (c) => ctx.nameOf(state.sides![c]))}`);
+  endDuel(state, SPEC, result.winner, resultText(result, (c) => ctx.nameOf(state.sides![c])), ctx);
 }
 
 /** "Alice wins, 40–24." / "A draw, 32–32." */
@@ -237,23 +176,17 @@ export function onDeadline(state: OthelloState, ctx: GameContext) {
 // --- who and what --------------------------------------------------------------
 
 export function waitingOn(state: OthelloState): string[] {
-  if (state.phase !== "playing") return [];
-  return [state.seats[seatOfColor(state, state.turn)]!.playerId];
+  return state.phase === "playing" ? waitingOnColor(state, SPEC, state.turn) : [];
 }
 
 export function checkInvariants(state: OthelloState) {
+  checkDuel(state, SPEC);
+  fischer.check(state);
   if (!/^[bw.]{64}$/.test(state.board)) throw new Error("a malformed board");
   const placed = state.moves.filter((m) => m.at !== null);
   if (64 - count(state.board).empty !== 4 + placed.length) throw new Error("discs and moves out of step");
   if (placed.some((m) => state.board[m.at!] === ".")) throw new Error("a move on a square that's empty");
-  if (state.clock && (state.clock.b < 0 || state.clock.w < 0)) throw new Error("negative clock");
-  if (state.phase === "playing") {
-    if (!bothSeated(state)) throw new Error("playing without two players");
-    for (const c of ["b", "w"] as const) if (state.seats[seatOfColor(state, c)]!.playerId !== state.sides?.[c]) throw new Error(`${c} isn't who's seated`);
-    if (!legalMoves(state.board, state.turn).length) throw new Error("waiting on a side that can't move");
-    if (state.result) throw new Error("a result while playing");
-  }
-  if (state.phase === "over" && !state.result) throw new Error("over without a result");
+  if (state.phase === "playing" && !legalMoves(state.board, state.turn).length) throw new Error("waiting on a side that can't move");
 }
 
 // --- views ---------------------------------------------------------------------
@@ -265,15 +198,8 @@ export interface LastMove {
   flipped: string[];
 }
 
-export interface OthelloView {
+export interface OthelloView extends DuelView<Color> {
   config: OthelloConfig;
-  seats: (OthelloSeat | null)[];
-  phase: OthelloState["phase"];
-  game: number;
-  /** Who plays each color this (or the last) game. */
-  sides: { b: string; w: string } | null;
-  /** The seat playing Black this (or the last) game; while waiting, in the next. */
-  blackSeat: Side;
   /** 64 cells, row by row from a1 at the top left: "b", "w" or ".". */
   board: string;
   /** The same as 8 rows, row 1 (the top) first. */
@@ -289,9 +215,6 @@ export interface OthelloView {
   /** Milliseconds left on each clock as of `since`; the `running` side's has been ticking since then. */
   clock: { b: number; w: number; since: number; running: Color | null } | null;
   result: OthelloResult | null;
-  draws: number;
-  canRematch: boolean;
-  you: { seat: Side | null; color: Color | null };
 }
 
 export function lastMoveView(moves: PlayedMove[]): { lastMove: LastMove | null; passed: Color | null } {
@@ -304,25 +227,16 @@ export function lastMoveView(moves: PlayedMove[]): { lastMove: LastMove | null; 
 }
 
 export function viewFor(state: OthelloState, viewer: string): OthelloView {
-  const seat = seatOf(state, viewer);
-  const blackSeat: Side = state.phase === "waiting" ? ((1 - state.blackSeat) as Side) : state.blackSeat;
   return {
+    ...duelView(state, SPEC, viewer),
     config: { minutes: state.config.minutes, increment: state.config.increment },
-    seats: state.seats.map((s) => (s ? { playerId: s.playerId, sittingOut: s.sittingOut, wins: s.wins } : null)),
-    phase: state.phase,
-    game: state.game,
-    sides: state.sides ? { b: state.sides.b, w: state.sides.w } : null,
-    blackSeat,
     board: state.board,
     rows: Array.from({ length: 8 }, (_, r) => state.board.slice(r * 8, r * 8 + 8)),
     turn: state.turn,
     score: score(state),
     moves: state.moves.map((m) => ({ by: m.by, square: m.at === null ? null : squareName(m.at) })),
     ...lastMoveView(state.moves),
-    clock: state.clock ? { b: state.clock.b, w: state.clock.w, since: state.clockSince, running: state.phase === "playing" ? state.turn : null } : null,
+    clock: fischer.view(state, state.phase === "playing" ? state.turn : null),
     result: state.result ? { winner: state.result.winner, reason: state.result.reason, score: { ...state.result.score } } : null,
-    draws: state.draws,
-    canRematch: canRematch(state),
-    you: { seat: seat < 0 ? null : (seat as Side), color: seat < 0 ? null : seat === blackSeat ? "b" : "w" },
   };
 }

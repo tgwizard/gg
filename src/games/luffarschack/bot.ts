@@ -259,7 +259,7 @@ export function choose(board: string, n: number, me: "x" | "o", allowed: number[
 
 export const luffarschackBot: GameBot<LuffaView, LuffaOp> = {
   easy(view, ops, rand) {
-    const me = view.you.piece;
+    const me = view.you.color;
     if (!me || view.phase !== "playing" || view.turn !== me) return null;
     const allowed = ops.flatMap((op) => {
       const cell = op.type === "mark" ? parseSquare(op.square, view.size) : null;

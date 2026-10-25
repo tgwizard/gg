@@ -3,8 +3,8 @@ import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers, seatOf } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import { othelloBot } from "./bot";
+import { canRematch, colorOfSeat } from "../kit/duel";
 import {
-  canRematch,
   checkInvariants,
   createState,
   leave,
@@ -16,7 +16,7 @@ import {
   onDeadline,
   rematch,
   resign,
-  seatColor,
+  SPEC,
   sit,
   viewFor,
   waitingOn,
@@ -72,7 +72,7 @@ export const othello: GameDefinition<OthelloState, OthelloOp, OthelloView, Othel
     const ops: OthelloOp[] = legalLobbyOps(state, player);
     if (seat < 0) return ops;
     if (state.phase === "playing") {
-      const c = seatColor(state, seat);
+      const c = colorOfSeat(state, SPEC, seat);
       if (state.turn === c) for (const sq of legalMoves(state.board, c)) ops.push({ type: "move", square: squareName(sq) });
       ops.push({ type: "resign" });
     }

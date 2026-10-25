@@ -1,12 +1,10 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { reducedMotion } from "../../kit/ui/Flights";
+import { useMemo, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
-import { GameOver } from "../../kit/ui/GameOver";
-import { PlayerPlate } from "../../kit/ui/PlayerPlate";
+import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, nextStarter, playerOf, SeatPrompt, useResultDelay, winsText } from "../../kit/ui/Duel";
 import { useSend } from "../../kit/ui/useSend";
 import { playerStyle, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
-import { type FourView, resultText, type Side } from "../engine";
+import { type FourView, resultText, SPEC } from "../engine";
 import type { FourOp } from "../index";
 import { drop, fourThrough, landing, other, type Piece } from "../rules";
 import { Board } from "./Board";
@@ -20,9 +18,10 @@ const RESULT_DELAY_MS = 1600;
 
 export function FourGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
+  const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
 
-  const myPiece = view.you.piece;
+  const myPiece = view.you.color;
   const size = view.size;
   // Your move shows at once; it's taken back if the server says no.
   const [pending, setPending] = useState<{ base: string; column: number } | null>(null);
@@ -38,102 +37,100 @@ export function FourGame({ view, me, members, connected, sendOp, serverNow }: Pr
     if (!(await sendOp({ type: "drop", column }))) setPending(null);
   };
 
-  const mySeat = view.you.seat;
-  const playing = view.phase === "playing";
-  const myTurn = playing && myPiece === view.turn;
-  const open = ([0, 1] as Side[]).filter((s) => !view.seats[s]);
-  const prompt: "pick" | "wait" | null = view.phase !== "waiting" ? null : mySeat === null ? "pick" : "wait";
+  const myTurn = view.phase === "playing" && myPiece === view.turn;
   const bottom: Piece = myPiece ?? "x";
-
-  /** Who plays a piece: whoever's in its seat, or (after a game) whoever played it. */
-  const playerOf = (p: Piece): string | null => {
-    const seat = p === "x" ? view.xSeat : 1 - view.xSeat;
-    return view.seats[seat]?.playerId ?? (view.phase === "over" ? (view.sides?.[p] ?? null) : null);
-  };
   const colorOf = usePlayerColors();
   const colorFor = (p: Piece) => {
-    const id = playerOf(p);
+    const id = playerOf(view, SPEC.colors, p);
     // An open seat gets a stand-in color, far from the other side's.
     return id ? colorOf(id) : p === "x" ? 0 : 6;
   };
   const colors = discColors({ x: colorFor("x"), o: colorFor("o") }, myPiece ?? "x");
-
   // The results wait a moment after a game ends on the board while you watch, so the winning line is seen first.
-  const over = view.phase === "over" && !!view.result;
-  const [showResult, setShowResult] = useState(over);
-  const was = useRef({ phase: view.phase, game: view.game });
-  useEffect(() => {
-    const before = was.current;
-    was.current = { phase: view.phase, game: view.game };
-    if (!over) return setShowResult(false);
-    const live = before.phase === "playing" && before.game === view.game && (view.result!.reason === "four" || view.result!.reason === "full");
-    if (!live || reducedMotion()) return setShowResult(true);
-    const t = setTimeout(() => setShowResult(true), RESULT_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [over, view.game]);
+  const showResult = useResultDelay(view, (reason) => reason === "four" || reason === "full", RESULT_DELAY_MS);
 
-  const side = (p: Piece, where: "top" | "bottom") => (
-    <SidePlate key={p} where={where} piece={p} color={colors[p]} view={view} playerId={playerOf(p)} me={me} name={name} online={(id) => members.get(id)?.online !== false} serverNow={serverNow} />
-  );
+  const side = (p: Piece, where: "top" | "bottom") => {
+    const order = view.phase === "over" ? (p === "x" ? "Started" : "Second") : p === "x" ? "Starts" : "Second";
+    return (
+      <DuelSide
+        key={p}
+        view={view}
+        colors={SPEC.colors}
+        color={p}
+        where={where}
+        me={me}
+        name={name}
+        online={online}
+        testId={`fiar-side-${p}`}
+        clock={view.clock && <Clock clock={view.clock} side={p} serverNow={serverNow} testId={`fiar-clock-${p}`} />}
+      >
+        <span className="fiar-plate-disc">
+          <Mini color={colors[p]} />
+          {order}
+        </span>
+        <span className="duel-wins">{winsText(view.seats.find((s) => s?.playerId === playerOf(view, SPEC.colors, p)))}</span>
+      </DuelSide>
+    );
+  };
 
   return (
-    <div className="fiar" style={{ "--ratio": (size.columns + 0.6) / (size.rows + 1.74) } as CSSProperties} data-testid="fiar">
-      <div className="fiar-grid">
-        {side(other(bottom), "top")}
-        <div className="fiar-board-wrap">
-          <Board
-            size={size}
-            board={shown.board}
-            game={view.game}
-            last={view.phase === "waiting" ? null : shown.last}
-            line={shown.line}
-            colors={colors}
-            movable={myTurn && connected && shown.board === view.board ? myPiece : null}
-            onDrop={move}
-          >
-            {prompt && (
-              <div className="fiar-prompt-backdrop">
-                {prompt === "pick" ? (
-                  <div className="fiar-prompt box" role="dialog" aria-label="Take a seat">
-                    <h3 className="display">{open.length === 2 ? "Play Four in a Row" : `Take on ${name(view.seats[1 - open[0]!]!.playerId)}`}</h3>
-                    <p className="muted">{open.length === 2 ? "Sit down and someone else takes the other side. Your discs are your color." : "The game starts as soon as you sit down."}</p>
-                    <button className="btn primary big" disabled={!connected || busy} onClick={() => send({ type: "sit", seat: open[0]! })} data-testid="fiar-sit">
-                      Take a seat
-                    </button>
-                  </div>
-                ) : (
-                  <div className="fiar-prompt box" role="status">
-                    <h3 className="display">Waiting for an opponent</h3>
-                    <p className="muted">Share the room link (the people icon by the room name, at the top) so someone can take the other side.</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </Board>
-        </div>
-        {side(bottom, "bottom")}
-
-        <div className="fiar-panel box">
-          <Moves moves={view.moves} colors={colors} />
+    <DuelTable
+      className="fiar"
+      testId="fiar"
+      ratio={(size.columns + 0.6) / (size.rows + 1.74)}
+      max={960}
+      top={side(other(bottom), "top")}
+      bottom={side(bottom, "bottom")}
+      board={
+        <Board
+          size={size}
+          board={shown.board}
+          game={view.game}
+          last={view.phase === "waiting" ? null : shown.last}
+          line={shown.line}
+          colors={colors}
+          movable={myTurn && connected && shown.board === view.board ? myPiece : null}
+          onDrop={move}
+        >
+          <SeatPrompt
+            view={view}
+            game="Four in a Row"
+            blurb="Sit down and someone else takes the other side. Your discs are your color."
+            name={name}
+            disabled={!connected || busy}
+            send={send}
+            testId="fiar-sit"
+          />
+        </Board>
+      }
+      panel={
+        <>
+          <DuelMoves count={view.moves.length} label="Moves (the column of each disc)" testId="fiar-moves">
+            {view.moves.map((m, i) => (
+              <li key={i} className={i === view.moves.length - 1 ? "last" : ""}>
+                <span className="duel-move-num">{i + 1}</span>
+                <Mini color={colors[m.by]} />
+                {m.column}
+              </li>
+            ))}
+          </DuelMoves>
           {view.lastMove && view.phase !== "waiting" && <LastMoveLine view={view} color={colors[view.lastMove.by]} me={me} name={name} />}
-          <Status view={view} me={me} name={name} myTurn={myTurn} />
-          <Controls view={view} busy={busy} connected={connected} send={send} />
-        </div>
-      </div>
-
-      <FourResult view={view} open={showResult} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={busy || !connected} />
-
-      {mySeat !== null && (
-        <div className="table-footer">
-          <div className="table-footer-log" />
-          <div className="table-footer-actions">
-            <button className="btn ghost small" disabled={!connected || busy} onClick={() => send({ type: "leave" })}>
-              {playing ? (view.moves.some((m) => m.by === myPiece) ? "Resign & leave" : "Leave (calls the game off)") : "Leave seat"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+          <DuelStatus
+            view={view}
+            me={me}
+            name={name}
+            myTurn={myTurn}
+            result={(who) => resultText(view.result!, who)}
+            intro="Get four in a row: across, up and down, or diagonally."
+            testId="fiar-status"
+          />
+          <DuelControls view={view} busy={busy} connected={connected} send={send} testId="fiar" aside={view.phase === "playing" && view.you.color && <span className="muted duel-keys">← → and Enter to play</span>} />
+        </>
+      }
+    >
+      <FourResult view={view} open={showResult} me={me} name={name} busy={busy} connected={connected} send={send} />
+      <DuelFooter view={view} moved={view.moves.some((m) => m.by === myPiece)} busy={busy} connected={connected} send={send} />
+    </DuelTable>
   );
 }
 
@@ -142,67 +139,7 @@ function Mini({ color, label }: { color: number; label?: string }) {
   return <i className="fiar-mini" style={playerStyle(color)} aria-label={label} aria-hidden={label ? undefined : true} />;
 }
 
-// --- the players --------------------------------------------------------------
-
-function SidePlate(props: {
-  where: "top" | "bottom";
-  piece: Piece;
-  color: number;
-  view: FourView;
-  playerId: string | null;
-  me: string;
-  name(id: string): string;
-  online(id: string): boolean;
-  serverNow: number;
-}) {
-  const { view, piece: p, playerId } = props;
-  const seat = view.seats.find((s) => s?.playerId === playerId) ?? null;
-  const won = view.phase === "over" && view.result?.winner === p;
-  const toMove = view.phase === "playing" && view.turn === p;
-  const order = view.phase === "over" ? (p === "x" ? "Started" : "Second") : p === "x" ? "Starts" : "Second";
-  return (
-    <div className={`fiar-side ${props.where}`} data-testid={`fiar-side-${p}`}>
-      {playerId ? (
-        <PlayerPlate playerId={playerId} name={props.name(playerId)} you={playerId === props.me} online={props.online(playerId)} active={toMove} winner={won} dim={!seat}>
-          <div className="plate-line fiar-plate-line">
-            <span className="fiar-plate-disc">
-              <Mini color={props.color} />
-              {order}
-            </span>
-            <span className="fiar-wins">{seat ? `${seat.wins} ${seat.wins === 1 ? "win" : "wins"}` : "left"}</span>
-          </div>
-        </PlayerPlate>
-      ) : (
-        <div className="fiar-open-seat">
-          <span className="label">Open seat</span>
-        </div>
-      )}
-      {view.clock && <Clock clock={view.clock} side={p} serverNow={props.serverNow} testId={`fiar-clock-${p}`} />}
-    </div>
-  );
-}
-
 // --- the panel ----------------------------------------------------------------
-
-function Moves({ moves, colors }: { moves: FourView["moves"]; colors: { x: number; o: number } }) {
-  const ref = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, left: el.scrollWidth });
-  }, [moves.length]);
-  return (
-    <ol className="fiar-moves" ref={ref} aria-label="Moves (the column of each disc)" data-testid="fiar-moves">
-      {moves.length === 0 && <li className="fiar-moves-empty muted">No discs yet.</li>}
-      {moves.map((m, i) => (
-        <li key={i} className={i === moves.length - 1 ? "last" : ""}>
-          <span className="fiar-move-num">{i + 1}</span>
-          <Mini color={colors[m.by]} />
-          {m.column}
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 /** The last move in words: "Bob dropped a disc in column 4." */
 function LastMoveLine({ view, color, me, name }: { view: FourView; color: number; me: string; name(id: string): string }) {
@@ -210,128 +147,35 @@ function LastMoveLine({ view, color, me, name }: { view: FourView; color: number
   const id = view.sides?.[last.by];
   const who = id === me ? "You" : id ? name(id) : "Someone";
   return (
-    <div className="fiar-last" data-testid="fiar-last">
+    <div className="duel-last" data-testid="fiar-last">
       <Mini color={color} /> {who} dropped a disc in column {last.column}.
     </div>
   );
 }
 
-function Status({ view, me, name, myTurn }: { view: FourView; me: string; name(id: string): string; myTurn: boolean }) {
-  let text: string;
-  let tone = "";
-  if (view.phase === "over" && view.result) {
-    const who = (p: Piece) => (view.sides?.[p] === me ? "You" : name(view.sides?.[p] ?? ""));
-    text = resultText(view.result, who).replace("You wins", "You win");
-    tone = view.result.winner === null ? "draw" : view.sides?.[view.result.winner] === me ? "won" : view.you.piece ? "lost" : "";
-  } else if (view.phase === "playing") {
-    const mover = view.sides?.[view.turn];
-    text = myTurn ? "Your move." : `${mover ? name(mover) : "The other side"} to move…`;
-    if (myTurn) tone = "turn";
-  } else text = view.game === 0 ? "Get four in a row: across, up and down, or diagonally." : "The game was called off. Waiting for two players.";
-  return (
-    <div className={`fiar-status ${tone}`} aria-live="polite" data-testid="fiar-status">
-      {text}
-    </div>
-  );
-}
-
-function Controls(props: { view: FourView; busy: boolean; connected: boolean; send(op: FourOp): Promise<boolean> }) {
-  const { view, send } = props;
-  const [confirm, setConfirm] = useState(false);
-  const disabled = props.busy || !props.connected;
-  const playing = view.phase === "playing" && view.you.piece !== null;
-  useEffect(() => setConfirm(false), [view.phase, view.game]);
-
-  if (playing && confirm) {
-    return (
-      <div className="fiar-controls">
-        <span>Resign this game?</span>
-        <span className="row">
-          <button className="btn danger small" disabled={disabled} onClick={() => send({ type: "resign" })} data-testid="fiar-resign-yes">
-            Resign
-          </button>
-          <button className="btn small" onClick={() => setConfirm(false)}>
-            Keep playing
-          </button>
-        </span>
-      </div>
-    );
-  }
-  if (playing) {
-    return (
-      <div className="fiar-controls">
-        <button className="btn small" disabled={disabled} onClick={() => setConfirm(true)} data-testid="fiar-resign">
-          ⚑ Resign
-        </button>
-        <span className="muted fiar-keys">← → and Enter to play</span>
-      </div>
-    );
-  }
-  const openSeat = ([0, 1] as Side[]).find((s) => !view.seats[s]);
-  if (view.phase !== "over") return null;
-  if (view.you.seat !== null && !view.canRematch) {
-    return (
-      <div className="fiar-controls">
-        <span className="muted">Waiting for an opponent to sit down.</span>
-      </div>
-    );
-  }
-  if (view.you.seat === null && openSeat !== undefined) {
-    return (
-      <div className="fiar-controls">
-        <button className="btn" disabled={disabled} onClick={() => send({ type: "sit", seat: openSeat })}>
-          Take the open seat
-        </button>
-      </div>
-    );
-  }
-  return null;
-}
-
 const HOW = { resign: "by resignation", timeout: "on time", left: "(the other player left)" } as const;
 
 /** The end of a game: who won and how, and the score between the two in this room. */
-function FourResult(props: { view: FourView; open: boolean; me: string; name(id: string): string; rematch: (() => void) | null; disabled: boolean }) {
-  const { view, me, name } = props;
+function FourResult(props: { view: FourView; open: boolean; me: string; name(id: string): string; busy: boolean; connected: boolean; send(op: FourOp): unknown }) {
+  const { view } = props;
   const r = view.result;
-  const sides = view.sides;
-  let title = "";
-  let subtitle = "";
-  if (r && sides) {
-    if (r.winner) {
-      title = sides[r.winner] === me ? "You win!" : `${name(sides[r.winner])} wins!`;
-      subtitle = r.reason === "four" ? `Four in a row, with disc ${view.moves.length}.` : `Won ${HOW[r.reason as keyof typeof HOW]}, after ${view.moves.length} discs.`;
-    } else {
-      title = "A draw";
-      subtitle = "The board is full and nobody got four in a row.";
-    }
-  }
-  const order: Piece[] = r?.winner === "o" ? ["o", "x"] : ["x", "o"];
-  // Who starts the next game, for the button.
-  const nextStarter = view.seats[view.nextXSeat]?.playerId;
-  const starts = nextStarter === me ? "you start" : nextStarter ? `${name(nextStarter)} starts` : "";
+  const discs = view.moves.length;
+  const subtitle = !r
+    ? ""
+    : r.winner === null
+      ? "The board is full and nobody got four in a row."
+      : r.reason === "four"
+        ? `Four in a row, with disc ${discs}.`
+        : `Won ${HOW[r.reason as keyof typeof HOW]}, after ${discs} discs.`;
   return (
-    <GameOver
-      open={props.open && view.phase === "over" && !!r && !!sides}
-      gameKey={view.game}
-      me={me}
-      testId="fiar-result"
-      title={title}
+    <DuelResult
+      {...props}
+      colors={SPEC.colors}
       subtitle={subtitle}
       columns={["Played", "Discs", "Wins here"]}
-      rows={order.flatMap((p) => {
-        const id = sides?.[p];
-        if (!id || !r) return [];
-        const seat = view.seats.find((s) => s?.playerId === id);
-        return [{ playerId: id, name: name(id), winner: r.winner === p, left: !seat, cells: [p === "x" ? "First" : "Second", view.moves.filter((m) => m.by === p).length, seat?.wins ?? "–"] }];
-      })}
-      actions={
-        props.rematch && (
-          <button className="btn primary" disabled={props.disabled} onClick={props.rematch}>
-            Play again{starts && ` (${starts})`}
-          </button>
-        )
-      }
+      cells={(p, seat) => [p === "x" ? "First" : "Second", view.moves.filter((m) => m.by === p).length, seat?.wins ?? "–"]}
+      again={nextStarter(view, props.me, props.name)}
+      testId="fiar-result"
     />
   );
 }

@@ -32,7 +32,7 @@ describe("luffarschack", () => {
     expect(view.rows[9]).toBe(".........xo........");
     expect(view.moves).toEqual([{ by: "x", square: "J10" }, { by: "o", square: "K10" }]);
     expect(view.lastMove).toEqual({ by: "o", square: "K10", cell: 9 * 19 + 10 });
-    expect(view.you).toEqual({ seat: 1, piece: "o" });
+    expect(view.you).toEqual({ seat: 1, color: "o" });
     expect(game.legalOps(state, "alice").filter((op) => op.type === "mark")).toHaveLength(361 - 2);
     expect(game.legalOps(state, "bob").filter((op) => op.type === "mark")).toHaveLength(0);
   });

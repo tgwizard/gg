@@ -31,7 +31,7 @@ async function open(p: Page, scenario: string) {
   await p.waitForTimeout(600);
 }
 
-const yourMove = (p: Page) => p.getByTestId("lfs-status").filter({ hasText: "Your move." }).waitFor({ timeout: 20_000 });
+const yourMove = (p: Page) => p.getByTestId("lfs-status").filter({ hasText: /^Your move/ }).waitFor({ timeout: 20_000 });
 
 /** Point at a square of the sheet (column letter and row from the top), from the square's middle. */
 async function at(p: Page, square: string): Promise<{ x: number; y: number }> {

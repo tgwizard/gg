@@ -30,7 +30,7 @@ const QUICK: Budget = { maxDepth: 4, timeMs: Infinity };
 
 export const fourInARowBot: GameBot<FourView, FourOp> = {
   easy(view, ops, rand, opts) {
-    const me = view.you.piece;
+    const me = view.you.color;
     const columns = new Set(ops.flatMap((op) => (op.type === "drop" ? [op.column] : [])));
     if (!me || view.phase !== "playing" || view.turn !== me || !columns.size) return null;
     const best = think(view, rand, opts?.quick ? QUICK : { maxDepth: MAX_DEPTH, timeMs: THINK_MS });

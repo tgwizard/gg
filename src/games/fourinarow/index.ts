@@ -3,8 +3,8 @@ import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers, seatOf } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import { fourInARowBot } from "./bot";
+import { canRematch, colorOfSeat } from "../kit/duel";
 import {
-  canRematch,
   checkInvariants,
   createState,
   type FourConfig,
@@ -16,7 +16,7 @@ import {
   onDeadline,
   rematch,
   resign,
-  seatPiece,
+  SPEC,
   sit,
   sizeOf,
   viewFor,
@@ -72,7 +72,7 @@ export const fourInARow: GameDefinition<FourState, FourOp, FourView, FourConfig>
     const ops: FourOp[] = legalLobbyOps(state, player);
     if (seat < 0) return ops;
     if (state.phase === "playing") {
-      if (state.turn === seatPiece(state, seat)) for (const c of openColumns(state.board, sizeOf(state))) ops.push({ type: "drop", column: c + 1 });
+      if (state.turn === colorOfSeat(state, SPEC, seat)) for (const c of openColumns(state.board, sizeOf(state))) ops.push({ type: "drop", column: c + 1 });
       ops.push({ type: "resign" });
     }
     if (canRematch(state)) ops.push({ type: "rematch" });

@@ -30,7 +30,7 @@ describe("four in a row", () => {
     expect(view.rows.slice(-2)).toEqual(["...o...", "...x..."]);
     expect(view.lastMove).toEqual({ by: "o", column: 4, row: 2, cell: 31 });
     expect(view.moves).toEqual([{ by: "x", column: 4 }, { by: "o", column: 4 }]);
-    expect(view.you).toEqual({ seat: 1, piece: "o" });
+    expect(view.you).toEqual({ seat: 1, color: "o" });
     expect(game.legalOps(state, "alice").filter((op) => op.type === "drop")).toHaveLength(7);
     expect(game.legalOps(state, "bob").filter((op) => op.type === "drop")).toHaveLength(0);
     play(state, ctx, [4, 4, 4, 4]);
@@ -72,7 +72,7 @@ describe("four in a row", () => {
     const loser = setup({ opener: "loser" });
     game.apply(loser.state, "bob", { type: "resign" }, loser.ctx());
     // Bob lost, so Bob starts.
-    expect(game.view(loser.state, "alice").nextXSeat).toBe(1);
+    expect(game.view(loser.state, "alice").nextOpenerSeat).toBe(1);
     game.apply(loser.state, "alice", { type: "rematch" }, loser.ctx());
     expect(loser.state.sides).toEqual({ x: "bob", o: "alice" });
     game.apply(loser.state, "alice", { type: "resign" }, loser.ctx());

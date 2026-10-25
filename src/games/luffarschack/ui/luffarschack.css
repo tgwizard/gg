@@ -1,27 +1,3 @@
-.lfs { container-type: inline-size; position: relative; display: flex; flex-direction: column; gap: 12px; }
-
-/* Stacked (narrow): opponent, the sheet, you, then the status and controls. */
-.lfs-grid { display: flex; flex-direction: column; gap: 10px; }
-.lfs-sheet-wrap { width: min(100%, max(280px, (100dvh - 250px) * var(--ratio))); margin: 0 auto; }
-
-/* Wide: the sheet as big as the screen allows, the players and the panel beside it, you at the bottom. */
-@container (min-width: 760px) {
-  .lfs-grid {
-    --sheet-w: clamp(300px, min(100cqi - 318px, (100dvh - 150px) * var(--ratio)), 1000px);
-    display: grid;
-    grid-template-columns: var(--sheet-w) minmax(260px, 300px);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: "sheet top" "sheet panel" "sheet bottom";
-    justify-content: center;
-    gap: 12px 18px;
-    height: calc(var(--sheet-w) / var(--ratio));
-  }
-  .lfs-sheet-wrap { grid-area: sheet; width: 100%; align-self: start; }
-  .lfs-side.top { grid-area: top; }
-  .lfs-side.bottom { grid-area: bottom; }
-  .lfs-panel { grid-area: panel; align-self: start; }
-}
-
 /* ---------- the sheet ---------- */
 /* A sheet of squared paper: faint blue squares, a red margin, a little grain and light, and a soft shadow on the table. */
 .lfs-sheet {
@@ -76,53 +52,22 @@
 }
 
 /* Waiting for players: the sheet fades under a prompt. */
-.lfs-prompt-backdrop { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; border-radius: 3px; background: var(--lfs-veil); backdrop-filter: grayscale(0.85); }
-.lfs-prompt { width: min(340px, 88%); padding: 20px 22px 22px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.lfs-prompt h3 { font-size: 1.5rem; }
-.lfs-prompt p { font-size: 14px; }
-.lfs-prompt .btn { margin-top: 8px; }
+.duel.lfs .duel-prompt-backdrop { border-radius: 3px; background: var(--lfs-veil); }
 
 /* ---------- the players ---------- */
 .lfs-glyph { display: inline-block; flex-shrink: 0; width: 15px; height: 15px; vertical-align: -2px; overflow: visible; }
 .lfs-glyph path { stroke-width: 12; }
-.lfs-side { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
-.lfs-side .plate { flex: 1; width: auto; min-width: 0; padding: 8px 12px; }
-.lfs-side .plate-name { justify-content: flex-start; }
-.lfs-side .plate-name .name { flex: 0 1 auto; }
-.lfs-side .plate .activity-bubble {
-  position: static;
-  translate: none;
-  align-self: flex-start;
-  padding: 2px 9px;
-  font-size: 11.5px;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: none;
-  box-shadow: none;
-  animation: none;
-}
-.lfs-side .plate .activity-bubble::after { display: none; }
-.lfs-plate-line { justify-content: space-between; align-items: center; }
 /* The plate's mark sits on a scrap of paper, so its ink reads the same as on the sheet. */
 .lfs-plate-piece { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; }
 .lfs-plate-piece .lfs-glyph { width: 22px; height: 22px; padding: 2px; border-radius: 3px; background: var(--lfs-paper); box-shadow: 0 1px 2px rgb(0 0 0 / 0.18); }
 .lfs-plate-order { font-weight: 600; opacity: 0.8; margin-left: -7px; }
-.lfs-wins { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
-.lfs-open-seat { flex: 1; display: grid; place-items: center; min-height: 52px; border: 2px dashed var(--line-strong); border-radius: var(--radius); }
 
 /* ---------- status and controls ---------- */
-.lfs-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
-.lfs-last-line { padding: 10px 14px 0; font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
-.lfs-last-line .lfs-glyph { padding: 1px; border-radius: 2px; background: var(--lfs-paper); width: 17px; height: 17px; vertical-align: -3px; }
+/* Nothing scrolls in this panel, so it's only as tall as what's in it. */
+@container (min-width: 760px) { .lfs .duel-panel { align-self: start; } }
+.duel-last .lfs-glyph { padding: 1px; border-radius: 2px; background: var(--lfs-paper); width: 17px; height: 17px; vertical-align: -3px; }
 .lfs-count { font-size: 12px; }
-.lfs-last-line + .lfs-status { padding-top: 4px; }
-.lfs-status { padding: 10px 14px; font-weight: 700; font-size: 14px; }
-.lfs-status.turn, .lfs-status.won { color: var(--gold-text); }
-.lfs-status.lost { color: var(--danger); }
 .lfs-timer { padding: 0 14px 10px; }
-.lfs-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 13px; }
-.lfs-keys { font-size: 12px; }
-@media (hover: none) { .lfs-keys { display: none; } }
 
 /* ---------- setup ---------- */
 .lfs-choices { display: flex; flex-wrap: wrap; gap: 6px; }

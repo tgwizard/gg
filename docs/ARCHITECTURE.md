@@ -194,6 +194,18 @@ can once none of its players are online).
   Because every game spells them the same way, generic players (bots, the
   conformance tests) can tell table moves from game moves.
 - `bot.ts`: `botMove`, one decision for any bot in any game (below).
+- `duel.ts`: the table for two-player board games (chess, Othello, Go, Four in a Row,
+  Luffarschack). Two seats with a running score and a series of games: the first starts
+  when both seats fill, "Play again" the next; `colors[0]` opens, alternating or (an
+  option) the loser opening; leaving forfeits a game you've moved in and calls off one
+  you haven't; a finished game is scored and announced. A game's state extends `Duel`,
+  its view `DuelView` (`openerSeat`, `sides`, `you.color`, ...), and it calls these from
+  its own ops (`sitDuel`, `actingColor`, `leaveDuel`, `endDuel`, ...), keeping its board,
+  rules and results. `fischer` is a chess clock (minutes plus an increment). Its page
+  is `ui/Duel.tsx`: `DuelTable` (the board, a player above and below it or beside it on
+  a wide screen, a panel), `DuelSide`, `SeatPrompt`, `DuelStatus`, `DuelControls`
+  (resigning behind a confirm), `DuelMoves`, `DuelResult` and `DuelFooter`; the game
+  brings its board and what's its own (chess's draw offers, Go's counting).
 - `timers.ts`: named deadlines in state (`turn`, `nextRound`, ...).
   `nextDeadline`/`onDeadline` become `nextTimer` plus a switch over
   `takeDueTimer`.

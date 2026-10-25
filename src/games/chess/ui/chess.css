@@ -1,29 +1,3 @@
-.chess { container-type: inline-size; position: relative; display: flex; flex-direction: column; gap: 12px; }
-
-/* Stacked (narrow): opponent, board, you, then the moves and controls. */
-.chess-grid { display: flex; flex-direction: column; gap: 10px; }
-.chess-board-wrap { width: min(100%, max(300px, 100dvh - 230px)); margin: 0 auto; }
-
-/* Wide: the board as big as the screen allows, the players and moves beside it, you at the bottom. */
-@container (min-width: 760px) {
-  .chess-grid {
-    --board-size: clamp(300px, min(100cqi - 318px, 100dvh - 140px), 920px);
-    display: grid;
-    grid-template-columns: var(--board-size) minmax(260px, 300px);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: "board top" "board panel" "board bottom";
-    justify-content: center;
-    gap: 12px 18px;
-    height: var(--board-size);
-  }
-  .chess-board-wrap { grid-area: board; width: 100%; height: 100%; }
-  .chess-side.top { grid-area: top; }
-  .chess-side.bottom { grid-area: bottom; }
-  .chess-panel { grid-area: panel; }
-  .chess-moves { flex: 1; flex-direction: column; overflow: hidden auto; }
-  .chess-moves li { display: grid; }
-}
-
 /* ---------- the board ---------- */
 .chess-board-wrap {
   container-type: inline-size;
@@ -114,81 +88,24 @@
 .chess-promo-pick:hover, .chess-promo-pick:focus-visible { border-radius: 6px; background: var(--gold); }
 .chess-promo-pick img { width: 100%; height: 100%; }
 
-/* Waiting for players: the board greys out under a prompt. */
-.chess-prompt-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  background: rgb(244 237 225 / 0.55);
-  backdrop-filter: grayscale(0.85);
-}
-[data-mode="dark"] .chess-prompt-backdrop { background: rgb(27 23 19 / 0.55); }
-.chess-prompt {
-  width: min(340px, 88%);
-  padding: 20px 22px 22px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-  cursor: default;
-}
-.chess-prompt h3 { font-size: 1.5rem; }
-.chess-prompt p { font-size: 14px; }
-.chess-prompt .btn { margin-top: 8px; }
-
 /* ---------- the players ---------- */
-.chess-side { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
-.chess-side .plate { flex: 1; width: auto; min-width: 0; padding: 8px 12px; }
-.chess-side .plate-name { justify-content: flex-start; }
-.chess-side .plate-name .name { flex: 0 1 auto; }
-.chess-side .plate .activity-bubble {
-  position: static;
-  translate: none;
-  align-self: flex-start;
-  padding: 2px 9px;
-  font-size: 11.5px;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: none;
-  box-shadow: none;
-  animation: none;
-}
-.chess-side .plate .activity-bubble::after { display: none; }
-.chess-plate-line { justify-content: space-between; min-height: 16px; }
 .chess-taken { display: inline-flex; align-items: center; min-width: 0; overflow: hidden; }
 .chess-taken img { width: 16px; height: 16px; margin-right: -7px; }
 .chess-taken img.gap { margin-left: 8px; }
 .chess-ahead { margin-left: 11px; font-weight: 800; font-size: 11px; }
-.chess-wins { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
 .chess-color-tag { width: 9px; height: 9px; flex-shrink: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px rgb(0 0 0 / 0.45); }
 .chess-color-tag.w { background: #fffaf0; }
 .chess-color-tag.b { background: #2b2420; box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.55); }
-.chess-open-seat {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  min-height: 52px;
-  border: 2px dashed var(--line-strong);
-  border-radius: var(--radius);
+/* ---------- the panel ---------- */
+/* Moves in pairs, a row per move number; side by side when stacked, a column beside the board. */
+.duel-moves.chess-moves { flex-wrap: nowrap; gap: 0; padding: 6px 0; max-height: none; overflow: auto hidden; mask-image: none; font-size: 14px; }
+.duel-moves.chess-moves li { display: inline-flex; grid-template-columns: 34px 1fr 1fr; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 0; font-weight: 400; }
+.duel-moves.chess-moves li:nth-child(even) { background: rgb(0 0 0 / 0.08); }
+.duel-moves.chess-moves .duel-moves-empty { padding: 6px 14px !important; background: none !important; }
+@container (min-width: 760px) {
+  .duel-panel .duel-moves.chess-moves { flex-direction: column; overflow: hidden auto; }
+  .duel-moves.chess-moves li { display: grid; }
 }
-
-/* ---------- moves, status and controls ---------- */
-.chess-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
-.chess-moves {
-  display: flex;
-  margin: 0;
-  padding: 6px 0;
-  list-style: none;
-  overflow: auto hidden;
-  font-size: 14px;
-  scrollbar-width: thin;
-}
-.chess-moves li { display: inline-flex; grid-template-columns: 34px 1fr 1fr; align-items: center; gap: 4px; padding: 2px 10px; white-space: nowrap; }
-.chess-moves li:nth-child(even) { background: rgb(0 0 0 / 0.08); }
-.chess-moves-empty { padding: 6px 14px !important; background: none !important; }
 .chess-move-num { color: var(--text-2); font-size: 12px; }
 .chess-move { padding: 1px 5px; border-radius: 5px; font-weight: 600; }
 .chess-move { display: inline-flex; align-items: center; gap: 3px; }
@@ -197,16 +114,9 @@
 .chess-move.last { background: var(--gold); color: #3a2e24; }
 .chess-move-took { width: 15px; height: 15px; opacity: 0.85; }
 /* The last move in words, with little pieces. */
-.chess-last { padding: 10px 14px 0; border-top: 1px solid var(--line); font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
-.chess-last + .chess-status { border-top: none; padding-top: 4px; }
 .chess-inline-piece { width: 18px; height: 18px; margin: -4px 2px 0 0; vertical-align: middle; }
 .chess-check-tag { display: inline-block; padding: 0 7px; border-radius: var(--pill); font-size: 12px; font-weight: 800; color: #fffaf2; background: var(--danger); }
-.chess-status { padding: 10px 14px; border-top: 1px solid var(--line); font-weight: 700; font-size: 14px; }
-.chess-status.turn, .chess-status.won { color: var(--gold-text); }
-.chess-status.check, .chess-status.lost { color: var(--danger); }
-.chess-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 13px; }
-.chess-controls:has(.row:empty) { justify-content: flex-end; }
-.chess-controls.offer { background: rgb(243 199 122 / 0.16); font-weight: 700; }
+.chess-offer { background: rgb(243 199 122 / 0.16); font-weight: 700; }
 .chess-flip { font-size: 15px; padding: 5px 10px; }
 
 /* ---------- setup ---------- */

@@ -11,7 +11,7 @@ function view(rows: string[], piece: "x" | "o" = "x"): FourView {
   const v = game.view(state, "nobody");
   const board = rows.join("");
   const discs = [...board].filter((c) => c !== ".").length;
-  return { ...v, phase: "playing", board, rows, turn: piece, moves: Array.from({ length: Math.max(discs, 12) }, () => ({ by: "x", column: 1 })), you: { seat: 0, piece } };
+  return { ...v, phase: "playing", board, rows, turn: piece, moves: Array.from({ length: Math.max(discs, 12) }, () => ({ by: "x", column: 1 })), you: { seat: 0, color: piece } };
 }
 
 const ops = (v: FourView) => Array.from({ length: v.size.columns }, (_, c) => ({ type: "drop" as const, column: c + 1 })).filter((op) => v.board[op.column - 1] === ".");

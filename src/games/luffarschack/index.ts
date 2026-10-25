@@ -3,8 +3,8 @@ import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers, seatOf } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import { luffarschackBot } from "./bot";
+import { canRematch, colorOfSeat } from "../kit/duel";
 import {
-  canRematch,
   checkInvariants,
   createState,
   boardSize,
@@ -17,7 +17,7 @@ import {
   onDeadline,
   rematch,
   resign,
-  seatPiece,
+  SPEC,
   sit,
   viewFor,
   waitingOn,
@@ -73,7 +73,7 @@ export const luffarschack: GameDefinition<LuffaState, LuffaOp, LuffaView, LuffaC
     const ops: LuffaOp[] = legalLobbyOps(state, player);
     if (seat < 0) return ops;
     if (state.phase === "playing") {
-      if (state.turn === seatPiece(state, seat)) {
+      if (state.turn === colorOfSeat(state, SPEC, seat)) {
         const n = boardSize(state);
         for (let cell = 0; cell < state.board.length; cell++) if (state.board[cell] === ".") ops.push({ type: "mark", square: squareName(n, cell) });
       }

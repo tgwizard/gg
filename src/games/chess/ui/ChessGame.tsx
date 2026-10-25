@@ -1,10 +1,9 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
-import { GameOver } from "../../kit/ui/GameOver";
-import { PlayerPlate } from "../../kit/ui/PlayerPlate";
+import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
 import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
-import { type ChessView, type LastMove, resultText, type Side } from "../engine";
+import { type ChessView, type LastMove, resultText, SPEC } from "../engine";
 import type { ChessOp } from "../index";
 import { type Color, colorOf, legalMoves, makeMove, moveFacts, other, parseFen, parseUci, type Piece, type PieceType, pieceOf, sameMove, squareName, toFen, toSan, typeOf, VALUE } from "../rules";
 import { Board, pieceSrc } from "./Board";
@@ -16,6 +15,7 @@ const PIECE_NAME: Record<PieceType, string> = { p: "pawn", n: "knight", b: "bish
 
 export function ChessGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
+  const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
 
   // Your move shows at once; it's taken back if the server says no.
@@ -37,88 +37,115 @@ export function ChessGame({ view, me, members, connected, sendOp, serverNow }: P
     if (!(await sendOp({ type: "move", move: uci }))) setPending(null);
   };
 
-  const mySeat = view.you.seat;
   const myColor = view.you.color;
   const [flipped, setFlipped] = useState(false);
   const bottom: Color = flipped ? other(myColor ?? "w") : (myColor ?? "w");
-  const playing = view.phase === "playing";
-  const myTurn = playing && myColor === view.turn;
-  const open = ([0, 1] as Side[]).filter((s) => !view.seats[s]);
-  const prompt: "pick" | "wait" | null = view.phase !== "waiting" ? null : mySeat === null ? "pick" : "wait";
-
-  /** Who sits on a color's side: whoever's in its seat, or (after a game) whoever played it. */
-  const playerOf = (c: Color): string | null => {
-    const seat = c === "w" ? view.whiteSeat : 1 - view.whiteSeat;
-    return view.seats[seat]?.playerId ?? (view.phase === "over" ? (view.sides?.[c] ?? null) : null);
-  };
+  const myTurn = view.phase === "playing" && myColor === view.turn;
   const board = useMemo(() => parseFen(shown.fen).board, [shown.fen]);
 
-  const side = (c: Color, where: "top" | "bottom") => (
-    <Side
-      key={c}
-      where={where}
-      color={c}
-      view={view}
-      playerId={playerOf(c)}
-      me={me}
-      name={name}
-      online={(id) => members.get(id)?.online !== false}
-      board={board}
-      serverNow={serverNow}
-    />
+  const side = (c: Color, where: "top" | "bottom") => {
+    const taken = takenBy(board, c);
+    const ahead = materialOf(board, c) - materialOf(board, other(c));
+    return (
+      <DuelSide
+        key={c}
+        view={view}
+        colors={SPEC.colors}
+        color={c}
+        where={where}
+        me={me}
+        name={name}
+        online={online}
+        label={COLOR_NAME[c]}
+        testId={`chess-side-${c}`}
+        clock={view.clock && <Clock clock={view.clock} side={c} serverNow={serverNow} testId={`chess-clock-${c}`} />}
+      >
+        <span className="chess-taken" aria-label={taken.length ? `has taken ${taken.length}` : undefined}>
+          {taken.map((p, i) => (
+            <img key={i} src={pieceSrc(p)} alt="" className={i > 0 && taken[i - 1] !== p ? "gap" : ""} />
+          ))}
+          {ahead > 0 && <span className="chess-ahead">+{ahead}</span>}
+        </span>
+        <span className="duel-wins">
+          <span className={`chess-color-tag ${c}`} aria-hidden />
+          {COLOR_NAME[c]} · {winsText(view.seats.find((s) => s?.playerId === playerOf(view, SPEC.colors, c)))}
+        </span>
+      </DuelSide>
+    );
+  };
+  const flip = (
+    <button type="button" className="btn ghost small chess-flip" onClick={() => setFlipped((f) => !f)} title="Flip the board" aria-label="Flip the board">
+      ⇅
+    </button>
   );
 
   return (
-    <div className="chess" data-testid="chess">
-      <div className="chess-grid">
-        {side(other(bottom), "top")}
+    <DuelTable
+      className="chess"
+      testId="chess"
+      top={side(other(bottom), "top")}
+      bottom={side(bottom, "bottom")}
+      board={
         <div className="chess-board-wrap">
           <Board fen={shown.fen} orientation={bottom} lastMove={shown.lastMove} movable={myTurn && connected && shown.fen === view.fen ? myColor : null} onMove={move}>
-            {prompt && (
-              <div className="chess-prompt-backdrop">
-                {prompt === "pick" ? (
-                  <div className="chess-prompt box" role="dialog" aria-label="Take a seat">
-                    <h3 className="display">{open.length === 2 ? "Play chess" : `Take on ${name(view.seats[1 - open[0]!]!.playerId)}`}</h3>
-                    <p className="muted">{open.length === 2 ? "Sit down and someone else takes the other side. Colors swap every game." : "The game starts as soon as you sit down."}</p>
-                    <button className="btn primary big" disabled={!connected || busy} onClick={() => send({ type: "sit", seat: open[0]! })} data-testid="chess-sit">
-                      Take a seat
-                    </button>
-                  </div>
-                ) : (
-                  <div className="chess-prompt box" role="status">
-                    <h3 className="display">Waiting for an opponent</h3>
-                    <p className="muted">Share the room link (the people icon by the room name, at the top) so someone can take the other side.</p>
-                  </div>
-                )}
-              </div>
-            )}
+            <SeatPrompt view={view} game="chess" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} disabled={!connected || busy} send={send} testId="chess-sit" />
           </Board>
         </div>
-        {side(bottom, "bottom")}
-
-        <div className="chess-panel box">
+      }
+      panel={
+        <>
           <Moves moves={view.moves} />
           {shown.lastMove && view.phase !== "waiting" && <LastMoveLine last={shown.lastMove} mover={other(parseFen(shown.fen).turn)} view={view} me={me} name={name} />}
-          <Status view={view} me={me} name={name} myTurn={myTurn} />
-          <Controls view={view} busy={busy} connected={connected} send={send} onFlip={() => setFlipped((f) => !f)} />
-        </div>
-      </div>
-
-      <ChessResult view={view} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={busy || !connected} />
-
-      <div className="table-footer">
-        <div className="table-footer-log">
-          {view.moves.length > 0 && <CopyPgn view={view} name={name} />}
-        </div>
-        {mySeat !== null && (
-          <div className="table-footer-actions">
-            <button className="btn ghost small" disabled={!connected || busy} onClick={() => send({ type: "leave" })}>
-              {playing ? (view.moves.length > (myColor === "w" ? 0 : 1) ? "Resign & leave" : "Leave (calls the game off)") : "Leave seat"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+          <DuelStatus
+            view={view}
+            me={me}
+            name={name}
+            myTurn={myTurn}
+            result={(who) => resultText(view.result!, who)}
+            intro="White moves first. Colors swap every game."
+            label={(c) => `${COLOR_NAME[c]}`}
+            yourMove={view.check ? "Your move: get your king out of check." : "Your move."}
+            {...(view.phase === "playing" && view.check ? (myTurn ? { tone: "check" } : { text: `${COLOR_NAME[view.turn]} to move${view.sides ? ` (${name(view.sides[view.turn])})` : ""}, in check…` }) : {})}
+            testId="chess-status"
+          />
+          {myColor && view.phase === "playing" && view.drawOffer === other(myColor) ? (
+            <div className="duel-controls chess-offer" data-testid="chess-draw-offer">
+              <span>{COLOR_NAME[other(myColor)]} offers a draw.</span>
+              <span className="row">
+                <button className="btn primary small" disabled={busy || !connected} onClick={() => send({ type: "acceptDraw" })}>
+                  Accept
+                </button>
+                <button className="btn small" disabled={busy || !connected} onClick={() => send({ type: "declineDraw" })}>
+                  Decline
+                </button>
+              </span>
+            </div>
+          ) : (
+            <DuelControls view={view} busy={busy} connected={connected} send={send} testId="chess" aside={flip}>
+              <button
+                className="btn small"
+                disabled={busy || !connected || !view.you.canOfferDraw}
+                onClick={() => send({ type: "offerDraw" })}
+                title={view.drawOffer === myColor ? "Your offer stands until they move" : undefined}
+                data-testid="chess-offer-draw"
+              >
+                {view.drawOffer === myColor ? "Draw offered" : "½ Offer draw"}
+              </button>
+            </DuelControls>
+          )}
+        </>
+      }
+    >
+      <ChessResult view={view} me={me} name={name} busy={busy} connected={connected} send={send} />
+      <DuelFooter
+        view={view}
+        moved={view.moves.length > (myColor === "w" ? 0 : 1)}
+        busy={busy}
+        connected={connected}
+        send={send}
+        log={view.moves.length > 0 && <CopyPgn view={view} name={name} />}
+      />
+    </DuelTable>
   );
 }
 
@@ -141,66 +168,9 @@ function materialOf(board: (Piece | null)[], c: Color) {
   return board.reduce((n, p) => (p && colorOf(p) === c ? n + VALUE[typeOf(p)] : n), 0);
 }
 
-function Side(props: {
-  where: "top" | "bottom";
-  color: Color;
-  view: ChessView;
-  playerId: string | null;
-  me: string;
-  name(id: string): string;
-  online(id: string): boolean;
-  board: (Piece | null)[];
-  serverNow: number;
-}) {
-  const { view, color: c, playerId } = props;
-  const seat = view.seats.find((s) => s?.playerId === playerId) ?? null;
-  const taken = takenBy(props.board, c);
-  const ahead = materialOf(props.board, c) - materialOf(props.board, other(c));
-  const won = view.phase === "over" && view.result?.winner === c;
-  const toMove = view.phase === "playing" && view.turn === c;
-  return (
-    <div className={`chess-side ${props.where}`} data-testid={`chess-side-${c}`}>
-      {playerId ? (
-        <PlayerPlate
-          playerId={playerId}
-          name={props.name(playerId)}
-          you={playerId === props.me}
-          online={props.online(playerId)}
-          active={toMove}
-          winner={won}
-          dim={!seat}
-        >
-          <div className="plate-line chess-plate-line">
-            <span className="chess-taken" aria-label={taken.length ? `has taken ${taken.length}` : undefined}>
-              {taken.map((p, i) => (
-                <img key={i} src={pieceSrc(p)} alt="" className={i > 0 && taken[i - 1] !== p ? "gap" : ""} />
-              ))}
-              {ahead > 0 && <span className="chess-ahead">+{ahead}</span>}
-            </span>
-            <span className="chess-wins">
-              <span className={`chess-color-tag ${c}`} aria-hidden />
-              {COLOR_NAME[c]} · {seat ? `${seat.wins} ${seat.wins === 1 ? "win" : "wins"}` : "left"}
-            </span>
-          </div>
-        </PlayerPlate>
-      ) : (
-        <div className="chess-open-seat">
-          <span className="label">Open seat · {COLOR_NAME[c]}</span>
-        </div>
-      )}
-      {view.clock && <Clock clock={view.clock} side={c} serverNow={props.serverNow} testId={`chess-clock-${c}`} />}
-    </div>
-  );
-}
-
 // --- the panel ----------------------------------------------------------------
 
 function Moves({ moves }: { moves: ChessView["moves"] }) {
-  const ref = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, left: el.scrollWidth });
-  }, [moves.length]);
   const one = (i: number) => {
     const m = moves[i];
     if (!m) return <span className="chess-move" />;
@@ -215,8 +185,7 @@ function Moves({ moves }: { moves: ChessView["moves"] }) {
   };
   const rows = Array.from({ length: Math.ceil(moves.length / 2) }, (_, i) => i);
   return (
-    <ol className="chess-moves" ref={ref} aria-label="Moves" data-testid="chess-moves">
-      {rows.length === 0 && <li className="chess-moves-empty muted">No moves yet.</li>}
+    <DuelMoves count={moves.length} label="Moves" testId="chess-moves" className="chess-moves">
       {rows.map((i) => (
         <li key={i}>
           <span className="chess-move-num">{i + 1}.</span>
@@ -224,7 +193,7 @@ function Moves({ moves }: { moves: ChessView["moves"] }) {
           {one(i * 2 + 1)}
         </li>
       ))}
-    </ol>
+    </DuelMoves>
   );
 }
 
@@ -262,108 +231,9 @@ function LastMoveLine({ last, mover, view, me, name }: { last: LastMove; mover: 
   const check = mate || last.san.endsWith("+");
   const checked = other(mover);
   return (
-    <div className={`chess-last ${last.took ? "took" : ""}`} data-testid="chess-last">
+    <div className={`duel-last ${last.took ? "took" : ""}`} data-testid="chess-last">
       {text}{" "}
       {check && <span className="chess-check-tag">{mate ? "Checkmate!" : isMe(checked) ? "You're in check!" : "Check!"}</span>}
-    </div>
-  );
-}
-
-function Status({ view, me, name, myTurn }: { view: ChessView; me: string; name(id: string): string; myTurn: boolean }) {
-  let text: string;
-  let tone = "";
-  if (view.phase === "over" && view.result) {
-    const who = (c: Color) => (view.sides?.[c] === me ? "You" : name(view.sides?.[c] ?? ""));
-    text = resultText(view.result, who).replace("You wins", "You win");
-    tone = view.result.winner === null ? "draw" : view.sides?.[view.result.winner] === me ? "won" : view.you.color ? "lost" : "";
-  } else if (view.phase === "playing") {
-    const mover = view.sides?.[view.turn];
-    text = myTurn ? (view.check ? "Your move: get your king out of check." : "Your move.") : `${COLOR_NAME[view.turn]} to move${mover ? ` (${name(mover)})` : ""}${view.check ? ", in check" : ""}…`;
-    if (myTurn) tone = view.check ? "check" : "turn";
-  } else text = view.game === 0 ? "White moves first. Colors swap every game." : "The game was called off. Waiting for two players.";
-  return (
-    <div className={`chess-status ${tone}`} aria-live="polite" data-testid="chess-status">
-      {text}
-    </div>
-  );
-}
-
-function Controls(props: { view: ChessView; busy: boolean; connected: boolean; send(op: ChessOp): Promise<boolean>; onFlip(): void }) {
-  const { view, send } = props;
-  const [confirm, setConfirm] = useState(false);
-  const disabled = props.busy || !props.connected;
-  const color = view.you.color;
-  const playing = view.phase === "playing" && color !== null && view.you.seat !== null;
-  useEffect(() => setConfirm(false), [view.phase, view.game]);
-  const flip = (
-    <button type="button" className="btn ghost small chess-flip" onClick={props.onFlip} title="Flip the board" aria-label="Flip the board">
-      ⇅
-    </button>
-  );
-
-  if (playing && view.drawOffer === other(color)) {
-    return (
-      <div className="chess-controls offer" data-testid="chess-draw-offer">
-        <span>{COLOR_NAME[other(color)]} offers a draw.</span>
-        <span className="row">
-          <button className="btn primary small" disabled={disabled} onClick={() => send({ type: "acceptDraw" })}>
-            Accept
-          </button>
-          <button className="btn small" disabled={disabled} onClick={() => send({ type: "declineDraw" })}>
-            Decline
-          </button>
-        </span>
-      </div>
-    );
-  }
-  if (playing && confirm) {
-    return (
-      <div className="chess-controls">
-        <span>Resign this game?</span>
-        <span className="row">
-          <button className="btn danger small" disabled={disabled} onClick={() => send({ type: "resign" })} data-testid="chess-resign-yes">
-            Resign
-          </button>
-          <button className="btn small" onClick={() => setConfirm(false)}>
-            Keep playing
-          </button>
-        </span>
-      </div>
-    );
-  }
-  if (playing) {
-    return (
-      <div className="chess-controls">
-        <span className="row">
-          <button
-            className="btn small"
-            disabled={disabled || !view.you.canOfferDraw}
-            onClick={() => send({ type: "offerDraw" })}
-            title={view.drawOffer === color ? "Your offer stands until they move" : undefined}
-            data-testid="chess-offer-draw"
-          >
-            {view.drawOffer === color ? "Draw offered" : "½ Offer draw"}
-          </button>
-          <button className="btn small" disabled={disabled} onClick={() => setConfirm(true)} data-testid="chess-resign">
-            ⚑ Resign
-          </button>
-        </span>
-        {flip}
-      </div>
-    );
-  }
-  const openSeat = ([0, 1] as Side[]).find((s) => !view.seats[s]);
-  return (
-    <div className="chess-controls">
-      <span className="row">
-        {view.phase === "over" && view.you.seat !== null && !view.canRematch && <span className="muted">Waiting for an opponent to sit down.</span>}
-        {view.phase === "over" && view.you.seat === null && openSeat !== undefined && (
-          <button className="btn" disabled={disabled} onClick={() => send({ type: "sit", seat: openSeat })}>
-            Take the open seat
-          </button>
-        )}
-      </span>
-      {flip}
     </div>
   );
 }
@@ -409,52 +279,20 @@ const HOW: Record<string, string> = {
 };
 
 /** The end of a game: who won and how, and the score between the two in this room. */
-function ChessResult({ view, me, name, rematch, disabled }: { view: ChessView; me: string; name(id: string): string; rematch: (() => void) | null; disabled: boolean }) {
-  const r = view.result;
-  const sides = view.sides;
-  const moves = Math.ceil(view.moves.length / 2);
-  let title = "";
-  let subtitle = "";
-  if (r && sides) {
-    if (r.winner) {
-      title = sides[r.winner] === me ? "You win!" : `${name(sides[r.winner])} wins!`;
-      subtitle = `${COLOR_NAME[r.winner]} wins ${HOW[r.reason] ?? ""} after ${moves} ${moves === 1 ? "move" : "moves"}.`;
-    } else {
-      title = "A draw";
-      subtitle = `${HOW[r.reason] ?? "Drawn"} after ${moves} ${moves === 1 ? "move" : "moves"}.`;
-    }
-  }
-  const order: Color[] = r?.winner === "b" ? ["b", "w"] : ["w", "b"];
+function ChessResult(props: { view: ChessView; me: string; name(id: string): string; busy: boolean; connected: boolean; send(op: ChessOp): unknown }) {
+  const r = props.view.result;
+  const moves = Math.ceil(props.view.moves.length / 2);
+  const after = `after ${moves} ${moves === 1 ? "move" : "moves"}`;
+  const subtitle = !r ? "" : r.winner ? `${COLOR_NAME[r.winner]} wins ${HOW[r.reason] ?? ""} ${after}.` : `${HOW[r.reason] ?? "Drawn"} ${after}.`;
   return (
-    <GameOver
-      open={view.phase === "over" && !!r && !!sides}
-      gameKey={view.game}
-      me={me}
-      testId="chess-result"
-      title={title}
+    <DuelResult
+      {...props}
+      colors={SPEC.colors}
       subtitle={subtitle}
       columns={["Played", "This game", "Wins here"]}
-      rows={order.flatMap((c) => {
-        const id = sides?.[c];
-        if (!id) return [];
-        const seat = view.seats.find((s) => s?.playerId === id);
-        return [
-          {
-            playerId: id,
-            name: name(id),
-            winner: r?.winner === c,
-            left: !seat,
-            cells: [COLOR_NAME[c], r?.winner === c ? "1" : r?.winner ? "0" : "½", seat?.wins ?? "–"],
-          },
-        ];
-      })}
-      actions={
-        rematch && (
-          <button className="btn primary" disabled={disabled} onClick={rematch}>
-            Play again (swap colors)
-          </button>
-        )
-      }
+      cells={(c, seat) => [COLOR_NAME[c], r?.winner === c ? "1" : r?.winner ? "0" : "½", seat?.wins ?? "–"]}
+      again="swap colors"
+      testId="chess-result"
     />
   );
 }

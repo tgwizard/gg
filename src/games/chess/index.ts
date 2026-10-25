@@ -3,10 +3,10 @@ import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers, seatOf } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import { chessBot } from "./bot";
+import { canRematch, colorOfSeat } from "../kit/duel";
 import {
   answerDraw,
   canOfferDraw,
-  canRematch,
   type ChessConfig,
   type ChessState,
   type ChessView,
@@ -19,7 +19,7 @@ import {
   onDeadline,
   rematch,
   resign,
-  seatColor,
+  SPEC,
   sit,
   viewFor,
   waitingOn,
@@ -84,7 +84,7 @@ export const chess: GameDefinition<ChessState, ChessOp, ChessView, ChessConfig> 
     const ops: ChessOp[] = legalLobbyOps(state, player);
     if (seat < 0) return ops;
     if (state.phase === "playing") {
-      const c = seatColor(state, seat);
+      const c = colorOfSeat(state, SPEC, seat);
       const pos = parseFen(state.fen);
       if (pos.turn === c) for (const m of legalMoves(pos)) ops.push({ type: "move", move: toUci(m) });
       if (state.drawOffer === other(c)) ops.push({ type: "acceptDraw" }, { type: "declineDraw" });

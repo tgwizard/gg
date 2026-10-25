@@ -3,9 +3,9 @@ import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { seatedPlayers, seatOf } from "../kit/seating";
 import type { GameDefinition } from "../types";
 import { goBot } from "./bot";
+import { canRematch, colorOfSeat } from "../kit/duel";
 import {
   accept,
-  canRematch,
   chainPoints,
   checkInvariants,
   createState,
@@ -21,7 +21,7 @@ import {
   rematch,
   resign,
   resume,
-  seatColor,
+  SPEC,
   sit,
   viewFor,
   waitingOn,
@@ -89,7 +89,7 @@ export const go: GameDefinition<GoState, GoOp, GoView, GoConfig> = {
     const seat = seatOf(state, player);
     const ops: GoOp[] = legalLobbyOps(state, player);
     if (seat < 0) return ops;
-    const c = seatColor(state, seat);
+    const c = colorOfSeat(state, SPEC, seat);
     const name = (p: number) => pointName(p, state.config.size);
     if (state.phase === "playing") {
       if (state.turn === c) {

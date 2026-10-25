@@ -1,16 +1,13 @@
 /**
- * Go for two, as a state machine around ./rules.
- *
- * The first game starts when both seats fill, and "Play again" starts the next with
- * colors swapped. Black moves first; White gets komi. You play a stone or pass, and two
+ * Go for two, as a state machine around ./rules, at a kit duel table (two seats, games
+ * in a series, colors swapping every game; see kit/duel). Black moves first; White gets komi. You play a stone or pass, and two
  * passes in a row end the play: the game goes to counting, where the server's guess at
  * the dead stones is shown, either player can mark a group dead or alive, and once both
  * accept the same marking the game is scored by area. Either can resume play instead,
  * to settle a disagreement on the board (the other side moves first). If counting goes
  * quiet for SETTLE_MS, the marking as it stands is scored.
  *
- * It can also end off the board: resigning, running out of time, leaving. Leaving
- * before you've moved calls the game off.
+ * It can also end off the board: resigning, running out of time, leaving.
  *
  * Clocks are byo-yomi: `minutes` of main time, then `periods` periods of `seconds`
  * each. A move made within a period keeps it; letting one run out uses it up, and
@@ -19,8 +16,26 @@
  *
  * Nothing is hidden, but the view is still built field by field.
  */
-import { emptySeating, requireSeat, type Seat, type Seating, seatOf, sitDown, standUp } from "../kit/seating";
-import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
+import {
+  actingColor,
+  beginDuel,
+  checkDuel,
+  checkRematch,
+  colorOfSeat,
+  type Duel,
+  type DuelSpec,
+  type DuelView,
+  duelView,
+  emptyDuel,
+  endDuel,
+  inGame,
+  leaveDuel,
+  type Side,
+  sitDuel,
+  waitingOnColor,
+} from "../kit/duel";
+import { requireSeat } from "../kit/seating";
+import { nextTimer, setTimer, takeDueTimer } from "../kit/timers";
 import { type GameContext, GameError } from "../types";
 import { estimateDead } from "./montecarlo";
 import {
@@ -38,8 +53,7 @@ import {
   tryPlay,
 } from "./rules";
 
-export type Side = 0 | 1;
-export type GoSeat = Seat & { wins: number };
+export type { Side };
 
 export interface GoConfig {
   size: Size;
@@ -74,13 +88,8 @@ export interface ByoClock {
   periods: number;
 }
 
-export interface GoState extends Seating<GoSeat> {
+export interface GoState extends Duel<Color, "scoring"> {
   config: GoConfig;
-  phase: "waiting" | "playing" | "scoring" | "over";
-  game: number;
-  /** The seat playing Black this game; swaps every game. */
-  blackSeat: Side;
-  sides: { b: string; w: string } | null;
   board: string;
   turn: Color;
   moves: PlayedMove[];
@@ -95,8 +104,9 @@ export interface GoState extends Seating<GoSeat> {
   /** While counting (and after a counted game): the stones marked dead, and who's accepted that. */
   scoring: { dead: number[]; accepted: { b: boolean; w: boolean } } | null;
   result: GoResult | null;
-  timers: Timers<"flag" | "settle">;
 }
+
+export const SPEC: DuelSpec<Color> = { name: "Go", colors: ["b", "w"] };
 
 /** Counting with nobody changing or accepting anything for this long scores it as marked. */
 export const SETTLE_MS = 3 * 60_000;
@@ -107,12 +117,7 @@ export function createState(config: GoConfig): GoState {
   const timed = config.minutes > 0 || (config.periods > 0 && config.seconds > 0);
   return {
     config: { ...config, ...(config.seconds > 0 ? {} : { periods: 0 }), ...(timed ? {} : { minutes: 0, periods: 0, seconds: 0 }) },
-    ...emptySeating<GoSeat>(2),
-    phase: "waiting",
-    game: 0,
-    // Swapped as each game starts, so seat 0 has Black in the first.
-    blackSeat: 1,
-    sides: null,
+    ...emptyDuel<Color>(),
     board: emptyBoard(config.size),
     turn: "b",
     moves: [],
@@ -123,60 +128,37 @@ export function createState(config: GoConfig): GoState {
     clockSince: 0,
     scoring: null,
     result: null,
-    timers: {},
   };
 }
 
-const bothSeated = (state: GoState) => state.seats.every(Boolean);
-export const seatColor = (state: GoState, seat: number): Color => (seat === state.blackSeat ? "b" : "w");
-const seatOfColor = (state: GoState, c: Color): Side => (c === "b" ? state.blackSeat : ((1 - state.blackSeat) as Side));
 const hasMoved = (state: GoState, c: Color) => state.moves.some((m) => m.by === c);
 const timed = (config: GoConfig) => config.minutes > 0 || config.periods > 0;
 const periodMs = (state: GoState) => state.config.seconds * 1000;
-const inGame = (state: GoState) => state.phase === "playing" || state.phase === "scoring";
 
 // --- seating -------------------------------------------------------------------
 
 export function sit(state: GoState, playerId: string, seat: number, ctx: GameContext) {
-  sitDown(state, playerId, seat, () => ({ wins: 0 }));
-  if (state.phase === "waiting" && bothSeated(state)) startGame(state, ctx);
+  if (sitDuel(state, playerId, seat)) startGame(state, ctx);
 }
 
 export function leave(state: GoState, playerId: string, ctx: GameContext) {
-  const seat = requireSeat(state, playerId);
-  if (inGame(state)) {
-    const c = seatColor(state, seat);
-    if (hasMoved(state, c)) finish(state, { winner: other(c), reason: "left", score: null }, ctx);
-    else {
-      // Nothing lost yet: call it off, and the next game is this one again (same colors).
-      state.phase = "waiting";
-      state.blackSeat = (1 - state.blackSeat) as Side;
-      state.game--;
-      state.sides = null;
+  leaveDuel(state, SPEC, playerId, ctx, {
+    moved: (c) => hasMoved(state, c),
+    forfeit: (c) => finish(state, { winner: other(c), reason: "left", score: null }, ctx),
+    calledOff: () => {
       state.scoring = null;
-      setTimer(state.timers, "flag", null);
-      setTimer(state.timers, "settle", null);
-      ctx.announce(`The Go game was called off: ${ctx.nameOf(playerId)} left before making a move.`);
-    }
-  }
-  standUp(state, playerId);
+    },
+  });
 }
 
 export function rematch(state: GoState, actor: string, ctx: GameContext) {
-  requireSeat(state, actor);
-  if (state.phase !== "over") throw new GameError("in_progress", "A game is already on.");
-  if (!bothSeated(state)) throw new GameError("not_enough_players", "Two players need to be seated.");
+  checkRematch(state, actor);
   startGame(state, ctx);
 }
 
-export const canRematch = (state: GoState) => state.phase === "over" && bothSeated(state);
-
 function startGame(state: GoState, ctx: GameContext) {
   const empty = emptyBoard(state.config.size);
-  state.phase = "playing";
-  state.game++;
-  state.blackSeat = (1 - state.blackSeat) as Side;
-  state.sides = { b: state.seats[state.blackSeat]!.playerId, w: state.seats[1 - state.blackSeat]!.playerId };
+  beginDuel(state, SPEC);
   state.board = empty;
   state.turn = "b";
   state.moves = [];
@@ -188,7 +170,6 @@ function startGame(state: GoState, ctx: GameContext) {
   state.clockSince = ctx.now;
   state.scoring = null;
   state.result = null;
-  setTimer(state.timers, "settle", null);
   setFlag(state);
 }
 
@@ -220,11 +201,8 @@ function stopClock(state: GoState, now: number) {
 // --- playing -------------------------------------------------------------------
 
 function mover(state: GoState, actor: string): Color {
-  const seat = requireSeat(state, actor);
-  if (state.phase !== "playing") throw new GameError("not_playing", state.phase === "scoring" ? "The game is being counted." : "There's no game on.");
-  const c = seatColor(state, seat);
-  if (state.turn !== c) throw new GameError("not_your_turn", "It's not your move.");
-  return c;
+  if (state.phase === "scoring") throw new GameError("not_playing", "The game is being counted.");
+  return actingColor(state, SPEC, actor, state.turn);
 }
 
 const ILLEGAL = {
@@ -269,7 +247,7 @@ function startCounting(state: GoState, ctx: GameContext) {
 function counter(state: GoState, actor: string): Color {
   const seat = requireSeat(state, actor);
   if (state.phase !== "scoring" || !state.scoring) throw new GameError("not_counting", "The game isn't being counted.");
-  return seatColor(state, seat);
+  return colorOfSeat(state, SPEC, seat);
 }
 
 /** Mark the chain on `point` dead, or alive again if it's marked dead. Anyone's acceptance is withdrawn. */
@@ -326,20 +304,15 @@ function scoreResult(state: GoState): GoResult {
 export function resign(state: GoState, actor: string, ctx: GameContext) {
   const seat = requireSeat(state, actor);
   if (!inGame(state)) throw new GameError("not_playing", "There's no game on.");
-  finish(state, { winner: other(seatColor(state, seat)), reason: "resign", score: null }, ctx);
+  finish(state, { winner: other(colorOfSeat(state, SPEC, seat)), reason: "resign", score: null }, ctx);
 }
 
 function finish(state: GoState, result: GoResult, ctx: GameContext) {
   stopClock(state, ctx.now);
-  state.phase = "over";
   state.result = result;
   // A counted game keeps its marking, to show the territory; any other loses it.
   if (result.reason !== "score") state.scoring = null;
-  setTimer(state.timers, "flag", null);
-  setTimer(state.timers, "settle", null);
-  const seat = state.seats[seatOfColor(state, result.winner)];
-  if (seat?.playerId === state.sides![result.winner]) seat.wins++;
-  ctx.announce(`Go game ${state.game}: ${resultText(result, (c) => ctx.nameOf(state.sides![c]))}`);
+  endDuel(state, SPEC, result.winner, resultText(result, (c) => ctx.nameOf(state.sides![c])), ctx);
 }
 
 /** "Alice wins by 6.5 points." / "Bob wins (Alice resigned)." */
@@ -375,8 +348,8 @@ export function onDeadline(state: GoState, ctx: GameContext) {
 // --- who and what --------------------------------------------------------------
 
 export function waitingOn(state: GoState): string[] {
-  if (state.phase === "playing") return [state.seats[seatOfColor(state, state.turn)]!.playerId];
-  if (state.phase === "scoring") return (["b", "w"] as const).filter((c) => !state.scoring!.accepted[c]).map((c) => state.seats[seatOfColor(state, c)]!.playerId);
+  if (state.phase === "playing") return waitingOnColor(state, SPEC, state.turn);
+  if (state.phase === "scoring") return (["b", "w"] as const).filter((c) => !state.scoring!.accepted[c]).flatMap((c) => waitingOnColor(state, SPEC, c));
   return [];
 }
 
@@ -384,21 +357,16 @@ export function waitingOn(state: GoState): string[] {
 export const chainPoints = (board: string) => chains(board).map((ch) => Math.min(...ch.stones));
 
 export function checkInvariants(state: GoState) {
+  checkDuel(state, SPEC);
   const n = state.config.size ** 2;
   if (state.board.length !== n || !/^[bw.]+$/.test(state.board)) throw new Error("a malformed board");
   for (const ch of chains(state.board)) if (!ch.liberties.length) throw new Error(`a chain at ${pointName(ch.stones[0]!, state.config.size)} with no liberties`);
   if (state.history.at(-1) !== positionKey(state.board)) throw new Error("the history doesn't end in the board");
   if (state.history.length !== 1 + state.moves.filter((m) => m.at !== null).length) throw new Error("history and moves out of step");
   if (state.clock && [state.clock.b, state.clock.w].some((c) => c.main < 0 || c.periods < 0)) throw new Error("negative clock");
-  if (inGame(state)) {
-    if (!bothSeated(state)) throw new Error("playing without two players");
-    for (const c of ["b", "w"] as const) if (state.seats[seatOfColor(state, c)]!.playerId !== state.sides?.[c]) throw new Error(`${c} isn't who's seated`);
-    if (state.result) throw new Error("a result while playing");
-  }
   if (state.phase === "scoring" ? !state.scoring : state.scoring && state.result?.reason !== "score") throw new Error("counting out of step");
   if (state.scoring?.dead.some((p) => state.board[p] === ".")) throw new Error("an empty point marked dead");
   if (state.phase === "scoring" && state.timers.settle == null) throw new Error("counting with no deadline");
-  if (state.phase === "over" && !state.result) throw new Error("over without a result");
 }
 
 // --- views ---------------------------------------------------------------------
@@ -410,15 +378,9 @@ export interface LastMove {
   captured: string[];
 }
 
-export interface GoView {
+export interface GoView extends DuelView<Color, "scoring"> {
   config: GoConfig;
   komi: number;
-  seats: (GoSeat | null)[];
-  phase: GoState["phase"];
-  game: number;
-  sides: { b: string; w: string } | null;
-  /** The seat playing Black this (or the last) game; while waiting, in the next. */
-  blackSeat: Side;
   size: Size;
   /** size×size cells, row by row from the top left: "b", "w" or ".". */
   board: string;
@@ -443,8 +405,6 @@ export interface GoView {
    */
   scoring: { dead: string[]; owner: string; score: { b: number; w: number }; accepted: { b: boolean; w: boolean }; deadline: number } | null;
   result: GoResult | null;
-  canRematch: boolean;
-  you: { seat: Side | null; color: Color | null };
 }
 
 /** Points where only the repeat rule stops the side to move. */
@@ -463,21 +423,15 @@ function koPoints(state: GoState): number[] {
 }
 
 export function viewFor(state: GoState, viewer: string): GoView {
-  const seat = seatOf(state, viewer);
   const size = state.config.size;
   const name = (p: number) => pointName(p, size);
-  const blackSeat: Side = state.phase === "waiting" ? ((1 - state.blackSeat) as Side) : state.blackSeat;
   const last = state.moves.findLast((m) => m.at !== null);
   const tail = state.moves.at(-1);
   const counted = state.scoring && countScore(state.board, state.scoring.dead);
   return {
+    ...duelView(state, SPEC, viewer),
     config: { size, minutes: state.config.minutes, periods: state.config.periods, seconds: state.config.seconds },
     komi: KOMI,
-    seats: state.seats.map((s) => (s ? { playerId: s.playerId, sittingOut: s.sittingOut, wins: s.wins } : null)),
-    phase: state.phase,
-    game: state.game,
-    sides: state.sides ? { b: state.sides.b, w: state.sides.w } : null,
-    blackSeat,
     size,
     board: state.board,
     rows: Array.from({ length: size }, (_, r) => state.board.slice(r * size, r * size + size)),
@@ -507,7 +461,5 @@ export function viewFor(state: GoState, viewer: string): GoView {
           }
         : null,
     result: state.result ? { winner: state.result.winner, reason: state.result.reason, score: state.result.score && { ...state.result.score } } : null,
-    canRematch: canRematch(state),
-    you: { seat: seat < 0 ? null : (seat as Side), color: seat < 0 ? null : seat === blackSeat ? "b" : "w" },
   };
 }

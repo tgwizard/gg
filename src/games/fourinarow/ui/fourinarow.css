@@ -1,28 +1,3 @@
-.fiar { container-type: inline-size; position: relative; display: flex; flex-direction: column; gap: 12px; }
-
-/* Stacked (narrow): opponent, board, you, then the moves and controls. */
-.fiar-grid { display: flex; flex-direction: column; gap: 10px; }
-.fiar-board-wrap { width: min(100%, max(280px, (100dvh - 250px) * var(--ratio))); margin: 0 auto; }
-
-/* Wide: the board as big as the screen allows, the players and the panel beside it, you at the bottom. */
-@container (min-width: 760px) {
-  .fiar-grid {
-    --board-w: clamp(300px, min(100cqi - 318px, (100dvh - 150px) * var(--ratio)), 960px);
-    display: grid;
-    grid-template-columns: var(--board-w) minmax(260px, 300px);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: "board top" "board panel" "board bottom";
-    justify-content: center;
-    gap: 12px 18px;
-    height: calc(var(--board-w) / var(--ratio));
-  }
-  .fiar-board-wrap { grid-area: board; width: 100%; align-self: start; }
-  .fiar-side.top { grid-area: top; }
-  .fiar-side.bottom { grid-area: bottom; }
-  .fiar-panel { grid-area: panel; }
-  .fiar-panel .fiar-moves { flex: 1; max-height: none; align-content: flex-start; overflow: hidden auto; }
-}
-
 /* ---------- the board ---------- */
 /* Measured in cells (--u): your disc waits a cell's height over the board, which has a wooden frame around its holes. */
 .fiar-stage {
@@ -123,22 +98,8 @@
 .fiar-stage.movable .fiar-column:not(:disabled) { cursor: pointer; }
 .fiar-stage.movable .fiar-column.aimed:not(:disabled) { background: var(--fiar-aim); }
 
-/* Waiting for players: the board greys out under a prompt. */
-.fiar-prompt-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: rgb(244 237 225 / 0.55);
-  backdrop-filter: grayscale(0.85);
-}
-[data-mode="dark"] .fiar-prompt-backdrop { background: rgb(27 23 19 / 0.55); }
-.fiar-prompt { width: min(340px, 88%); padding: 20px 22px 22px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.fiar-prompt h3 { font-size: 1.5rem; }
-.fiar-prompt p { font-size: 14px; }
-.fiar-prompt .btn { margin-top: 8px; }
+/* The prompt over the board follows its rounded corners. */
+.fiar .duel-prompt-backdrop { border-radius: 10px; }
 
 /* ---------- the players ---------- */
 .fiar-mini {
@@ -152,59 +113,9 @@
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25);
 }
 [data-mode="dark"] .fiar-mini { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.25); }
-.fiar-side { display: flex; align-items: stretch; gap: 10px; min-width: 0; }
-.fiar-side .plate { flex: 1; width: auto; min-width: 0; padding: 8px 12px; }
-.fiar-side .plate-name { justify-content: flex-start; }
-.fiar-side .plate-name .name { flex: 0 1 auto; }
-.fiar-side .plate .activity-bubble {
-  position: static;
-  translate: none;
-  align-self: flex-start;
-  padding: 2px 9px;
-  font-size: 11.5px;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: none;
-  box-shadow: none;
-  animation: none;
-}
-.fiar-side .plate .activity-bubble::after { display: none; }
-.fiar-plate-line { justify-content: space-between; align-items: center; }
 .fiar-plate-disc { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; }
 .fiar-plate-disc .fiar-mini { width: 18px; height: 18px; }
-.fiar-wins { flex-shrink: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
-.fiar-open-seat { flex: 1; display: grid; place-items: center; min-height: 52px; border: 2px dashed var(--line-strong); border-radius: var(--radius); }
-
-/* ---------- moves, status and controls ---------- */
-.fiar-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
-.fiar-moves {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 0;
-  padding: 10px 12px 8px;
-  max-height: 96px;
-  overflow: auto;
-  /* Earlier moves scroll away under a fade. */
-  mask-image: linear-gradient(transparent, #000 10px);
-  list-style: none;
-  font-size: 13px;
-  scrollbar-width: thin;
-}
-.fiar-moves li { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px 1px 4px; border-radius: 5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.fiar-moves li .fiar-mini { width: 10px; height: 10px; }
-.fiar-moves li.last { background: var(--gold); color: #3a2e24; }
-.fiar-move-num { min-width: 1.4em; color: var(--text-2); font-size: 10.5px; font-weight: 700; text-align: right; }
-.fiar-moves li.last .fiar-move-num { color: #6a5a4a; }
-.fiar-moves-empty { padding: 2px 2px !important; font-weight: 400 !important; }
-.fiar-last { padding: 10px 14px 0; border-top: 1px solid var(--line); font-size: 13.5px; line-height: 1.6; color: var(--text-2); }
-.fiar-last + .fiar-status { border-top: none; padding-top: 4px; }
-.fiar-status { padding: 10px 14px; border-top: 1px solid var(--line); font-weight: 700; font-size: 14px; }
-.fiar-status.turn, .fiar-status.won { color: var(--gold-text); }
-.fiar-status.lost { color: var(--danger); }
-.fiar-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); font-size: 13px; }
-.fiar-keys { font-size: 12px; }
-@media (hover: none) { .fiar-keys { display: none; } }
+.duel-moves .fiar-mini { width: 10px; height: 10px; }
 
 /* ---------- setup ---------- */
 .fiar-presets { display: flex; flex-wrap: wrap; gap: 6px; }
