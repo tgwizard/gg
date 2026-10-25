@@ -202,7 +202,7 @@ these through the browser and reports back.
 - [ ] A full sheet (`/try/luffarschack/nearly-full`) ends in a draw.
 - [ ] Turn timer: the bar runs down, with the heartbeat in the last 10 s; running out loses. *Resign* asks first. Leaving before your first mark calls the game off; after, it's a loss.
 - [ ] Against a built-in bot: it answers within about a second, never misses a five or a four to block, blocks open threes, and finishes with fours when it can.
-- [ ] Laptop (1440×900): sheet, players and panel fit without scrolling, on 19×19 and 25×25 (`/try/luffarschack/big-sheet`). Phone: opponent above the sheet, you below; squares are small but two taps make marks easy to place.
+- [ ] Laptop (1440×900): sheet, players and panel fit without scrolling, on 19×19 and 25×25 (`/try/luffarschack/big-sheet`). Phone: opponent above the sheet, you below; squares are small, so the first tap pencils the square in, boxed, with a *Mark J10* button by it (below it near the top) and × to pick again; the status line says so. No turn chime in Luffarschack, only the pen.
 
 ### Go
 - [ ] Setup: 9×9, 13×13 and 19×19 each offer their own clock presets; *No clock* hides the clocks.

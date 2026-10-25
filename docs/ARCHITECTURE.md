@@ -218,7 +218,8 @@ can once none of its players are online).
 
 **Whose turn, and sound.** The game header (in the top bar) shows "Your turn" or
 "Bob's turn" for every game from the snapshot's `waitingOn`, chimes when it becomes
-your turn, and puts it in the tab's title. With 10 s or less left on the snapshot's
+your turn (unless the game's UI sets `quietTurn`, as Luffarschack does: the other
+side's pen scratch says so already), and puts it in the tab's title. With 10 s or less left on the snapshot's
 `deadline` while it's your turn, a heartbeat plays, quicker for the last 4 s
 (`src/client/heartbeat.ts`). The active player's nameplate breathes a
 gold glow. Sound effects (`src/ui/sound.ts`) are synthesized with the Web Audio API
@@ -523,7 +524,8 @@ before your first mark, the first cross alternating between games) with a turn t
   clashing colors are split as in Four in a Row). A new mark is drawn stroke by stroke
   (`stroke-dashoffset`) with a soft pen scratch (sound `pen`), live moves only; the last mark
   gets a stroke of highlighter, and a winning five is ringed by hand, in a rough loop, in the winner's
-  ink. Pointing at a square pencils your mark in; on touch screens it takes two taps; the
+  ink. Pointing at a square pencils your mark in; on touch screens the first tap pencils it in, boxed, with a *Mark J10* button by
+  it (or tap the square again); the
   arrow keys move a dotted cursor and Enter marks. Colors are tokens (`--lfs-*`).
 - **The built-in bot** (`bot.ts`) reads threats rather than searching: for each empty square
   near the marks it asks what a mark there makes, line by line, for itself and (as a block)

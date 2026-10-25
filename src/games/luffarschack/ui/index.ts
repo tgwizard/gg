@@ -10,6 +10,8 @@ export const luffarschackUI: GameUI = {
   icon: "/icons/luffarschack.jpg",
   Game: LuffaGame,
   Setup: LuffaSetup,
+  // The other side's pen scratch says it's your move; a chime on top of it is too much.
+  quietTurn: true,
   settings: ({ config, size }: LuffaView) => [
     { label: "Sheet", value: `${size}×${size}`, hint: `${size} squares across and down.` },
     turnTimerSetting(config.turnSeconds, config.turnSeconds > 0 ? "For each mark. Run out and you lose." : undefined),

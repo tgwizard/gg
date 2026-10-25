@@ -158,7 +158,15 @@ function ActiveGame({ client, snapshot }: { client: RoomClient; snapshot: RoomSn
             )}
           </div>
           {/* Last, so it never moves the buttons; on a phone it's a bar of its own under them. */}
-          <TurnPill waitingOn={game.waitingOn} me={snapshot.you!.id} members={members} instance={game.instanceId} deadline={game.deadline} clockOffset={snapshot.clockOffset} />
+          <TurnPill
+            waitingOn={game.waitingOn}
+            me={snapshot.you!.id}
+            members={members}
+            instance={game.instanceId}
+            deadline={game.deadline}
+            clockOffset={snapshot.clockOffset}
+            quiet={ui.quietTurn}
+          />
         </div>
       </InTopbar>
       <ui.Game view={game.view} snapshot={game} me={snapshot.you!.id} members={members} connected={connected} sendOp={sendOp} serverNow={serverNow} />
@@ -178,6 +186,7 @@ function TurnPill({
   instance,
   deadline,
   clockOffset,
+  quiet,
 }: {
   waitingOn: string[];
   me: string;
@@ -185,6 +194,7 @@ function TurnPill({
   instance: string;
   deadline: number | null;
   clockOffset: number;
+  quiet?: boolean;
 }) {
   const mine = waitingOn.includes(me);
   useHeartbeat(mine, deadline, clockOffset);
@@ -194,8 +204,8 @@ function TurnPill({
   useEffect(() => {
     const before = was.current;
     was.current = { instance, mine };
-    if (mine && before && before.instance === instance && !before.mine) play("turn");
-  }, [mine, instance]);
+    if (mine && before && before.instance === instance && !before.mine && !quiet) play("turn");
+  }, [mine, instance, quiet]);
   useEffect(() => {
     if (!mine) return;
     const title = document.title;

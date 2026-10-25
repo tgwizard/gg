@@ -36,4 +36,6 @@ export interface GameUI {
   Setup?: ComponentType<GameSetupProps<any>>;
   /** The running game's settings (from its view), for anyone to look up. */
   settings?(view: any): GameSetting[];
+  /** No chime when it becomes your turn: the game's own sounds already say so. */
+  quietTurn?: boolean;
 }

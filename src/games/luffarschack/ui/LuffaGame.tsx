@@ -3,7 +3,7 @@ import { reducedMotion } from "../../kit/ui/Flights";
 import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
-import { playerStyle, usePlayerColors } from "../../../ui";
+import { playerStyle, useMedia, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type LuffaView, resultText, type Side } from "../engine";
 import type { LuffaOp } from "../index";
@@ -210,6 +210,7 @@ function LastMoveLine({ view, color, me, name }: { view: LuffaView; color: numbe
 }
 
 function Status({ view, me, name, myTurn }: { view: LuffaView; me: string; name(id: string): string; myTurn: boolean }) {
+  const touch = useMedia("(pointer: coarse)");
   let text: string;
   let tone = "";
   if (view.phase === "over" && view.result) {
@@ -218,7 +219,7 @@ function Status({ view, me, name, myTurn }: { view: LuffaView; me: string; name(
     tone = view.result.winner === null ? "draw" : view.sides?.[view.result.winner] === me ? "won" : view.you.piece ? "lost" : "";
   } else if (view.phase === "playing") {
     const mover = view.sides?.[view.turn];
-    text = myTurn ? "Your move." : `${mover ? name(mover) : "The other side"} to move…`;
+    text = myTurn ? (touch ? "Your move: tap a square, then Mark to ink it." : "Your move.") : `${mover ? name(mover) : "The other side"} to move…`;
     if (myTurn) tone = "turn";
   } else text = view.game === 0 ? "Get five in a row: across, up and down, or diagonally." : "The game was called off. Waiting for two players.";
   return (
