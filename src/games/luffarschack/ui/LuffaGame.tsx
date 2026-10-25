@@ -3,6 +3,7 @@ import { reducedMotion } from "../../kit/ui/Flights";
 import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
+import { useSend } from "../../kit/ui/useSend";
 import { playerStyle, useMedia, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type LuffaView, resultText, type Side } from "../engine";
@@ -22,13 +23,7 @@ const NAMES = { x: "cross", o: "circle" } as const;
 
 export function LuffaGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
-  const [busy, setBusy] = useState(false);
-  const send = async (op: LuffaOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   const myPiece = view.you.piece;
   const n = view.size;

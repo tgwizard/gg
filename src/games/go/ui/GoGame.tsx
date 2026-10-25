@@ -4,6 +4,7 @@ import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import type { GameUIProps } from "../../ui";
 import { formatClock } from "../../kit/ui/Clock";
+import { useSend } from "../../kit/ui/useSend";
 import { type GoView, type LastMove, resultText, type Side } from "../engine";
 import type { GoOp } from "../index";
 import { type Color, other, parsePoint, pointName, tryPlay } from "../rules";
@@ -15,13 +16,7 @@ const COLOR_NAME = { b: "Black", w: "White" } as const;
 
 export function GoGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
-  const [busy, setBusy] = useState(false);
-  const send = async (op: GoOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   const myColor = view.you.color;
   const played = view.moves.filter((m) => m.point).length;

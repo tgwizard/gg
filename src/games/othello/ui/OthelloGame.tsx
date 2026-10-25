@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
+import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import { type LastMove, type OthelloView, resultText, type Side } from "../engine";
 import type { OthelloOp } from "../index";
@@ -14,13 +15,7 @@ const COLOR_NAME = { b: "Black", w: "White" } as const;
 
 export function OthelloGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
-  const [busy, setBusy] = useState(false);
-  const send = async (op: OthelloOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   const myColor = view.you.color;
   // Your move shows at once; it's taken back if the server says no.

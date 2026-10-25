@@ -464,12 +464,15 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .profile-preview-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .profile-preview .name { font-size: 1.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-menu { position: relative; }
+
+/* ---------- popovers (components/Popover.tsx) ---------- */
 /* Rendered into <body> (outside the green bar, so it gets page colors); placed by JS. */
-.profile-pop { position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; padding: 18px; }
+/* Its height is capped from JS to what's visible; scrolling it never scrolls the page behind. */
+.popover { position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px)); overflow: auto; overscroll-behavior: contain; padding: 18px; }
 
 /* ---------- peeks: details behind a top-bar icon ---------- */
-.profile-pop.peek-pop { width: min(300px, calc(100vw - 24px)); padding: 14px 16px; }
-.profile-pop.invite-pop { width: min(380px, calc(100vw - 24px)); }
+.popover.peek-pop { width: min(300px, calc(100vw - 24px)); padding: 14px 16px; }
+.popover.invite-pop { width: min(380px, calc(100vw - 24px)); }
 .peek { display: flex; flex-direction: column; gap: 10px; }
 .peek p { margin: 0; }
 .peek-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 800; }
@@ -590,27 +593,16 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
   cursor: pointer;
 }
 .icon-btn:hover, .icon-btn[aria-expanded="true"] { color: var(--text); background: var(--surface-hover); }
-.game-settings { position: relative; }
-.game-settings-pop {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 30;
-  width: min(320px, calc(100vw - 32px));
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.game-settings-pop.wide { width: min(440px, calc(100vw - 32px)); }
+.popover.header-pop { width: min(320px, calc(100vw - 24px)); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.popover.header-pop.wide { width: min(440px, calc(100vw - 24px)); }
 .icon-btn-text { font-size: 16px; font-weight: 800; line-height: 1; }
 .rules { display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
 .rules p { margin: 0; }
 .rules ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
-.game-settings-pop dl { margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.game-settings-pop .setting { display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; }
-.game-settings-pop dt { color: var(--text-2); font-size: 14px; }
-.game-settings-pop dd { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.header-pop dl { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.header-pop .setting { display: grid; grid-template-columns: 9.5em 1fr; gap: 10px; }
+.header-pop dt { color: var(--text-2); font-size: 14px; }
+.header-pop dd { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
 
 /* ---------- /try ---------- */
 .try-game { display: flex; align-items: center; gap: 12px; font-size: 1.6rem; }

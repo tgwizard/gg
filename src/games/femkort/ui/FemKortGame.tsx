@@ -9,6 +9,7 @@ import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
+import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import { AUTO_PLAY_DELAY_MS, type FemEvent, type FemPlayerView, type FemView, type Trick } from "../engine";
 import type { FemOp } from "../index";
@@ -22,13 +23,7 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
   const name = (id: string) => members.get(id)?.name ?? "Player";
   /** "You" for you, for the start of a sentence. */
   const who = (id: string) => (id === me ? "You" : name(id));
-  const [busy, setBusy] = useState(false);
-  const send = async (op: FemOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   const playing = view.phase !== "lobby";
   const mine = view.players.find((p) => p.playerId === me && !p.left);

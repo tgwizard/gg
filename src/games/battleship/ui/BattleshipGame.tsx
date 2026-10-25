@@ -4,6 +4,7 @@ import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
+import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import {
   type BoardView,
@@ -33,13 +34,7 @@ const LETTERS = "ABCDEFGHIJ";
 
 export function BattleshipGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
-  const [busy, setBusy] = useState(false);
-  const send = async (op: BsOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   const mySeat = view.you.seat;
   // Your own waters go first (on the left, or on top on a phone), even after you've left your seat.

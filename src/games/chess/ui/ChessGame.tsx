@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
+import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import { type ChessView, type LastMove, resultText, type Side } from "../engine";
 import type { ChessOp } from "../index";
@@ -15,13 +16,7 @@ const PIECE_NAME: Record<PieceType, string> = { p: "pawn", n: "knight", b: "bish
 
 export function ChessGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
-  const [busy, setBusy] = useState(false);
-  const send = async (op: ChessOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   // Your move shows at once; it's taken back if the server says no.
   const [pending, setPending] = useState<{ base: string; uci: string } | null>(null);

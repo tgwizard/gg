@@ -8,6 +8,7 @@ import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
+import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import { AUTO_PLAY_DELAY_MS, type FishEvent, type FishPlayerView, type FishView } from "../engine";
 import type { FishOp } from "../index";
@@ -26,13 +27,10 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
   // Drop choices that stopped being valid (cards changed hands, a player ran out).
   const rank = ask && picked.rank && ask.ranks.includes(picked.rank) ? picked.rank : null;
   const target = ask && (picked.target && ask.targets.includes(picked.target) ? picked.target : ask.targets.length === 1 ? ask.targets[0]! : null);
-  const [busy, setBusy] = useState(false);
+  const { busy, send: sendBusy } = useSend(sendOp);
 
   const send = async (op: FishOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    if (ok && op.type === "ask") setPicked({ rank: null, target: null });
+    if ((await sendBusy(op)) && op.type === "ask") setPicked({ rank: null, target: null });
   };
 
   const playing = view.phase !== "lobby";

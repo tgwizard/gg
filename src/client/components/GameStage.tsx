@@ -8,6 +8,7 @@ import { useHeartbeat } from "../heartbeat";
 import { useServerNow } from "../useNow";
 import { play } from "../../ui";
 import { GameCard, morphStyle, playerCount, WipBadge } from "./GameCard";
+import { Popover } from "./Popover";
 import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
 
@@ -286,31 +287,18 @@ export function Rules({ text }: { text: string }) {
 /** An icon button in the game header that opens a small panel under it. */
 function HeaderPopover({ label, icon, wide, children }: { label: string; icon: ReactNode; wide?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [open]);
+  const button = useRef<HTMLButtonElement>(null);
   return (
-    <div className="game-settings" ref={ref}>
-      <button className="icon-btn" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={label} title={label}>
+    <>
+      <button ref={button} className="icon-btn" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={label} title={label}>
         {icon}
       </button>
-      {open && (
-        <div className={`game-settings-pop box ${wide ? "wide" : ""}`} role="dialog" aria-label={label}>
+      {open && button.current && (
+        <Popover anchor={button.current} label={label} onClose={() => setOpen(false)} className={`header-pop ${wide ? "wide" : ""}`}>
           {children}
-        </div>
+        </Popover>
       )}
-    </div>
+    </>
   );
 }
 

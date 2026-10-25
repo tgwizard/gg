@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { MODE_SHORTCUT, setSoundOn, toggleMode, useMode, useNarrow, useSoundOn } from "../../ui";
 import { ModeIcon, ModeToggle } from "./ModeToggle";
-import { Popover, usePeek } from "./Profile";
+import { Popover, usePeek } from "./Popover";
 import { SoundIcon, SoundToggle } from "./SoundToggle";
 
 /** Sound and light/dark: a button each, or on a phone (where the top bar is one row) one button for both. */

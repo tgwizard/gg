@@ -134,6 +134,10 @@ display type and Nunito for everything else.
   remembered per browser. `index.html` applies it before first paint.
 - Artwork lives in `public/icons/` (generated illustrations for gg and each game;
   a game's `GameUI.icon` points at its own).
+- Small panels behind a button (your profile, a member, inviting a bot, the game's rules
+  and settings, the connection) are all `components/Popover.tsx`: kept within what's
+  visible (on a phone, above the browser's bars and the keyboard), scrolling inside
+  without scrolling the page, and closed by clicking elsewhere or Escape.
 - `/ui` is a style guide with every component, in either mode.
 - The room's members-and-chat sidebar can be folded into a rail (people online, a
   count of new messages) to give a game the whole width; it's remembered per
@@ -199,8 +203,9 @@ can once none of its players are online).
   sets how far in: played cards sit nearer the middle than chips), content in the
   middle), `PlayerPlate` (nameplate), `Cards` (faces, backs, slots, fans),
   `Chips`/`Pot`/`DealerButton`, `TurnTimer`, `TimerField` (a set-up's seconds with
-  a "Disable timer" button), and `Herald`/`ActionTray`/`GameLog`
-  for the strip, tray and history under the table. `Flights` moves things across
+  a "Disable timer" button), `Herald`/`ActionTray`/`GameLog`
+  for the strip, tray and history under the table, and `useSend` (`sendOp` plus a `busy`
+  flag for disabling buttons while a move is on its way). `Flights` moves things across
   the table (dealt cards, chips, a catch from the lake): a game compares the new
   view with the last one, measures both ends on screen (`CardTable` marks seats with
   `data-seat` and bet spots with `data-bet-spot`), launches flights, and hides what's

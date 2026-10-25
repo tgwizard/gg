@@ -3,6 +3,7 @@ import { reducedMotion } from "../../kit/ui/Flights";
 import { Clock } from "../../kit/ui/Clock";
 import { GameOver } from "../../kit/ui/GameOver";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
+import { useSend } from "../../kit/ui/useSend";
 import { playerStyle, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type FourView, resultText, type Side } from "../engine";
@@ -19,13 +20,7 @@ const RESULT_DELAY_MS = 1600;
 
 export function FourGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
-  const [busy, setBusy] = useState(false);
-  const send = async (op: FourOp) => {
-    setBusy(true);
-    const ok = await sendOp(op);
-    setBusy(false);
-    return ok;
-  };
+  const { busy, send } = useSend(sendOp);
 
   const myPiece = view.you.piece;
   const size = view.size;

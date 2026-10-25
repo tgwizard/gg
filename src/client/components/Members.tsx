@@ -5,7 +5,8 @@ import { type BotRecord, type BotSetup, createBot, inviteBot, removeFromRoom, su
 import { saveColor, saveName } from "../identity";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { BotForm, botCaption } from "./BotForm";
-import { Popover, ProfileForm } from "./Profile";
+import { Popover } from "./Popover";
+import { ProfileForm } from "./Profile";
 import { SettingsLink } from "./SettingsLink";
 
 export function Members({ snapshot, roomId, bots }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[] }) {

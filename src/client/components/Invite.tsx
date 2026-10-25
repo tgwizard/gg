@@ -4,7 +4,7 @@ import { Panel } from "../../ui";
 import { type BotRecord, playingIn } from "../bots/store";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { InviteBot, MemberButton } from "./Members";
-import { Popover, usePeek } from "./Profile";
+import { Popover, usePeek } from "./Popover";
 
 /** A people icon by the room's name: hover or click it for the room code and invite link. */
 export function InviteButton({ roomId }: { roomId: string }) {
