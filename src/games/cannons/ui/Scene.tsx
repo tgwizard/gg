@@ -95,9 +95,11 @@ export function Scene(props: {
     let hit = false;
     let raf = 0;
     let shake: ReturnType<typeof setTimeout> | undefined;
-    const start = performance.now();
+    // Timed from the first frame: its timestamp can be a little before now.
+    let start: number | null = null;
     play("cannon");
     const frame = (now: number) => {
+      start ??= now;
       const ms = now - start;
       const pos = along({ path: shot.path ?? [], ticks: shot.ticks }, ms);
       let want = HOME;

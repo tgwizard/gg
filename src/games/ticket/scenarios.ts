@@ -21,14 +21,14 @@ const rusher =
   (keep: number): Policy<TtrView, TtrOp> =>
   (view, ops, rand) => {
     const me = view.players.find((p) => p.seat === view.you.seat)!;
-    if (me.trains > 20 || view.phase === "choosing") return ticketBot.easy(view, ops, rand);
+    if (me.trains > 20 || view.phase === "choosing") return ticketBot.play(view, ops, rand);
     const keeps = ops.filter((op) => op.type === "keep");
     if (keeps.length) return keeps.reduce((most, op) => (op.tickets.length > most.tickets.length ? op : most));
     const tickets = ops.find((op) => op.type === "tickets");
     if (tickets && me.tickets < 4) return tickets;
     const claims = ops.filter((op) => op.type === "claim" && me.trains - length(op) >= keep) as Extract<TtrOp, { type: "claim" }>[];
     if (claims.length) return claims.reduce((best, op) => (length(op) > length(best) ? op : best));
-    return ops.find((op) => op.type === "draw" && op.from === "deck") ?? ticketBot.easy(view, ops, rand);
+    return ops.find((op) => op.type === "draw" && op.from === "deck") ?? ticketBot.play(view, ops, rand);
   };
 
 /**

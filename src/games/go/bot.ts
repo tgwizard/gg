@@ -8,7 +8,11 @@
  * side has passed and it's ahead. While counting, it corrects the marking where it's
  * clearly wrong against it (its live groups marked dead, the other side's dead ones
  * not), then accepts.
+ *
+ * Easy, it plays out a few hundred games a move instead of thousands, which makes it
+ * loose and short-sighted.
  */
+import { easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { GoView } from "./engine";
 import type { GoOp } from "./index";
@@ -30,9 +34,11 @@ export interface Budget {
 }
 
 const QUICK: Budget = { playouts: 40, timeMs: 15 };
+const EASY_PLAYOUTS: Record<Size, number> = { 9: 250, 13: 200, 19: 150 };
 
 export const goBot: GameBot<GoView, GoOp> = {
-  easy: (view, ops, rand, opts) => goMove(view, ops, rand, opts?.quick ? QUICK : { playouts: PLAYOUTS[view.size], timeMs: THINK_MS }),
+  play: (view, ops, rand, opts) =>
+    goMove(view, ops, rand, opts?.quick ? QUICK : easy(opts) ? { playouts: EASY_PLAYOUTS[view.size], timeMs: THINK_MS } : { playouts: PLAYOUTS[view.size], timeMs: THINK_MS }),
 };
 
 /** The bot's move with a given budget (set-up positions use a middling one). */

@@ -1,14 +1,16 @@
 /**
  * The built-in poker bot: a loose, passive player with a rough sense of hand strength.
- * It calls a lot, folds weak hands to big bets and now and then raises a good one.
+ * It calls a lot, folds weak hands to big bets and now and then raises a good one. Easy,
+ * it never raises and calls or folds with little regard for its cards.
  */
 import { type Card, rankOf, rankValue, suitOf } from "../kit/cards";
+import { chance, easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { PokerView } from "./engine";
 import type { PokerOp } from "./index";
 
 export const pokerBot: GameBot<PokerView, PokerOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const find = <T extends PokerOp["type"]>(type: T) => ops.find((op): op is Extract<PokerOp, { type: T }> => op.type === type);
     const rebuy = find("rebuy");
     if (rebuy) return rebuy;
@@ -20,6 +22,7 @@ export const pokerBot: GameBot<PokerView, PokerOp> = {
     const good = strong(cards, hand.board);
     const raise = find("raise");
     const passive = find("check") ?? find("call")!;
+    if (easy(opts)) return actions.canCheck || chance(rand, good ? 85 : 60) ? passive : find("fold")!;
     if (good && raise && rand(4) === 0) return raise; // the smallest raise comes first
     if (actions.canCheck) return passive;
     // Facing a bet: weak hands fold to anything bigger than about a third of the pot.

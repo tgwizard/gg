@@ -4,6 +4,11 @@
  * game's own moves) is up to the game's bot. Starting games is left to people.
  */
 import type { AnyGameDefinition, BotOptions } from "../types";
+
+/** The built-in bot plays easy (see `GameBot`). */
+export const easy = (opts?: BotOptions) => opts?.strength === "easy";
+/** True `percent` of the time. */
+export const chance = (rand: (maxExclusive: number) => number, percent: number) => rand(100) < percent;
 import { isLobbyOp, type LobbyOp } from "./lobby";
 
 export type BotIntent = "play" | "leave";
@@ -27,7 +32,7 @@ export function botMove(
     tableMove(legalOps, rand, intent) ??
     (intent === "leave"
       ? null
-      : def.bot.easy(
+      : def.bot.play(
           view,
           legalOps.filter((op) => !isLobbyOp(op)),
           rand,

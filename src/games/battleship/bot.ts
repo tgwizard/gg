@@ -1,13 +1,15 @@
 /**
  * The built-in Battleship bot: lets the server place its fleet at random, then fires at
- * random, following up on a hit about half the time.
+ * random until it hits, and then around the hit until the ship sinks. Easy, it follows
+ * up a hit only now and then.
  */
+import { chance, easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import { type BsView, FLEET, SIZE } from "./engine";
 import type { BsOp } from "./index";
 
 export const battleshipBot: GameBot<BsView, BsOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const has = (type: BsOp["type"]) => ops.find((op) => op.type === type);
     const me = view.you.seat;
     if (me === null) return null;
@@ -18,7 +20,7 @@ export const battleshipBot: GameBot<BsView, BsOp> = {
     const open = ops.flatMap((op) => (op.type === "fire" ? [op.cell] : []));
     if (!open.length) return null;
     const target = view.boards[1 - me];
-    if (target && rand(2) === 0) {
+    if (target && (!easy(opts) || chance(rand, 25))) {
       const sunk = new Set(target.sunk.flatMap((s) => s.cells));
       const hits = target.shots.filter((s) => s.hit && !sunk.has(s.cell)).map((s) => s.cell);
       const near = open.filter((c) => hits.some((h) => adjacent(c, h)));

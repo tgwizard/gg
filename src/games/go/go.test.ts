@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { seededRandomInt } from "../kit/testing";
 import type { GameContext } from "../types";
-import { type GoConfig, type GoState, SETTLE_MS } from "./engine";
+import { type GoConfig, type GoState, MAX_RESUMES, maxMoves, SETTLE_MS } from "./engine";
+import { estimateDead } from "./montecarlo";
 import { go as game, type GoOp } from "./index";
-import { parsePoint, positionKey } from "./rules";
+import { chains, parsePoint, positionKey } from "./rules";
 
 function setup(config: Partial<GoConfig> = {}) {
   const announcements: string[] = [];
@@ -128,6 +129,36 @@ describe("go", () => {
     expect(state.result).toEqual({ winner: "b", reason: "score", score: { b: 81, w: 7.5 } });
   });
 
+  it("resumes from counting only a few times a game, and counts a game that goes on too long", () => {
+    const { state, ctx } = setup();
+    play(state, ctx, ["E5"]);
+    for (let i = 0; i < MAX_RESUMES; i++) {
+      play(state, ctx, ["pass", "pass"]);
+      game.apply(state, game.waitingOn(state)[0] === "alice" ? "bob" : "alice", { type: "resume" }, ctx());
+    }
+    play(state, ctx, ["pass", "pass"]);
+    expect(state.phase).toBe("scoring");
+    expect(game.legalOps(state, "alice")).not.toContainEqual({ type: "resume" });
+    expect(game.view(state, "alice").scoring!.canResume).toBe(false);
+    expect(() => game.apply(state, "alice", { type: "resume" }, ctx())).toThrow(/can't be resumed/);
+
+    const long = setup();
+    long.state.moves = Array.from({ length: maxMoves(9) - 1 }, (_, i) => ({ by: i % 2 ? "w" : "b", at: null, captured: [] }));
+    play(long.state, long.ctx, ["E5"]);
+    expect(long.state.phase).toBe("scoring");
+    expect(long.announcements.at(-1)).toMatch(/counted as it stands/);
+    expect(game.legalOps(long.state, "bob")).not.toContainEqual({ type: "resume" });
+  });
+
+  it("guesses whole chains dead or alive, never part of one", () => {
+    const rows = ["b.bw.bw.b", ".w.w.bwwb", "..bbwb..w", "b.wbwb.w.", ".w..bb..w", "b.bww.b.b", "ww.bb..ww", ".w..w..b.", ".ww.bb.bw"];
+    const board = rows.join("");
+    for (const seed of [1, 2, 3]) {
+      const dead = new Set(estimateDead(board, "b", { playouts: 400, seed }));
+      for (const ch of chains(board)) expect(new Set(ch.stones.map((p) => dead.has(p))).size).toBe(1);
+    }
+  });
+
   it("runs byo-yomi clocks: main time, then periods kept by moving in time", () => {
     const { state, ctx, announcements } = setup({ minutes: 1, periods: 2, seconds: 10 });
     expect(game.nextDeadline!(state)).toBe(80_000);
@@ -181,12 +212,12 @@ describe("go", () => {
       ".........",
     ]);
     const ops = () => game.legalOps(state, "alice").filter((op) => op.type !== "leave" && op.type !== "sit");
-    for (let seed = 1; seed <= 3; seed++) expect(game.bot.easy(game.view(state, "alice"), ops(), seededRandomInt(seed))).toEqual({ type: "play", point: "E3" });
+    for (let seed = 1; seed <= 3; seed++) expect(game.bot.play(game.view(state, "alice"), ops(), seededRandomInt(seed))).toEqual({ type: "play", point: "E3" });
 
     // Black has the whole board (a wall down the middle); White passes: Black passes too.
     position(state, Array(9).fill("....b...."), "w");
     play(state, ctx, ["pass"]);
-    const bot = game.bot.easy(game.view(state, "alice"), ops(), seededRandomInt(1));
+    const bot = game.bot.play(game.view(state, "alice"), ops(), seededRandomInt(1));
     expect(bot).toEqual({ type: "pass" });
     game.apply(state, "alice", bot!, ctx());
     expect(state.phase).toBe("scoring");
@@ -195,9 +226,9 @@ describe("go", () => {
     // White marks Black's wall dead; Black's bot marks it alive again, then accepts.
     game.apply(state, "bob", { type: "mark", point: "E5" }, ctx());
     expect(game.view(state, "alice").scoring!.score).toEqual({ b: 0, w: 7.5 });
-    expect(game.bot.easy(game.view(state, "alice"), ops(), seededRandomInt(1))).toEqual({ type: "mark", point: "E9" });
+    expect(game.bot.play(game.view(state, "alice"), ops(), seededRandomInt(1))).toEqual({ type: "mark", point: "E9" });
     game.apply(state, "alice", { type: "mark", point: "E9" }, ctx());
-    expect(game.bot.easy(game.view(state, "alice"), ops(), seededRandomInt(1))).toEqual({ type: "accept" });
+    expect(game.bot.play(game.view(state, "alice"), ops(), seededRandomInt(1))).toEqual({ type: "accept" });
   });
 
   it("lets bots play whole games on every board size", () => {
@@ -207,7 +238,7 @@ describe("go", () => {
       for (let i = 0; i < 2000 && state.phase !== "over"; i++) {
         const who = game.waitingOn(state)[0]!;
         const ops = game.legalOps(state, who).filter((op) => op.type !== "leave");
-        game.apply(state, who, game.bot.easy(game.view(state, who), ops, rand, { quick: true })!, ctx());
+        game.apply(state, who, game.bot.play(game.view(state, who), ops, rand, { quick: true })!, ctx());
         game.checkInvariants!(state);
       }
       expect(state.phase).toBe("over");

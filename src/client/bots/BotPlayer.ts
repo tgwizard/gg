@@ -2,8 +2,9 @@
  * Plays one of your bots from this tab. A bot is just another player: its own
  * identity and its own connection (a RoomClient), so it gets only its own redacted
  * view, plus the moves it can make right now. After each change it waits a moment,
- * like a person would, then makes its move (`botMove`) through the same path as a
- * click. Moves carry the game version, so a move made against an old situation is
+ * like a person would, then makes its move through the same path as a click: a table
+ * move (`tableMove`), or the game's built-in bot's (decided off the page's thread, see
+ * ./thinker). Moves carry the game version, so a move made against an old situation is
  * refused and the bot simply looks again.
  *
  * Only one tab plays a given bot: each holds a Web Lock while playing, and other tabs
@@ -13,7 +14,8 @@
  * out of the game and the room together. Until the room confirms, the bot keeps the room
  * (marked `removing`), so a removal made while the room wasn't open happens when it is.
  */
-import { BOT_MIN_MOVE_MS, botMove, tableMove } from "../../games/kit/bot";
+import { BOT_MIN_MOVE_MS, tableMove } from "../../games/kit/bot";
+import { isLobbyOp } from "../../games/kit/lobby";
 import type { AnyGameDefinition } from "../../games/types";
 import type { BotInfo } from "../../shared/protocol";
 import { devLog } from "../devlog";
@@ -22,6 +24,7 @@ import { RequestError, RoomClient } from "../net/RoomClient";
 import { AiBrain } from "./ai/AiBrain";
 import { gameMoves } from "./ai/prompt";
 import { addBotStandIn, addBotUsage, type BotRecord, leftRoom, setBotError } from "./store";
+import { decide } from "./thinker";
 
 /** How long a bot "thinks" before moving. */
 const THINK_MS: [number, number] = [BOT_MIN_MOVE_MS, 1800];
@@ -147,10 +150,9 @@ export class BotPlayer {
       snapshot: () => client.getSnapshot(),
       sendOp: (op, at) => client.sendGameOp(op, at),
       say: (text) => void client.sendChat(text).catch(() => {}),
-      easyMove: () => {
+      builtinMove: () => {
         const game = client.getSnapshot().game;
-        const def = game && this.games?.[game.gameId];
-        return def ? def.bot.easy(game.view, gameMoves(game.legalOps ?? []), random) : null;
+        return game ? decide({ gameId: game.gameId, view: game.view, ops: gameMoves(game.legalOps ?? []), strength: "hard" }) : Promise.resolve(null);
       },
       usage: (u) => addBotUsage(this.bot.id, u),
       error: (message) => setBotError(this.bot.id, message),
@@ -185,13 +187,19 @@ export class BotPlayer {
     this.timer = setTimeout(() => this.move(), min + random(max - min));
   }
 
-  private move() {
+  private async move() {
     const client = this.client;
     const game = client?.getSnapshot().game;
-    const def = game && this.games?.[game.gameId];
-    if (!client || !game || !def || this.removing()) return;
+    if (!client || !game || !this.games?.[game.gameId] || this.removing()) return;
+    const at = { instanceId: game.instanceId, version: game.version, round: game.round };
+    const legal = game.legalOps ?? [];
     // AI bots only make table moves here; their brain plays the game.
-    const op = this.brain ? tableMove(game.legalOps ?? [], random) : botMove(def, game.view, game.legalOps ?? [], random);
+    let op: unknown = tableMove(legal, random);
+    if (op == null && !this.brain) {
+      op = await decide({ gameId: game.gameId, view: game.view, ops: legal.filter((o) => !isLobbyOp(o)), strength: this.bot.strength ?? "hard" });
+      // The game moved on while it thought: it looks again at the new situation.
+      if (this.seen !== `${at.instanceId}:${at.version}` || this.stopped || this.removing()) return;
+    }
     if (op == null) return;
     if ((op as { type?: string }).type === "sit") {
       // Follow people to the table quickly; with nobody seated yet, give them time to choose first.
@@ -204,12 +212,12 @@ export class BotPlayer {
         return;
       }
     }
-    this.log(this.brain ? "table move" : "easy move", op);
-    client.sendGameOp(op).catch((e: unknown) => {
+    this.log(this.brain ? "table move" : "move", op);
+    client.sendGameOp(op, at).catch((e: unknown) => {
       this.log("move refused", { op, error: e instanceof Error ? e.message : String(e) });
       // Stale: the game moved on and the new view is on its way, which makes the bot look again.
       if (e instanceof RequestError && e.code === "stale") return;
-      if (++this.attempts < MAX_ATTEMPTS && `${game.instanceId}:${game.version}` === this.seen) this.think();
+      if (++this.attempts < MAX_ATTEMPTS && `${at.instanceId}:${at.version}` === this.seen) this.think();
       else console.warn(`${this.bot.name} couldn't move`, op, e);
     });
   }
@@ -218,7 +226,7 @@ export class BotPlayer {
 /** What the room is told about how a bot plays. */
 function botInfo(bot: BotRecord): BotInfo {
   const persona = bot.persona ? { persona: bot.persona } : {};
-  if (bot.level !== "ai" || !bot.connectionId) return { level: "easy", ...persona };
+  if (bot.level !== "ai" || !bot.connectionId) return { level: "builtin", strength: bot.strength ?? "hard", ...persona };
   const connection = getConnection(bot.connectionId);
   const model = bot.model ?? connection?.model;
   return {

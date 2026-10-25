@@ -304,6 +304,28 @@ describe("runout and timers", () => {
     expect(state.seats[5]!.stack).toBe(3);
   });
 
+  it("runs the hand out when someone leaving leaves the player to act nobody to bet against", () => {
+    const { state, ctx } = table([0, 1, 2], { button: 0, stacks: [100, 1000, 1000] });
+    act(state, "a", { type: "raise", to: 100 }, ctx());
+    act(state, "b", { type: "call" }, ctx());
+    act(state, "c", { type: "call" }, ctx());
+    expect(state.hand!.street).toBe("flop");
+    expect(toActId(state)).toBe("b");
+    leave(state, "c", ctx());
+    expect(state.hand!.status).toBe("runout");
+    expect(state.hand!.toAct).toBeNull();
+  });
+
+  it("keeps the turn and its clock with the player to act when they still have a decision", () => {
+    const { state, ctx } = table([0, 1, 2, 3], { button: 0 });
+    act(state, "d", { type: "call" }, ctx());
+    const deadline = nextDeadline(state);
+    expect(toActId(state)).toBe("a");
+    leave(state, "c", ctx(5_000));
+    expect(toActId(state)).toBe("a");
+    expect(nextDeadline(state)).toBe(deadline);
+  });
+
   it("leaving mid-hand folds and frees the seat", () => {
     const { state, ctx } = table([0, 1], { button: 0 });
     leave(state, "b", ctx());

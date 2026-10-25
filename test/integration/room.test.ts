@@ -107,6 +107,20 @@ describe("chat", () => {
     expect(fresh.chat.filter((m) => m.text === "hello")).toHaveLength(1);
   });
 
+  it("remembers what it posted for as long as clients resend, however much chat follows", async () => {
+    const room = await createRoom();
+    const { client: alice } = await TestClient.join(room, secret("alice"), "Alice");
+    expect((await alice.request({ type: "chat", text: "once" }, "cid-once")).ok).toBe(true);
+    await runInDurableObject(stub(room), (instance) => {
+      const r = instance as unknown as { insertChat(kind: string, p: null, n: null, text: string): unknown };
+      for (let i = 0; i < 1100; i++) r.insertChat("game", null, null, `news ${i}`);
+    });
+    expect((await alice.request({ type: "chat", text: "once" }, "cid-once")).ok).toBe(true);
+    const { welcome } = await TestClient.join(room, secret("bob"), "Bob");
+    expect(welcome.chat.filter((m) => m.text === "once")).toHaveLength(0);
+    expect(alice.received.flatMap((m) => (m.type === "chat" ? m.messages : [])).filter((m) => m.text === "once")).toHaveLength(1);
+  });
+
   it("announces renames", async () => {
     const room = await createRoom();
     const { client: alice } = await TestClient.join(room, secret("alice"), "Alice");
@@ -236,9 +250,13 @@ describe("bots", () => {
     const luna = (await welcome).you;
     expect(luna.bot).toEqual({ level: "ai", model: "muse-spark-1.3", provider: "Meta", effort: "low" });
 
-    const switched = alice.next("members", (m) => m.members.find((x) => x.id === luna.id)?.bot?.level === "easy");
-    bot.send({ type: "setProfile", name: "Luna", color: 2, bot: { level: "easy" } });
-    await switched;
+    const switched = alice.next("members", (m) => m.members.find((x) => x.id === luna.id)?.bot?.strength === "easy");
+    bot.send({ type: "setProfile", name: "Luna", color: 2, bot: { level: "builtin", strength: "easy" } });
+    expect((await switched).members.find((x) => x.id === luna.id)!.bot).toEqual({ level: "builtin", strength: "easy" });
+    // What older pages call a built-in bot.
+    const legacy = alice.next("members", (m) => m.members.find((x) => x.id === luna.id)?.bot?.strength === undefined);
+    bot.send({ type: "setProfile", name: "Luna", color: 2, bot: { level: "easy" as "builtin" } });
+    expect((await legacy).members.find((x) => x.id === luna.id)!.bot).toEqual({ level: "builtin" });
 
     // People don't get bot info, whatever they send.
     alice.send({ type: "setProfile", name: "Alice", color: 0, bot: { level: "ai", model: "fake" } });
@@ -411,16 +429,18 @@ describe("games", () => {
     const placing = bob.next("game", (g) => (g.game!.view as { phase: string }).phase === "placing");
     expect((await alice.request({ type: "selectGame", gameId: "battleship", config: {} })).ok).toBe(true);
     const { instanceId } = alice.latestGame() ?? (await alice.next("game", (g) => g.game !== null)).game!;
-    const op = (c: TestClient, o: unknown, ifVersion?: number) => c.request({ type: "gameOp", instanceId, op: o, ifVersion });
+    const op = (c: TestClient, o: unknown, ifVersion?: number, ifRound?: string) => c.request({ type: "gameOp", instanceId, op: o, ifVersion, ifRound });
     expect((await op(alice, { type: "sit", seat: 0 })).ok).toBe(true);
     expect((await op(bob, { type: "sit", seat: 1 })).ok).toBe(true);
-    const seen = (await placing).game!.version;
+    const { version: seen, round } = (await placing).game!;
+    expect(round).toBe("1");
     // Both place against the same version: neither is refused as stale.
     const carrier = { id: "carrier", row: 0, col: 0, vertical: false };
-    expect((await op(alice, { type: "arrange", ships: [carrier] }, seen)).ok).toBe(true);
-    expect((await op(bob, { type: "arrange", ships: [carrier] }, seen)).ok).toBe(true);
-    // Other moves still are.
-    expect(await op(bob, { type: "leave" }, seen)).toMatchObject({ ok: false, error: { code: "stale" } });
+    expect((await op(alice, { type: "arrange", ships: [carrier] }, seen, round)).ok).toBe(true);
+    expect((await op(bob, { type: "arrange", ships: [carrier] }, seen, round)).ok).toBe(true);
+    // Other moves still are, and so is placing made for another game's fleets.
+    expect(await op(bob, { type: "leave" }, seen, round)).toMatchObject({ ok: false, error: { code: "stale" } });
+    expect(await op(bob, { type: "arrange", ships: [] }, seen, "0")).toMatchObject({ ok: false, error: { code: "stale" } });
   });
 
   it("drops a game that no longer exists after a deploy, instead of wedging the room", async () => {
@@ -433,6 +453,37 @@ describe("games", () => {
     const { welcome } = await TestClient.join(room, secret("alice"), "Alice");
     expect(welcome.game).toBeNull();
     expect(welcome.chat.at(-1)!.text).toMatch(/no longer available/);
+  });
+
+  it("ends a game whose deadline fails, instead of failing every move after it", async () => {
+    const { room } = await headsUp();
+    await runInDurableObject(stub(room), (_i, state) => {
+      const row = state.storage.sql.exec<{ value: string }>(`SELECT value FROM kv WHERE key = 'game'`).one();
+      const game = JSON.parse(row.value);
+      game.state.timers.turn = 1;
+      game.state.hand.players = null;
+      state.storage.sql.exec(`UPDATE kv SET value = ? WHERE key = 'game'`, JSON.stringify(game));
+    });
+    await evictDurableObject(stub(room));
+    // The next to come in finds it ended, and can carry on in the room.
+    const { client: carol, welcome } = await TestClient.join(room, secret("carol"), "Carol");
+    expect(welcome.game).toBeNull();
+    expect(welcome.chat.at(-1)!.text).toMatch(/went wrong in Texas Hold'em/);
+    expect((await carol.request({ type: "selectGame", gameId: "poker", config: {} })).ok).toBe(true);
+  });
+
+  it("ends a game that fails to show, rather than keep anyone from joining", async () => {
+    const { room } = await headsUp();
+    await runInDurableObject(stub(room), (_i, state) => {
+      const row = state.storage.sql.exec<{ value: string }>(`SELECT value FROM kv WHERE key = 'game'`).one();
+      const game = JSON.parse(row.value);
+      game.state.seats = null;
+      state.storage.sql.exec(`UPDATE kv SET value = ? WHERE key = 'game'`, JSON.stringify(game));
+    });
+    await evictDurableObject(stub(room));
+    const { welcome } = await TestClient.join(room, secret("carol"), "Carol");
+    expect(welcome.game).toBeNull();
+    expect(welcome.chat.at(-1)!.text).toMatch(/went wrong/);
   });
 
   it("only lets players (or the starter) end a game while players are around", async () => {

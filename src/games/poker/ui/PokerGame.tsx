@@ -221,7 +221,7 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
   const inHand = !!hand && hand.status !== "complete" && hand.players.some((p) => p.seat === mySeat && p.playerId === me?.playerId);
   const handLive = !!hand && hand.status !== "complete";
   const eligible = view.seats.filter((s) => s && s.stack > 0 && !s.sittingOut).length;
-  const canDeal = !handLive && eligible >= 2 && (!view.started || view.nextHandAt === null);
+  const canDeal = mySeat !== null && !handLive && eligible >= 2 && (!view.started || view.nextHandAt === null);
 
   const [busy, setBusy] = useState(false);
   const [raiseTo, setRaiseTo] = useState(actions?.minRaiseTo ?? 0);

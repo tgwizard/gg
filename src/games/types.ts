@@ -97,6 +97,12 @@ export interface GameDefinition<State = unknown, Op = unknown, View = unknown, C
    * someone else moved in the meantime. `apply` still checks they're allowed now.
    */
   concurrentOp?(op: Op): boolean;
+  /**
+   * With `concurrentOp`: which round of moves made at once is open now (a game's fleet
+   * placing, a vote), as a key. A concurrent op made in another round is stale all the
+   * same, so one held up on the way (a reconnect) can't land in a later one.
+   */
+  round?(state: State): string;
   /** Player ids the game is waiting on (turn indicator; later: what bots react to). */
   waitingOn(state: State): string[];
   /**
@@ -120,16 +126,23 @@ export interface GameBot<View, Op> {
    * now, table moves left out) or null to wait. It decides from `view` alone, like a
    * person at the table would. Starting games is left to people.
    *
-   * It runs in the browser, on the page, so it should decide within a few hundred ms.
-   * A bot that searches cuts its search short when `quick` is set (tests and set-up
-   * positions, which play thousands of moves).
+   * It plays as well as it can unless `strength` is "easy": then like someone new to the
+   * game (it looks less far ahead, misses things, aims worse). It runs in the browser,
+   * off the page's thread, and should decide within half a second or so. A bot that
+   * searches cuts its search short when `quick` is set (tests and set-up positions,
+   * which play thousands of moves).
    */
-  easy(view: View, ops: Op[], rand: (maxExclusive: number) => number, opts?: BotOptions): Op | null;
+  play(view: View, ops: Op[], rand: (maxExclusive: number) => number, opts?: BotOptions): Op | null;
 }
+
+/** How well the built-in bot plays: its best, or like someone new to the game. */
+export type BotStrength = "easy" | "hard";
 
 export interface BotOptions {
   /** Decide fast rather than well. */
   quick?: boolean;
+  /** "hard" when unset. */
+  strength?: BotStrength;
 }
 
 export type AnyGameDefinition = GameDefinition<any, any, any, any>;

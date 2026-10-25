@@ -44,7 +44,10 @@ export type MemberKind = "human" | "bot" | "guest";
 
 /** What a bot says about itself, for everyone to see. */
 export const BotInfo = z.object({
-  level: z.enum(["easy", "ai"]),
+  /** Built in (no AI; "easy" is what older clients called it), or AI. */
+  level: z.enum(["builtin", "ai", "easy"]).transform((l) => (l === "easy" ? "builtin" : l)),
+  /** For built-in bots: how well it plays ("hard" when unset). */
+  strength: z.enum(["easy", "hard"]).optional(),
   /** For AI bots: the model, e.g. "muse-spark-1.3-contributor", and its provider. */
   model: z.string().max(80).optional(),
   provider: z.string().max(40).optional(),
@@ -101,6 +104,8 @@ export interface GameSnapshot<V = unknown> {
   waitingOn: string[];
   /** When the game's next timer runs out (server time), e.g. the current turn's clock; null if none. */
   deadline: number | null;
+  /** The round of moves made at once that's open, for games that have them (see `round` on a game). */
+  round?: string;
   /** Only sent to bots: the ops they can make right now (the game's `legalOps`). */
   legalOps?: unknown[];
 }
@@ -159,6 +164,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
      * send it; server-side actors (future bots) may omit it.
      */
     ifVersion: z.number().int().optional(),
+    /** The round of moves made at once (the game's `round`) it was made in, if the game has them. */
+    ifRound: z.string().max(64).optional(),
   }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;

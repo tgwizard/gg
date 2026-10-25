@@ -7,7 +7,8 @@ import { femKort as game } from "./index";
 /** You (seat 0) and the bots around a table, a game started with you on lead. */
 function table(players: string[], ctx: GameContext, config: object = {}): FemState {
   const c = scenarioContext(ctx);
-  const state = game.create(game.configSchema.parse(config), c);
+  // With överstick (off by default), which the positions show off.
+  const state = game.create(game.configSchema.parse({ mustBeat: true, ...config }), c);
   players.forEach((id, seat) => game.apply(state, id, { type: "sit", seat }, c));
   // The deal passes clockwise from here: the last seat deals and you, on its left, lead.
   state.dealer = players.length - 2;

@@ -246,7 +246,10 @@ these through the browser and reports back.
 - [ ] Start each game with a bot in the room: once you sit down it takes a free seat within a couple of seconds and plays its turns (poker: after someone deals; Battleship: places and readies its fleet by itself). If nobody sits, bots wait about 10 s before sitting down.
 - [ ] Refresh: your bots come back online with you. Close the tab: they go offline. Open the room in two tabs: each bot is online once, and closing the tab playing it hands it to the other.
 - [ ] × removes the bot: it gives up its seat (forfeiting a round in progress) and leaves the members list. Removed while offline, it shows *leaving…* and goes once you're back.
-- [ ] Another player sees your bot as *bot* without a ×; clicking it shows what it is (built-in or AI, model, effort, provider, personality), never the key.
+- [ ] Another player sees your bot as *bot* without a ×; clicking it shows what it is (built-in easy or hard, or AI with model, effort, provider; personality), never the key.
+- [ ] *Plays*: new bots are *Built-in, easy*; *Built-in, hard* is the strong one (bots made before there was a choice are hard). Play Four in a Row or Luffarschack against each: easy misses things and can be beaten by a beginner, hard can't be beaten without a plan.
+- [ ] While a built-in bot thinks (Four in a Row, Go on hard), the page stays smooth: hovering columns, the chat and animations don't stutter.
+- [ ] Hot seat with Play again: make the first move, resign as the other, *Play again*: the new opener can move straight away (no ghost of the old move).
 
 ### Hot seat
 - [ ] Game cards for chess, Othello, Go, Four in a Row, Luffarschack, tic-tac-toe and Cannons show a *Hot seat* tag (hover: why); the others don't.

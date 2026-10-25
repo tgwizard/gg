@@ -317,7 +317,7 @@ function BotsSection() {
             type="button"
             className="btn settings-new-bot"
             disabled={bots.length >= MAX_BOTS}
-            onClick={() => setMaking({ ...suggestBot({ names: [], colors: [] }), level: "easy" })}
+            onClick={() => setMaking({ ...suggestBot({ names: [], colors: [] }), level: "builtin", strength: "easy" })}
           >
             + New bot
           </button>
@@ -345,7 +345,7 @@ function DeleteAllBots({ bots, confirming, setConfirming }: { bots: BotRecord[];
               const secret = getSecret();
               setConfirming(false);
               for (const b of bots) deleteBot(b.id);
-              for (const b of getBots().filter((g) => g.deleted)) void leaveRooms(b, { owner: secret, bot: { level: "easy" } }, leftRoom);
+              for (const b of getBots().filter((g) => g.deleted)) void leaveRooms(b, { owner: secret, bot: { level: "builtin" } }, leftRoom);
             }}
           >
             Delete all
@@ -420,7 +420,7 @@ function BotCard({ bot }: { bot: BotRecord }) {
               onClick={() => {
                 deleteBot(bot.id);
                 const gone = getBots().find((b) => b.id === bot.id);
-                if (gone) void leaveRooms(gone, { owner: getSecret(), bot: { level: "easy" } }, leftRoom);
+                if (gone) void leaveRooms(gone, { owner: getSecret(), bot: { level: "builtin" } }, leftRoom);
               }}
             >
               Delete {bot.name}

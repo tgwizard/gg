@@ -1,20 +1,23 @@
 import { useState } from "react";
+import type { BotStrength } from "../../games/types";
 import { type BotRecord, type BotSetup } from "../bots/store";
 import { defaultModel, EFFORTS, getConnection, PROVIDERS, useConnections, useModels } from "../llm/connections";
 import type { Effort, Usage } from "../llm/types";
 import { ProfileForm } from "./Profile";
 import { SettingsLink } from "./SettingsLink";
 
-/** "Built-in bot · no AI", "AI bot · muse-spark-1.3 · low effort". */
+/** "Built-in bot · easy · no AI", "AI bot · muse-spark-1.3 · low effort". */
 export function botCaption(bot: BotSetup): string {
-  if (bot.level !== "ai" || !bot.connectionId) return "Built-in bot · no AI";
+  if (bot.level !== "ai" || !bot.connectionId) return builtinCaption(bot.strength ?? "hard");
   const model = bot.model ?? getConnection(bot.connectionId)?.model;
   return ["AI bot", model, `${bot.effort ?? "low"} effort`].filter(Boolean).join(" · ");
 }
 
+const builtinCaption = (strength: BotStrength) => `Built-in bot · ${strength} · no AI`;
+
 /**
- * A bot's setup: name and color, a personality, and how it plays: built-in (no AI), or
- * with one of your AI connections. Editing also shows what it has used.
+ * A bot's setup: name and color, a personality, and how it plays: built-in (no AI), easy
+ * or hard, or with one of your AI connections. Editing also shows what it has used.
  */
 export function BotForm(props: {
   initial: BotSetup;
@@ -29,9 +32,11 @@ export function BotForm(props: {
   onCancel(): void;
 }) {
   const connections = useConnections();
-  const [plays, setPlays] = useState(props.initial.level === "ai" && props.initial.connectionId ? props.initial.connectionId : "easy");
+  // "easy" or "hard" (built-in), or an AI connection's id.
+  const [plays, setPlays] = useState(props.initial.level === "ai" && props.initial.connectionId ? props.initial.connectionId : (props.initial.strength ?? "hard"));
   const [persona, setPersona] = useState(props.initial.persona ?? "");
   const connection = connections.find((c) => c.id === plays);
+  const strength: BotStrength = plays === "easy" ? "easy" : "hard";
   const models = useModels(connection);
   // Unless chosen, the cheapest model at low effort.
   const [picked, setPicked] = useState(props.initial.level === "ai" ? props.initial.model : undefined);
@@ -49,11 +54,11 @@ export function BotForm(props: {
       color={props.initial.color}
       whose="Bot"
       bot
-      caption={connection ? `AI bot · ${model ?? "…"} · ${effort} effort` : "Built-in bot · no AI"}
+      caption={connection ? `AI bot · ${model ?? "…"} · ${effort} effort` : builtinCaption(strength)}
       submitLabel={props.submitLabel}
       taken={props.taken}
       onSubmit={(name, color) =>
-        props.onSubmit(connection ? { name, color, level: "ai", connectionId: connection.id, model, effort, persona } : { name, color, level: "easy", persona })
+        props.onSubmit(connection ? { name, color, level: "ai", connectionId: connection.id, model, effort, persona } : { name, color, level: "builtin", strength, persona })
       }
       onCancel={props.onCancel}
       intro={props.intro}
@@ -73,13 +78,14 @@ export function BotForm(props: {
       <label className="field">
         <span>Plays</span>
         <select
-          value={connection ? plays : "easy"}
+          value={connection ? plays : strength}
           onChange={(e) => {
             setPlays(e.target.value);
             setPicked(undefined);
           }}
         >
-          <option value="easy">Built-in, without AI</option>
+          <option value="easy">Built-in, easy</option>
+          <option value="hard">Built-in, hard</option>
           {connections.map((c) => (
             <option key={c.id} value={c.id}>
               AI · {c.label}
@@ -113,7 +119,9 @@ export function BotForm(props: {
         </div>
       )}
       <p className="muted small bot-form-note">
-        {connection ? "It plays the part, in the chat and at the table. " : "Built-in bots don't talk; give it AI to have it play the part. "}
+        {connection
+          ? "It plays the part, in the chat and at the table. "
+          : `${strength === "easy" ? "Easy, it plays like someone new to the game." : "Hard, it plays as well as it can."} Built-in bots don't talk; give it AI to have it play the part. `}
         It plays from this browser while you have its room open, and is away while you're not.{props.bot && " Changes apply in every room it's in."}{" "}
         {!props.inSettings && <SettingsLink tab="bots">{connections.length ? "Your bots and AI keys" : "Add an AI key"}</SettingsLink>}
       </p>

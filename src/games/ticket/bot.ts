@@ -3,7 +3,11 @@
  * routes on the cheapest path to its unfinished tickets, and otherwise draws cards,
  * preferring colors those routes need. With every ticket done it claims long routes
  * for points (and sometimes draws more tickets).
+ *
+ * Easy, it keeps whichever tickets, claims what it can on the way to them without much
+ * thought for what's long, and mostly draws blind.
  */
+import { chance, easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { TtrView } from "./engine";
 import { cheapestPath } from "./graph";
@@ -11,7 +15,8 @@ import { routeById, ticketById, type Route, type TrainColor } from "./map";
 import type { TtrOp } from "./index";
 
 export const ticketBot: GameBot<TtrView, TtrOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
+    const soft = easy(opts);
     const me = view.players.find((p) => p.seat === view.you.seat && !p.left);
     if (!me || !ops.length) return null;
     const pick = <T>(xs: T[]) => xs[rand(xs.length)]!;
@@ -25,6 +30,7 @@ export const ticketBot: GameBot<TtrView, TtrOp> = {
         return plan(t.a, t.b)?.cost ?? 99;
       };
       const fewest = Math.min(...keeps.map((op) => op.tickets.length));
+      if (soft) return pick(keeps.filter((op) => op.tickets.length === fewest));
       const total = (ids: number[]) => ids.reduce((n, id) => n + cost(id), 0);
       return keeps.filter((op) => op.tickets.length === fewest).sort((a, b) => total(a.tickets) - total(b.tickets))[0]!;
     }
@@ -35,6 +41,7 @@ export const ticketBot: GameBot<TtrView, TtrOp> = {
     const claims = ops.filter((op) => op.type === "claim");
     const length = (op: Extract<TtrOp, { type: "claim" }>) => routeById.get(op.route)!.length;
     const useful = claims.filter((op) => neededIds.has(op.route));
+    if (useful.length && soft) return pick(useful);
     if (useful.length) {
       const longest = Math.max(...useful.map(length));
       return pick(useful.filter((op) => length(op) === longest));
@@ -51,7 +58,7 @@ export const ticketBot: GameBot<TtrView, TtrOp> = {
     if (draws.length) {
       const wanted = new Set<string>(needed.map((r) => r.color).filter((c): c is TrainColor => c !== "gray"));
       const faceUp = draws.filter((op) => op.from !== "deck" && wanted.has(view.faceUp[op.from as number]!));
-      if (faceUp.length) return pick(faceUp);
+      if (faceUp.length && (!soft || chance(rand, 30))) return pick(faceUp);
       const loco = draws.find((op) => op.from !== "deck" && view.faceUp[op.from as number] === "loco");
       if (loco && rand(3) === 0) return loco;
       return draws.find((op) => op.from === "deck") ?? pick(draws);

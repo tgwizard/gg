@@ -353,6 +353,7 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 
 .active-game { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; margin: 0 auto; }
 /* Hot seat: who on this device the game is shown as, and the others to switch to. */
+.game-failed { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 20px; text-align: center; }
 .hot-seat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .hot-seat-player {
   display: inline-flex;

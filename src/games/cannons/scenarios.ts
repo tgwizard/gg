@@ -34,7 +34,7 @@ function play(state: CannonsState, ctx: GameContext, done: (s: CannonsState) => 
     const actor = game.waitingOn(state)[0];
     if (!actor) throw new Error("the game isn't waiting on anyone");
     const ops = game.legalOps(state, actor).filter((op) => op.type === "fire");
-    const op = (policies[actor] ?? game.bot.easy)(game.view(state, actor), ops, rand, { quick: true });
+    const op = (policies[actor] ?? game.bot.play)(game.view(state, actor), ops, rand, { quick: true });
     if (!op) throw new Error(`${actor} has no move`);
     game.apply(state, actor, op, at());
   }
@@ -50,7 +50,7 @@ function tryShot(state: CannonsState, angle: number, power: number) {
 /** Aims like the built-in bot, but shifted so it lands `by` points of power off, and never hits anyone. */
 function missing(by: number): Policy<CannonsView, CannonsOp> {
   return (view, ops, rand) => {
-    const aim = game.bot.easy(view, ops, rand) as Fire;
+    const aim = game.bot.play(view, ops, rand) as Fire;
     for (let k = 0; k < 20; k++) {
       const power = Math.max(5, Math.min(100, aim.power + by + (by > 0 ? k : -k)));
       const me = view.cannons.findIndex((c) => c.playerId === view.turn);
@@ -116,7 +116,7 @@ export const scenarios: Scenario<CannonsState>[] = [
       return firstThat(ctx, (c) => {
         const state = seated(players, c, {});
         // Your shot: the first power at the bot's angle that lands 15–40 m short.
-        const aim = game.bot.easy(game.view(state, you), game.legalOps(state, you), c.randomInt) as Fire;
+        const aim = game.bot.play(game.view(state, you), game.legalOps(state, you), c.randomInt) as Fire;
         const target = state.cannons.find((x) => x.playerId === bot)!;
         const me = state.cannons.find((x) => x.playerId === you)!;
         const side = target.x > me.x ? 1 : -1;

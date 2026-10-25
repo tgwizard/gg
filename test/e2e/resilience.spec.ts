@@ -40,6 +40,24 @@ test("going offline queues chat, and coming back delivers it and catches up", as
   await expect(alice.page.getByRole("alert")).toBeHidden();
 });
 
+test("a long queue of chat goes out at a pace the server takes, every message", async ({ browser }) => {
+  const alice = await newPlayer(browser);
+  const bob = await newPlayer(browser);
+  const url = await createRoom(alice.page, "Alice");
+  await joinRoom(bob.page, url, "Bob");
+
+  await alice.context.setOffline(true);
+  await expect(alice.page.getByTestId("connection-status")).toHaveText(/Offline|Reconnecting/);
+  for (let i = 1; i <= 20; i++) await sendChat(alice.page, `queued ${i}`);
+  await expect(alice.page.getByTestId("chat-pending")).toHaveCount(20);
+
+  await alice.context.setOffline(false);
+  await expect(alice.page.getByTestId("chat-pending")).toHaveCount(0, { timeout: 30_000 });
+  const lines = bob.page.getByTestId("chat-message").filter({ hasText: /queued \d+/ });
+  await expect(lines).toHaveCount(20);
+  await expect(lines.last()).toContainText("queued 20");
+});
+
 test("a dropped connection reconnects on its own, mid-game", async ({ browser }) => {
   const alice = await newPlayer(browser);
   const bob = await newPlayer(browser);

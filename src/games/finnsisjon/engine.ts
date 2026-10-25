@@ -170,8 +170,11 @@ export function leave(state: FishState, playerId: string, ctx: GameContext) {
     p.hand = [];
     shuffle(state.lake, ctx.randomInt);
     logEvent(state, { type: "left", who: playerId });
+    const current = currentPlayer(state);
     if (state.turn === p.seat) beginTurn(state, ctx, p.seat, false);
     else if (isOver(state)) finish(state, ctx);
+    // Whoever's turn it is may have had only them to ask: then they draw and pass.
+    else if (current && opponentsWithCards(state, current).length === 0) beginTurn(state, ctx, current.seat, true);
   }
   standUp(state, playerId);
 }
@@ -242,6 +245,7 @@ function autoPlay(state: FishState, ctx: GameContext) {
   for (const c of p.hand) counts.set(rankOf(c), (counts.get(rankOf(c)) ?? 0) + 1);
   const rank = [...counts].sort((a, b) => b[1] - a[1] || rankValue(b[0]) - rankValue(a[0]))[0]![0];
   const targets = opponentsWithCards(state, p);
+  if (!targets.length) return beginTurn(state, ctx, p.seat, true);
   ask(state, p.playerId, targets[ctx.randomInt(targets.length)]!.playerId, rank, ctx);
 }
 

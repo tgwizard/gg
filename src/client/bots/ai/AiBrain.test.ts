@@ -58,7 +58,7 @@ function setup(first: RoomSnapshot) {
     snapshot: () => snap,
     sendOp: async (op, at) => void sent.push({ op, at }),
     say: () => {},
-    easyMove: () => ({ type: "place", cell: 4 }),
+    builtinMove: async () => ({ type: "place", cell: 4 }),
     usage: () => {},
     error: () => {},
     activity: () => {},
@@ -135,6 +135,26 @@ describe("AiBrain", () => {
     await vi.advanceTimersByTimeAsync(3_000);
     expect(t.standIns).toEqual(["the model took too long"]);
     expect(t.sent).toEqual([{ op: { type: "place", cell: 4 }, at: { instanceId: "A", version: 3 } }]);
+    t.brain.stop();
+  });
+
+  it("drops a slow call about the chat when its move comes up", async () => {
+    let n = 0;
+    generate = (req) => (++n === 1 ? never(req) : Promise.resolve(act({ op: { type: "place", cell: 4 } })));
+    const waiting = snapshot("A", 3);
+    const t = setup({
+      ...waiting,
+      chat: [{ seq: 1, ts: 0, kind: "user", playerId: "me", name: "Me", text: "hi bot", cid: null }],
+      game: { ...waiting.game!, waitingOn: ["me"], legalOps: [{ type: "leave" }] },
+    });
+    t.brain.observe();
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(n).toBe(1);
+    // Its move, with ten seconds on the clock, while the model is still on the chat.
+    t.set(snapshot("A", 4, Date.now() + 10_000));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(t.sent.map((s) => s.op)).toEqual([{ type: "place", cell: 4 }]);
+    expect(t.standIns).toEqual([]);
     t.brain.stop();
   });
 

@@ -223,9 +223,10 @@ const locosUp = (state: TtrState) => state.faceUp.filter((c) => c === "loco").le
 /** Fill empty face-up slots; three locomotives showing means all five are discarded and dealt again. */
 function refillFaceUp(state: TtrState, ctx: GameContext) {
   for (let i = 0; i < FACE_UP; i++) if (state.faceUp[i] == null) state.faceUp[i] = takeFromDeck(state, ctx);
-  // Redealing only helps if there are enough other cards to come up; otherwise leave it.
+  // Redealing only helps if there are enough other cards to come up (the row's own among
+  // them, as it's discarded first); otherwise leave it.
   for (let guard = 0; guard < 20 && locosUp(state) >= 3; guard++) {
-    const others = [...state.deck, ...state.discard].filter((c) => c !== "loco").length;
+    const others = [...state.deck, ...state.discard, ...state.faceUp].filter((c) => c !== null && c !== "loco").length;
     if (others < 3) break;
     state.discard.push(...state.faceUp.filter((c): c is CardColor => c !== null));
     state.faceUp = Array.from({ length: FACE_UP }, () => takeFromDeck(state, ctx));

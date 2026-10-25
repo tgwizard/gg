@@ -35,15 +35,19 @@ test("play tic-tac-toe against a built-in bot, then remove it", async ({ browser
   await expect(plates.filter({ hasText: bot }).locator(".avatar[data-bot]")).toBeVisible();
   await expect(plates.filter({ hasText: "Alice" }).locator(".avatar[data-bot]")).toHaveCount(0);
 
-  // Rename and recolor it mid-game.
+  // Rename, recolor and toughen it mid-game (new bots play easy).
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("gg.bots")!)[0])).toMatchObject({ level: "builtin", strength: "easy" });
   await page.getByRole("button", { name: `Edit ${bot}` }).click();
   const edit = page.getByRole("dialog", { name: `Edit ${bot}` });
+  await expect(edit.getByLabel("Plays")).toHaveValue("easy");
   await edit.getByLabel("Bot's name").fill("Clank");
   await edit.getByRole("radio", { name: /^Teal/ }).click();
+  await edit.getByLabel("Plays").selectOption("hard");
+  await expect(edit).toContainText("Built-in bot · hard · no AI");
   await edit.getByRole("button", { name: "Save" }).click();
   await expect(chat(page)).toContainText("Robo is now known as Clank.");
   bot = "Clank";
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("gg.bots")!)[0])).toMatchObject({ name: "Clank", color: 7 });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("gg.bots")!)[0])).toMatchObject({ name: "Clank", color: 7, strength: "hard" });
   await expect(plates.filter({ hasText: bot })).toBeVisible();
 
   // Alice plays the first free square whenever it's her move, until the round ends.

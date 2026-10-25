@@ -12,7 +12,9 @@
  *   - Chat typed while offline is queued and shown as pending. It's also kept in the
  *     tab's sessionStorage, so it still goes out after a refresh (with the same cid,
  *     so it's never posted twice); after an hour it's dropped, as the server's memory
- *     of what it already applied doesn't reach that far back.
+ *     of what it already applied doesn't reach that far back. Chat goes out at a pace
+ *     the server accepts (a queue after a reconnect is flushed a few at a time), and a
+ *     message refused for coming too fast waits and goes again.
  *   - Server limits are explained, not hidden: a refused connection carries a
  *     message and a retry-after, which wins over the normal backoff.
  *
@@ -111,6 +113,13 @@ const CONNECT_TIMEOUT_MS = 10_000;
 const MAX_BACKOFF_MS = 10_000;
 const MAX_CHAT = 500;
 const PENDING_CHAT_MAX_AGE_MS = 60 * 60 * 1000;
+/** Chat waiting to be sent, at most. */
+const MAX_PENDING_CHAT = 30;
+/** Chat sent at once, then one per CHAT_EVERY_MS: within the server's limits for a connection (limits.ts). */
+const CHAT_BURST = 10;
+const CHAT_EVERY_MS = 1_200;
+/** After a message is refused for coming too fast. */
+const CHAT_RETRY_MS = 3_000;
 
 export class RoomClient {
   private ws: WebSocket | null = null;
@@ -135,6 +144,10 @@ export class RoomClient {
   /** Set by a server error just before it closes the socket on us. */
   private retryAfterMs: number | null = null;
   private outbox = new Map<string, Outgoing>();
+  /** Chat sent on this connection and not yet acknowledged, and what may go out now. */
+  private chatInFlight = new Set<string>();
+  private chatTokens = { n: CHAT_BURST, at: 0 };
+  private chatTimer: ReturnType<typeof setTimeout> | undefined;
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private connectTimer: ReturnType<typeof setTimeout> | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
@@ -182,6 +195,7 @@ export class RoomClient {
     clearInterval(this.heartbeatTimer);
     clearTimeout(this.retryTimer);
     clearTimeout(this.connectTimer);
+    clearTimeout(this.chatTimer);
     const ws = this.ws;
     this.ws = null;
     ws?.close(1000, "bye");
@@ -288,6 +302,7 @@ export class RoomClient {
   sendChat(raw: string): Promise<void> {
     const text = sanitizeChat(raw);
     if (!text) return Promise.resolve();
+    if (this.snapshot.pendingChat.length >= MAX_PENDING_CHAT) return Promise.reject(new RequestError("too_many_pending", "Lots of messages are still waiting to be sent. Try again once they've gone."));
     const cid = crypto.randomUUID();
     this.update({ pendingChat: [...this.snapshot.pendingChat, { cid, text, ts: Date.now() }] });
     return this.enqueue({ type: "chat", cid, text }, "chat");
@@ -329,11 +344,11 @@ export class RoomClient {
    * A move, made against the game as you see it now, or as of `at` (what a bot looked at
    * before deciding): it's refused if that game has ended or changed since.
    */
-  sendGameOp(op: unknown, at?: { instanceId: string; version: number }) {
+  sendGameOp(op: unknown, at?: { instanceId: string; version: number; round?: string }) {
     const game = this.snapshot.game;
-    const { instanceId, version } = at ?? game ?? {};
+    const { instanceId, version, round } = at ?? game ?? {};
     if (!instanceId) return Promise.reject(new RequestError("no_game", "No game is running."));
-    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId, op, ifVersion: version }, "game");
+    return this.request({ type: "gameOp", cid: crypto.randomUUID(), instanceId, op, ifVersion: version, ...(round !== undefined ? { ifRound: round } : {}) }, "game");
   }
 
   // --- outbox --------------------------------------------------------------
@@ -353,12 +368,48 @@ export class RoomClient {
   }
 
   private transmit(out: Outgoing) {
-    if (this.isConnected()) this.sendRaw(out.msg);
+    if (out.kind === "chat") this.pumpChat();
+    else if (this.isConnected()) this.sendRaw(out.msg);
+  }
+
+  /** Send the chat that's waiting, in order, as fast as the server takes it. */
+  private pumpChat() {
+    clearTimeout(this.chatTimer);
+    if (!this.isConnected()) return;
+    const now = Date.now();
+    const t = this.chatTokens;
+    t.n = Math.min(CHAT_BURST, t.n + (now - t.at) / CHAT_EVERY_MS);
+    t.at = now;
+    for (const out of [...this.outbox.values()]) {
+      if (out.kind !== "chat" || this.chatInFlight.has(out.msg.cid)) continue;
+      const queued = this.snapshot.pendingChat.find((p) => p.cid === out.msg.cid);
+      if (queued && now - queued.ts > PENDING_CHAT_MAX_AGE_MS) {
+        this.settle(out.msg.cid, new RequestError("expired", "A message waited too long for a connection and wasn't sent."));
+        continue;
+      }
+      if (t.n < 1) {
+        this.chatTimer = setTimeout(() => this.pumpChat(), (1 - t.n) * CHAT_EVERY_MS);
+        return;
+      }
+      t.n--;
+      this.chatInFlight.add(out.msg.cid);
+      this.sendRaw(out.msg);
+    }
   }
 
   private settle(cid: string, error: RequestError | null) {
     const out = this.outbox.get(cid);
     if (!out) return;
+    if (out.kind === "chat") {
+      this.chatInFlight.delete(cid);
+      // Too fast (other tabs on this network count too): it goes again in a moment.
+      if (error?.code === RATE_LIMITED) {
+        this.chatTokens = { n: 0, at: Date.now() };
+        clearTimeout(this.chatTimer);
+        this.chatTimer = setTimeout(() => this.pumpChat(), CHAT_RETRY_MS);
+        return;
+      }
+    }
     if (error) devLog(this.roomId, this.who(), "refused", { request: out.msg, code: error.code, message: error.message });
     this.outbox.delete(cid);
     if (out.kind === "chat") this.update({ pendingChat: this.snapshot.pendingChat.filter((p) => p.cid !== cid) });
@@ -533,8 +584,11 @@ export class RoomClient {
           clockOffset: msg.serverTime - Date.now(),
           notice: null,
         });
-        // Resend anything unacknowledged, in order.
-        for (const out of this.outbox.values()) this.transmit(out);
+        // Resend anything unacknowledged, in order (chat at its own pace).
+        this.chatInFlight.clear();
+        this.chatTokens = { n: CHAT_BURST, at: Date.now() };
+        for (const out of this.outbox.values()) if (out.kind !== "chat") this.transmit(out);
+        this.pumpChat();
         return;
       }
       case "members": {

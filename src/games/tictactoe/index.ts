@@ -4,6 +4,7 @@
  * pause between rounds). There's no hidden information, so the view is the state.
  */
 import { z } from "zod";
+import { chance, easy } from "../kit/bot";
 import { legalLobbyOps, lobbyOps } from "../kit/lobby";
 import { emptySeating, requireSeat, type Seat, type Seating, seatedPlayers, seatOf, sitDown, standUp } from "../kit/seating";
 import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
@@ -183,14 +184,18 @@ export const ticTacToe: GameDefinition<TttState, TttOp, TttView, TttConfig> = {
     }
   },
   bot: {
-    // Takes a win when it sees one and blocks about half the time, so it's beatable.
-    easy(view, ops, rand) {
+    // Hard takes a win and blocks one whenever it can, and likes the middle (it can still be
+    // forked). Easy takes a win more often than not, blocks now and then, and otherwise goes anywhere.
+    play(view, ops, rand, opts) {
       const cells = ops.flatMap((op) => (op.type === "place" ? [op.cell] : []));
       const me = view.you.seat;
       if (!cells.length || me === null) return null;
       const completes = (mark: Mark) => cells.find((c) => LINES.some((l) => l.includes(c) && l.every((x) => x === c || view.board[x] === mark)));
-      const cell = completes(me) ?? (rand(2) === 0 ? completes((1 - me) as Mark) : undefined) ?? cells[rand(cells.length)]!;
-      return { type: "place", cell };
+      const soft = easy(opts);
+      const win = soft && !chance(rand, 70) ? undefined : completes(me);
+      const block = soft && !chance(rand, 35) ? undefined : completes((1 - me) as Mark);
+      const middle = !soft && cells.includes(4) ? 4 : undefined;
+      return { type: "place", cell: win ?? block ?? middle ?? cells[rand(cells.length)]! };
     },
   },
   checkInvariants(state) {

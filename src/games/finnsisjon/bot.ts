@@ -1,7 +1,9 @@
 /**
  * The built-in Finns i sjön bot. It asks for the rank it holds most of, and half the
- * time remembers who just asked for a rank it has (they must be holding some).
+ * time remembers who just asked for a rank it has (they must be holding some). Easy, it
+ * remembers nothing and asks anyone for anything it holds.
  */
+import { easy } from "../kit/bot";
 import { rankOf } from "../kit/cards";
 import type { GameBot } from "../types";
 import type { FishView } from "./engine";
@@ -10,9 +12,10 @@ import type { FishOp } from "./index";
 type Ask = Extract<FishOp, { type: "ask" }>;
 
 export const fishBot: GameBot<FishView, FishOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const asks = ops.filter((op): op is Ask => op.type === "ask");
     if (!asks.length) return null;
+    if (easy(opts)) return asks[rand(asks.length)]!;
     const me = view.players.find((p) => p.seat === view.you.seat);
     if (rand(2) === 0) {
       // You can only ask for a rank you hold, so recent askers likely still have it.

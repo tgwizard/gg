@@ -10,7 +10,7 @@ import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import { useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
-import { AUTO_PLAY_DELAY_MS, type FishEvent, type FishPlayerView, type FishView } from "../engine";
+import { AUTO_PLAY_DELAY_MS, type FishEvent, type FishPlayerView, type FishView, TOTAL_BOOKS } from "../engine";
 import type { FishOp } from "../index";
 import "./finnsisjon.css";
 
@@ -337,7 +337,9 @@ function Result({ view, me, name, start, disabled }: { view: FishView; me: strin
   const winners = result?.winners ?? [];
   const ranking = [...view.players].sort((a, b) => b.books.length - a.books.length);
   const title = winners.includes(me) ? (winners.length > 1 ? "You share the win!" : "You win!") : `${winners.map(name).join(" & ")} ${winners.length > 1 ? "share the win!" : "wins!"}`;
-  const most = ranking[0]?.books.length ?? 0;
+  const most = view.players.find((p) => winners.includes(p.playerId))?.books.length ?? 0;
+  const allDown = view.players.reduce((n, p) => n + p.books.length, 0) === TOTAL_BOOKS;
+  const wins = `${most} ${most === 1 ? "book" : "books"} wins it.`;
   return (
     <GameOver
       open={view.phase === "over" && !!result}
@@ -345,7 +347,7 @@ function Result({ view, me, name, start, disabled }: { view: FishView; me: strin
       me={me}
       testId="fish-result"
       title={title}
-      subtitle={`All 13 books are down. ${most} ${most === 1 ? "book" : "books"} wins it.`}
+      subtitle={allDown ? `All 13 books are down. ${wins}` : `Everyone else left the table. ${wins}`}
       columns={["Books"]}
       rows={ranking.map((p) => ({
         playerId: p.playerId,

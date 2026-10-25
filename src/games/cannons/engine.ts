@@ -54,6 +54,11 @@ export interface Cannon {
   by: string | null;
   /** Turn clocks that ran out on it in a row. */
   timeouts: number;
+  /** Its shots this game, and how many hit another cannon (`shots` keeps only the latest). */
+  fired: number;
+  hits: number;
+  /** How many shots had been fired when it went out. */
+  outAt: number | null;
 }
 
 /** Where a shot ended relative to the cannon nearest to it (not the shooter's). */
@@ -161,7 +166,7 @@ export function leave(state: CannonsState, playerId: string, ctx: GameContext) {
       setTimer(state.timers, "turn", null);
       ctx.announce(`The Cannons game was called off: ${ctx.nameOf(playerId)} left before anyone fired.`);
     } else {
-      knockOut(cannon, "left", null);
+      knockOut(state, cannon, "left", null);
       ctx.announce(`${ctx.nameOf(playerId)} left: their cannon is out.`);
       if (!settle(state, "left", ctx) && state.cannons[state.turn] === cannon) nextTurn(state, ctx);
     }
@@ -186,7 +191,7 @@ function startGame(state: CannonsState, ctx: GameContext) {
   }
   const field = makeField(state.config.terrain, ctx.randomInt(2 ** 31), seats.length);
   state.terrain = field.terrain;
-  state.cannons = seats.map((s, i) => ({ playerId: s.playerId, seat: s.seat, x: field.xs[i]!, alive: true, out: null, by: null, timeouts: 0 }));
+  state.cannons = seats.map((s, i) => ({ playerId: s.playerId, seat: s.seat, x: field.xs[i]!, alive: true, out: null, by: null, timeouts: 0, fired: 0, hits: 0, outAt: null }));
   state.turn = state.cannons.findIndex((c) => c.seat === state.opener);
   state.opener = (state.opener + 1) % state.seats.length;
   state.shots = [];
@@ -223,6 +228,7 @@ export function fire(state: CannonsState, actor: string, angle: number, power: n
   if (!Number.isInteger(angle) || angle < 0 || angle > 180) throw new GameError("bad_angle", "The angle is a whole number from 0 to 180.");
   if (!Number.isInteger(power) || power < MIN_POWER || power > MAX_POWER) throw new GameError("bad_power", `The power is a whole number from ${MIN_POWER} to ${MAX_POWER}.`);
   cannon.timeouts = 0;
+  cannon.fired++;
   state.passed = null;
 
   const f = flight({ terrain: state.terrain, cannons: state.cannons, shooter: state.turn, angle, power, wind: state.wind });
@@ -242,7 +248,8 @@ export function fire(state: CannonsState, actor: string, angle: number, power: n
     path: f.path,
   };
   if (f.end !== "off") state.terrain = crater(state.terrain, f.x, f.y);
-  if (hit) knockOut(hit, "hit", actor);
+  if (hit && hit !== cannon) cannon.hits++;
+  if (hit) knockOut(state, hit, "hit", actor);
   // Only the latest shot of each player keeps its path (for the trace).
   for (const s of state.shots) if (s.by === actor) s.path = null;
   state.shots.push(shot);
@@ -262,8 +269,9 @@ function nearest(state: CannonsState, shooter: Cannon, f: Flight): Near | null {
   return { playerId: target.playerId, dx: whole((f.x - target.x) * side), dy: whole(f.y - groundAt(state.terrain, target.x)), side };
 }
 
-function knockOut(cannon: Cannon, why: NonNullable<Cannon["out"]>, by: string | null) {
+function knockOut(state: CannonsState, cannon: Cannon, why: NonNullable<Cannon["out"]>, by: string | null) {
   cannon.alive = false;
+  cannon.outAt = state.fired;
   cannon.out = why;
   cannon.by = by;
 }
@@ -325,7 +333,7 @@ export function onDeadline(state: CannonsState, ctx: GameContext) {
   const cannon = state.cannons[state.turn]!;
   cannon.timeouts++;
   if (cannon.timeouts >= MAX_TIMEOUTS) {
-    knockOut(cannon, "timeouts", null);
+    knockOut(state, cannon, "timeouts", null);
     ctx.announce(`${ctx.nameOf(cannon.playerId)} ran out of time ${MAX_TIMEOUTS} times in a row: their cannon is out.`);
     if (!settle(state, "timeouts", ctx)) nextTurn(state, ctx);
     return;
@@ -390,6 +398,10 @@ export interface CannonView {
   out: Cannon["out"];
   by: string | null;
   timeouts: number;
+  /** Shots this game, hits on others, and how many shots in it went out. */
+  fired: number;
+  hits: number;
+  outAt: number | null;
   /** Where its barrel points: the angle of its last shot, or a first aim. */
   angle: number;
 }
@@ -435,6 +447,9 @@ export function viewFor(state: CannonsState, viewer: string): CannonsView {
     out: c.out,
     by: c.by,
     timeouts: c.timeouts,
+    fired: c.fired ?? 0,
+    hits: c.hits ?? 0,
+    outAt: c.outAt ?? null,
     angle: lastAim(state, c.playerId)?.angle ?? defaultAim(state.cannons, i).angle,
   }));
   const playing = state.phase === "aiming" || state.phase === "flying";

@@ -142,13 +142,13 @@ async function setUpRoom(gameId: string, scenario: Scenario, step: (text: string
     // Your built-in bots, invited as from the room (made if you haven't enough); they play from the room page.
     step(scenario.bots === 1 ? "Inviting a bot" : `Inviting ${scenario.bots} bots`);
     const bots: BotRecord[] = [];
-    const yours = getBots().filter((b) => !b.deleted && b.level === "easy");
+    const yours = getBots().filter((b) => !b.deleted && b.level === "builtin");
     for (let i = 0; i < scenario.bots; i++) {
       const taken = [...you.getSnapshot().members, ...bots];
-      const bot = yours[i] ?? (await createBot({ ...suggestBot({ names: taken.map((m) => m.name), colors: taken.map((m) => m.color) }), level: "easy" }));
+      const bot = yours[i] ?? (await createBot({ ...suggestBot({ names: taken.map((m) => m.name), colors: taken.map((m) => m.color) }), level: "builtin" }));
       if (!bot || !inviteBot(bot.id, roomId)) throw new Error("Couldn't invite a bot.");
       bots.push(bot);
-      await connect(new RoomClient(roomId, bot.secret, bot.name, bot.color, { owner: secret, bot: { level: "easy", ...(bot.persona ? { persona: bot.persona } : {}) } }));
+      await connect(new RoomClient(roomId, bot.secret, bot.name, bot.color, { owner: secret, bot: { level: "builtin", strength: bot.strength ?? "hard", ...(bot.persona ? { persona: bot.persona } : {}) } }));
     }
     const snapshot = await until(you, (s) => bots.every((b) => s.members.some((m) => m.id === b.playerId)));
 

@@ -10,7 +10,11 @@
  *
  * It's quick (a few milliseconds a move on a 19×19 sheet) and never misses a five or a
  * block of one; a player who builds two threats at once can beat it.
+ *
+ * Easy, it looks only at what each square makes, not at wins by fours, cares less about
+ * stopping the other side (now and then it misses a five), and picks loosely.
  */
+import { chance, easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { LuffaView } from "./engine";
 import type { LuffaOp } from "./index";
@@ -220,9 +224,10 @@ function near(sheet: Sheet, which: (v: number) => boolean, allowed?: Set<number>
 
 /**
  * The bot's square for `me` on a board (see ./rules for the format), from the `allowed`
- * cells. Picks at random among squares worth nearly as much as the best.
+ * cells. Picks at random among squares worth nearly as much as the best (`soft`: a good
+ * deal less, playing easy).
  */
-export function choose(board: string, n: number, me: "x" | "o", allowed: number[], rand: (maxExclusive: number) => number): number {
+export function choose(board: string, n: number, me: "x" | "o", allowed: number[], rand: (maxExclusive: number) => number, soft = false): number {
   const sheet = new Sheet(n, board);
   const ok = new Set(allowed);
   const mid = (n - 1) / 2;
@@ -237,28 +242,30 @@ export function choose(board: string, n: number, me: "x" | "o", allowed: number[
   if (!pool.length) pool = allowed;
   // Five now, or stop theirs.
   for (const p of [mine, theirs]) {
+    if (soft && p === theirs && chance(rand, 30)) continue;
     const five = pool.find((cell) => sheet.makesFive(cell, p));
     if (five !== undefined) return five;
   }
   // A win by fours, if there's one.
-  const vcf = sheet.vcf(mine);
+  const vcf = soft ? null : sheet.vcf(mine);
   if (vcf !== null && ok.has(vcf)) return vcf;
   // Where their own win by fours would start: worth taking first.
-  const danger = sheet.vcf(theirs);
+  const danger = soft ? null : sheet.vcf(theirs);
+  const defense = soft ? 0.3 : DEFENSE;
   const scored = pool.map((cell) => {
     const [r, c] = [Math.floor(cell / n), cell % n];
     // A touch of the middle, so it doesn't wander off to the edges.
     const central = -0.2 * Math.hypot(r - mid, c - mid);
-    return { cell, score: sheet.value(cell, mine) + DEFENSE * sheet.value(cell, theirs) + (cell === danger ? VALUE.theirFours : 0) + central };
+    return { cell, score: sheet.value(cell, mine) + defense * sheet.value(cell, theirs) + (cell === danger ? VALUE.theirFours : 0) + central };
   });
   const best = Math.max(...scored.map((s) => s.score));
-  // Near-equals: within 8% of the best, or a few points when nothing much is going on.
-  const close = scored.filter((s) => s.score >= best - Math.max(3, Math.abs(best) * 0.08));
+  // Near-equals: within 8% of the best (60% playing easy), or a few points when nothing much is going on.
+  const close = scored.filter((s) => s.score >= best - Math.max(3, Math.abs(best) * (soft ? 0.6 : 0.08)));
   return close[rand(close.length)]!.cell;
 }
 
 export const luffarschackBot: GameBot<LuffaView, LuffaOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const me = view.you.color;
     if (!me || view.phase !== "playing" || view.turn !== me) return null;
     const allowed = ops.flatMap((op) => {
@@ -266,7 +273,7 @@ export const luffarschackBot: GameBot<LuffaView, LuffaOp> = {
       return cell === null ? [] : [cell];
     });
     if (!allowed.length) return null;
-    return { type: "mark", square: squareName(view.size, choose(view.board, view.size, me, allowed, rand)) };
+    return { type: "mark", square: squareName(view.size, choose(view.board, view.size, me, allowed, rand, easy(opts))) };
   },
 };
 

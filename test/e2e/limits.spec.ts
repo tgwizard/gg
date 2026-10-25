@@ -45,24 +45,26 @@ test("being told to back off shows why, then reconnects on its own", async ({ br
   await expect(chat(bob.page)).toContainText("patience");
 });
 
-test("chatting too fast is refused gently, without losing the message", async ({ browser }) => {
+test("chatting fast is paced rather than refused; far ahead, it's refused gently, without losing the message", async ({ browser }) => {
   const alice = await newPlayer(browser);
-  await createRoom(alice.page, "Alice");
+  const bob = await newPlayer(browser);
+  const url = await createRoom(alice.page, "Alice");
+  await joinRoom(bob.page, url, "Bob");
   const input = alice.page.getByLabel("Chat message");
-  for (let i = 0; i < 22; i++) {
+  // Offline, so nothing goes out meanwhile: 30 wait, and the 31st is handed back.
+  await alice.context.setOffline(true);
+  for (let i = 0; i < 31; i++) {
     await input.fill(`msg ${i}`);
     await input.press("Enter");
   }
-  await expect(alice.page.getByTestId("toast").first()).toContainText(/going a bit fast/);
-  // The refused text is back in the box to resend. (Under load a restore can land in the
-  // middle of the test's next fill() and the two get joined; a person typing can't do that.)
-  await expect(input).toHaveValue(/msg \d+/);
-  await expect(chat(alice.page)).toContainText("msg 0");
-  await expect(alice.page.getByTestId("chat-pending")).toHaveCount(0);
-  // Normal pace works again shortly after.
-  await alice.page.waitForTimeout(1500);
-  await input.press("Enter");
-  await expect(input).toHaveValue("");
+  await expect(alice.page.getByTestId("toast").first()).toContainText(/still waiting to be sent/);
+  await expect(input).toHaveValue("msg 30");
+  await expect(alice.page.getByTestId("chat-pending")).toHaveCount(30);
+  // Back online, the first ten go at once and the rest at the pace the server takes.
+  await alice.context.setOffline(false);
+  await expect(chat(bob.page)).toContainText("msg 9", { timeout: 15_000 });
+  await expect(chat(bob.page)).toContainText("msg 12", { timeout: 10_000 });
+  await expect(alice.page.getByTestId("toast").filter({ hasText: /going a bit fast/ })).toHaveCount(0);
 });
 
 test("hammering refresh never trips a limit", async ({ browser }) => {

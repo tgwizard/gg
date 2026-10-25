@@ -97,6 +97,8 @@ export interface GoState extends Duel<Color, "scoring"> {
   history: string[];
   /** Passes in a row; two go to counting. */
   passes: number;
+  /** Times play was resumed from counting this game (there's a limit, as there is to its length). */
+  resumes: number;
   /** Stones each color has taken. */
   captures: { b: number; w: number };
   clock: { b: ByoClock; w: ByoClock } | null;
@@ -110,6 +112,10 @@ export const SPEC: DuelSpec<Color> = { name: "Go", colors: ["b", "w"] };
 
 /** Counting with nobody changing or accepting anything for this long scores it as marked. */
 export const SETTLE_MS = 3 * 60_000;
+/** Going back to playing from counting: this many times a game. */
+export const MAX_RESUMES = 3;
+/** Moves (passes included) after which a game is counted, whatever: far more than a real game needs. */
+export const maxMoves = (size: Size) => size * size * 4;
 /** Playouts for the server's guess at the dead stones. */
 const DEAD_PLAYOUTS: Record<Size, number> = { 9: 400, 13: 250, 19: 150 };
 
@@ -123,6 +129,7 @@ export function createState(config: GoConfig): GoState {
     moves: [],
     history: [positionKey(emptyBoard(config.size))],
     passes: 0,
+    resumes: 0,
     captures: { b: 0, w: 0 },
     clock: null,
     clockSince: 0,
@@ -164,6 +171,7 @@ function startGame(state: GoState, ctx: GameContext) {
   state.moves = [];
   state.history = [positionKey(empty)];
   state.passes = 0;
+  state.resumes = 0;
   state.captures = { b: 0, w: 0 };
   const fresh = () => ({ main: state.config.minutes * 60_000, periods: state.config.periods });
   state.clock = timed(state.config) ? { b: fresh(), w: fresh() } : null;
@@ -224,6 +232,7 @@ export function play(state: GoState, actor: string, point: string, ctx: GameCont
   state.captures[c] += after.captured.length;
   state.passes = 0;
   state.turn = other(c);
+  if (tooLong(state, ctx)) return;
   setFlag(state);
 }
 
@@ -233,8 +242,20 @@ export function pass(state: GoState, actor: string, ctx: GameContext) {
   state.moves.push({ by: c, at: null, captured: [] });
   state.turn = other(c);
   if (++state.passes >= 2) return startCounting(state, ctx);
+  if (tooLong(state, ctx)) return;
   setFlag(state);
 }
+
+/** At the limit on moves, play stops for good and the game's counted. */
+function tooLong(state: GoState, ctx: GameContext) {
+  if (state.moves.length < maxMoves(state.config.size)) return false;
+  ctx.announce(`That's ${state.moves.length} moves, as long as a game of Go here can go: it's counted as it stands.`);
+  state.resumes = MAX_RESUMES;
+  startCounting(state, ctx);
+  return true;
+}
+
+export const canResume = (state: GoState) => state.phase === "scoring" && (state.resumes ?? 0) < MAX_RESUMES;
 
 function startCounting(state: GoState, ctx: GameContext) {
   state.phase = "scoring";
@@ -280,6 +301,8 @@ export function accept(state: GoState, actor: string, ctx: GameContext) {
 /** Back to playing, to settle it on the board; the other side moves first. */
 export function resume(state: GoState, actor: string, ctx: GameContext) {
   const c = counter(state, actor);
+  if (!canResume(state)) throw new GameError("no_resume", "Play can't be resumed again this game: settle it by marking the dead stones.");
+  state.resumes = (state.resumes ?? 0) + 1;
   state.phase = "playing";
   state.scoring = null;
   state.passes = 0;
@@ -366,6 +389,9 @@ export function checkInvariants(state: GoState) {
   if (state.clock && [state.clock.b, state.clock.w].some((c) => c.main < 0 || c.periods < 0)) throw new Error("negative clock");
   if (state.phase === "scoring" ? !state.scoring : state.scoring && state.result?.reason !== "score") throw new Error("counting out of step");
   if (state.scoring?.dead.some((p) => state.board[p] === ".")) throw new Error("an empty point marked dead");
+  const dead = new Set(state.scoring?.dead);
+  if (chains(state.board).some((ch) => ch.stones.some((p) => dead.has(p) !== dead.has(ch.stones[0]!)))) throw new Error("a chain only partly marked dead");
+  if (state.moves.length > maxMoves(state.config.size) || (state.resumes ?? 0) > MAX_RESUMES) throw new Error("a game past its limits");
   if (state.phase === "scoring" && state.timers.settle == null) throw new Error("counting with no deadline");
 }
 
@@ -403,7 +429,7 @@ export interface GoView extends DuelView<Color, "scoring"> {
    * While counting, and after a counted game: the stones marked dead, whose each point
    * counts as, the score as marked, who's accepted, and when it's scored anyway.
    */
-  scoring: { dead: string[]; owner: string; score: { b: number; w: number }; accepted: { b: boolean; w: boolean }; deadline: number } | null;
+  scoring: { dead: string[]; owner: string; score: { b: number; w: number }; accepted: { b: boolean; w: boolean }; deadline: number; canResume: boolean } | null;
   result: GoResult | null;
 }
 
@@ -458,6 +484,7 @@ export function viewFor(state: GoState, viewer: string): GoView {
             score: { b: counted.b, w: counted.w },
             accepted: { ...state.scoring.accepted },
             deadline: state.phase === "scoring" ? (state.timers.settle ?? 0) : 0,
+            canResume: canResume(state),
           }
         : null,
     result: state.result ? { winner: state.result.winner, reason: state.result.reason, score: state.result.score && { ...state.result.score } } : null,

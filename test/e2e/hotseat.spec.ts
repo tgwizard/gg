@@ -46,6 +46,19 @@ test("hot seat: two people take turns on one device, the game shown as whoever's
   await drop(a, 1);
   await expect(a.getByTestId("fiar-result")).toContainText("You win!");
 
+  // Play again: one disc, the other resigns, and again. Each new opener can play at once
+  // (the disc shown before the server had it belongs to its own game, never the next).
+  for (let round = 0; round < 2; round++) {
+    await a.getByTestId("fiar-result").getByRole("button", { name: /^Play again/ }).click();
+    await drop(a, 4);
+    await expect(a.getByTestId("fiar-status")).toHaveText("Your move.");
+    await a.getByTestId("fiar-resign").click();
+    await a.getByTestId("fiar-resign-yes").click();
+    await expect(a.getByTestId("fiar-result")).toBeVisible();
+  }
+  await a.getByTestId("fiar-result").getByRole("button", { name: /^Play again/ }).click();
+  await drop(a, 4);
+
   // Taken out of the room, Sam leaves it (and stays on this device for next time).
   await sam.getByRole("button", { name: "Remove Sam" }).click();
   await expect(sam).toHaveCount(0);

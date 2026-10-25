@@ -179,6 +179,19 @@ describe("away players and leaving", () => {
     expect(state.phase).toBe("over");
     expect(state.result!.winners).toEqual(["a"]);
   });
+
+  it("moves play on when someone leaves who was the only one left to ask", () => {
+    const { state, ctx } = setup(3, { turnSeconds: 10 });
+    // a is to play; only b has cards, and c's hand is empty.
+    rig(state, { a: ["7h", "8h"], b: ["9c"], c: [] }, ["2c", "3c", "4c", "5c"], "a");
+    leave(state, "b", ctx());
+    // a has nobody to ask: draws and passes, and c draws into an empty hand and asks a.
+    expect(turnOf(state)).toBe("c");
+    expect(askOptions(state, "c")?.targets).toEqual(["a"]);
+    // The clock still plays the turn rather than failing.
+    onDeadline(state, ctx(nextDeadline(state)!));
+    expect(state.phase).toBe("playing");
+  });
 });
 
 describe("secrets", () => {

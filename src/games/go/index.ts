@@ -21,6 +21,7 @@ import {
   rematch,
   resign,
   resume,
+  canResume,
   SPEC,
   sit,
   viewFor,
@@ -101,7 +102,8 @@ export const go: GameDefinition<GoState, GoOp, GoView, GoConfig> = {
     if (state.phase === "scoring") {
       for (const p of chainPoints(state.board)) ops.push({ type: "mark", point: name(p) });
       if (!state.scoring!.accepted[c]) ops.push({ type: "accept" });
-      ops.push({ type: "resume" }, { type: "resign" });
+      if (canResume(state)) ops.push({ type: "resume" });
+      ops.push({ type: "resign" });
     }
     if (canRematch(state)) ops.push({ type: "rematch" });
     return ops;

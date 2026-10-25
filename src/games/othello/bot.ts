@@ -2,8 +2,9 @@
  * The built-in Othello bot: it looks one move ahead. It weighs squares the usual way
  * (corners are gold, the squares beside an empty corner give it away, edges are good)
  * and likes leaving the other side few moves, with enough randomness that it can be
- * beaten.
+ * beaten. Easy, it plays like a beginner: it flips as many as it can, corners or not.
  */
+import { easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { OthelloView } from "./engine";
 import type { OthelloOp } from "./index";
@@ -24,14 +25,15 @@ const WEIGHTS = [
 const NEAR_CORNER: Record<number, number> = { 1: 0, 8: 0, 9: 0, 6: 7, 14: 7, 15: 7, 48: 56, 49: 56, 57: 56, 54: 63, 55: 63, 62: 63 };
 
 export const othelloBot: GameBot<OthelloView, OthelloOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const me = view.you.color;
     const moves = ops.flatMap((op) => (op.type === "move" ? [op] : []));
     if (!me || !moves.length) return null;
     let best = moves[0]!;
     let bestScore = -Infinity;
     for (const op of moves) {
-      const s = score(view.board, me, parseSquare(op.square)!) + rand(1200) / 100;
+      const sq = parseSquare(op.square)!;
+      const s = easy(opts) ? play(view.board, me, sq).flips.length + rand(400) / 100 : score(view.board, me, sq) + rand(1200) / 100;
       if (s > bestScore) [best, bestScore] = [op, s];
     }
     return best;

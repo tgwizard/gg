@@ -5,7 +5,11 @@
  * perfectly; early on it picks at random among moves that look about as good as the
  * best, so no two games go the same way. A good player who builds threats patiently
  * can still beat it.
+ *
+ * Easy, it looks just two moves ahead (its win, their win), picks loosely among moves
+ * that look alright, and now and then misses a block.
  */
+import { chance, easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { FourView } from "./engine";
 import type { FourOp } from "./index";
@@ -27,13 +31,16 @@ export interface Budget {
 
 /** Tests and set-up positions: a few moves ahead, no clock (so it's repeatable), and plenty of variety. */
 const QUICK: Budget = { maxDepth: 4, timeMs: Infinity };
+/** Easy: its own win and the block of theirs, and not every time. */
+const EASY: Budget = { maxDepth: 2, timeMs: Infinity };
 
 export const fourInARowBot: GameBot<FourView, FourOp> = {
-  easy(view, ops, rand, opts) {
+  play(view, ops, rand, opts) {
     const me = view.you.color;
     const columns = new Set(ops.flatMap((op) => (op.type === "drop" ? [op.column] : [])));
     if (!me || view.phase !== "playing" || view.turn !== me || !columns.size) return null;
-    const best = think(view, rand, opts?.quick ? QUICK : { maxDepth: MAX_DEPTH, timeMs: THINK_MS });
+    if (easy(opts) && chance(rand, 15)) return { type: "drop", column: [...columns][rand(columns.size)]! };
+    const best = think(view, rand, opts?.quick ? QUICK : easy(opts) ? EASY : { maxDepth: MAX_DEPTH, timeMs: THINK_MS });
     const column = columns.has(best.column + 1) ? best.column + 1 : [...columns][0]!;
     return { type: "drop", column };
   },

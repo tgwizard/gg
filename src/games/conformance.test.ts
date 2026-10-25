@@ -11,8 +11,8 @@
  *   - timers make progress (no alarm hot-loops);
  *   - the game's own `checkInvariants` hold.
  *
- * It also seats a table of built-in bots, which must keep the game going: whenever the
- * game waits on a bot, the bot has a move, and every move is legal.
+ * It also seats a table of built-in bots, easy and hard, which must keep the game going:
+ * whenever the game waits on a bot, the bot has a move, and every move is legal.
  */
 import { describe, expect, it } from "vitest";
 import { botMove } from "./kit/bot";
@@ -70,7 +70,7 @@ function playBots(def: AnyGameDefinition, seed: number) {
   };
 
   for (let i = 0; i < 2000 && announced < 20; i++) {
-    const moves = bots.map((bot) => ({ bot, op: botMove(def, def.view(state, bot), def.legalOps(state, bot), rand, "play", { quick: true }) }));
+    const moves = bots.map((bot, b) => ({ bot, op: botMove(def, def.view(state, bot), def.legalOps(state, bot), rand, "play", { quick: true, strength: b % 2 ? "easy" : "hard" }) }));
     for (const id of def.waitingOn(state)) {
       if (moves.find((m) => m.bot === id)?.op == null) throw new Error(`the game waits on ${id}, which has no move`);
     }

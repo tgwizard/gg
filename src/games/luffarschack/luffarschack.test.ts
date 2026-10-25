@@ -135,7 +135,7 @@ describe("luffarschack", () => {
       for (let i = 0; i < 225 && state.phase === "playing"; i++) {
         const who = game.waitingOn(state)[0]!;
         const ops = game.legalOps(state, who).filter((op) => op.type === "mark");
-        game.apply(state, who, game.bot.easy(game.view(state, who), ops, rand, { quick: true })!, ctx());
+        game.apply(state, who, game.bot.play(game.view(state, who), ops, rand, { quick: true })!, ctx());
         game.checkInvariants!(state);
       }
       expect(state.phase).toBe("over");

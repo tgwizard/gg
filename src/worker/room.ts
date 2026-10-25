@@ -106,7 +106,8 @@ const STALE_SOCKET_MS = 120_000;
 const CHAT_PAGE = 100;
 const CHAT_CATCHUP_MAX = 300;
 const CHAT_RETAIN = 1000;
-const OP_RETAIN_MS = 60 * 60 * 1000;
+/** Longer than clients resend unacknowledged messages for (an hour). */
+const OP_RETAIN_MS = 2 * 60 * 60 * 1000;
 /** Activity is persisted at most this often. */
 const TOUCH_EVERY_MS = 60_000;
 
@@ -264,13 +265,14 @@ export class Room extends DurableObject<Env> {
         this.onLeaveRoom(ws, playerId, msg.cid);
         return this.scheduleAlarm();
       case "chat":
-        return this.ack(ws, msg.cid, this.onChat(playerId, msg.cid, msg.text));
+        // Remembered by cid for as long as clients resend (an hour), however much chat follows.
+        return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onChat(playerId, msg.cid, msg.text)));
       case "selectGame":
         return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onSelectGame(playerId, msg.gameId, msg.config)));
       case "endGame":
         return this.ack(ws, msg.cid, this.idempotent(playerId, msg.cid, () => this.onEndGame(playerId, msg.instanceId)));
       case "gameOp": {
-        const result = this.idempotent(playerId, msg.cid, () => this.onGameOp(playerId, msg.instanceId, msg.op, msg.ifVersion));
+        const result = this.idempotent(playerId, msg.cid, () => this.onGameOp(playerId, msg.instanceId, msg.op, msg.ifVersion, msg.ifRound));
         this.ack(ws, msg.cid, result);
         return this.scheduleAlarm();
       }
@@ -347,7 +349,7 @@ export class Room extends DurableObject<Env> {
       msg.color ?? 0,
       kind,
       ownerId,
-      bot ? JSON.stringify(msg.bot ?? { level: "easy" }) : null,
+      bot ? JSON.stringify(msg.bot ?? { level: "builtin" }) : null,
       now,
       now,
     );
@@ -362,6 +364,9 @@ export class Room extends DurableObject<Env> {
       joinMessage = this.insertChat("system", null, null, text);
     }
 
+    // A deadline that's passed is applied first, so you join the game as it is now.
+    this.runDueDeadlines(now);
+    const game = this.game ? this.gameSnapshotOrEnd(playerId, bot) : null;
     const { messages, reset } = this.chatSince(msg.chatCursor);
     this.send(ws, {
       type: "welcome",
@@ -371,7 +376,7 @@ export class Room extends DurableObject<Env> {
       members: this.getMembers(),
       chat: messages,
       chatReset: reset,
-      game: this.game ? this.snapshotFor(playerId, bot) : null,
+      game,
       serverTime: now,
     });
 
@@ -495,7 +500,7 @@ export class Room extends DurableObject<Env> {
     return { ok: true };
   }
 
-  private onGameOp(playerId: string, instanceId: string, rawOp: unknown, ifVersion: number | undefined): AckResult {
+  private onGameOp(playerId: string, instanceId: string, rawOp: unknown, ifVersion: number | undefined, ifRound: string | undefined): AckResult {
     if (!this.game || this.game.instanceId !== instanceId) return fail("no_such_game", "That game is no longer running.");
     const def = this.definition();
     const parsed = def.opSchema.safeParse(rawOp);
@@ -503,8 +508,9 @@ export class Room extends DurableObject<Env> {
     // Time runs out on the server's clock, not when the alarm gets round to it: a move
     // after its deadline finds the timeout already applied (and so the game changed).
     this.runDueDeadlines(Date.now());
-    if (ifVersion !== undefined && ifVersion !== this.game.version && !def.concurrentOp?.(parsed.data))
-      return fail("stale", "The game changed just before your move. Have another look.");
+    if (!this.game) return fail("no_such_game", "That game is no longer running.");
+    const concurrent = def.concurrentOp?.(parsed.data) && (!def.round || def.round(this.game.state) === ifRound);
+    if (ifVersion !== undefined && ifVersion !== this.game.version && !concurrent) return fail("stale", "The game changed just before your move. Have another look.");
 
     const announcements: string[] = [];
     const next = structuredClone(this.game.state);
@@ -554,11 +560,27 @@ export class Room extends DurableObject<Env> {
       const due = def.nextDeadline?.(state);
       if (due == null || due > now || !def.onDeadline) break;
       const next = structuredClone(state);
-      def.onDeadline(next, this.gameContext(announcements, now));
+      try {
+        def.onDeadline(next, this.gameContext(announcements, now));
+      } catch (e) {
+        // The same deadline would fail again on every move and alarm: end the game instead.
+        console.error("onDeadline failed", e);
+        return this.abandonGame();
+      }
       state = next;
       changed = true;
     }
     if (changed) this.commitGame(state, announcements);
+  }
+
+  /** A bug in the game left it unable to go on: end it, so the room can carry on without it. */
+  private abandonGame() {
+    const name = this.definition().meta.name;
+    this.game = null;
+    this.sql.exec(`DELETE FROM kv WHERE key = 'game'`);
+    const msg = this.insertChat("system", null, null, `Something went wrong in ${name}, so it was ended. Sorry! Start a new one any time.`);
+    this.broadcast({ type: "chat", messages: [msg] });
+    this.broadcastGame();
   }
 
   /** Take someone out of the running game for good (a removed bot). */
@@ -571,9 +593,9 @@ export class Room extends DurableObject<Env> {
     try {
       def.removePlayer(next, playerId, this.gameContext(announcements, Date.now()));
     } catch (e) {
-      // A bug in the game mustn't keep the member around; the game state stays as it was.
+      // A bug in the game mustn't keep the member's seat around: the game ends instead.
       console.error("removePlayer failed", e);
-      return;
+      return this.abandonGame();
     }
     this.commitGame(next, announcements);
   }
@@ -604,24 +626,41 @@ export class Room extends DurableObject<Env> {
       players: def.players(game.state),
       waitingOn: def.waitingOn(game.state),
       deadline: def.nextDeadline?.(game.state) ?? null,
+      ...(def.round ? { round: def.round(game.state) } : {}),
       ...(bot ? { legalOps: def.legalOps(game.state, playerId) } : {}),
     };
   }
 
   /** Each player gets their own redacted view. */
   private broadcastGame() {
-    const payloads = new Map<string, string>();
     const bots = new Set(this.sql.exec<{ id: string }>(`SELECT id FROM members WHERE kind = 'bot'`).toArray().map((r) => r.id));
-    for (const ws of this.ctx.getWebSockets()) {
+    const sockets = this.ctx.getWebSockets().flatMap((ws) => {
       const playerId = this.attachment(ws)?.playerId;
-      if (!playerId) continue;
-      let payload = payloads.get(playerId);
-      if (!payload) {
+      return playerId ? [{ ws, playerId }] : [];
+    });
+    const payloads = new Map<string, string>();
+    try {
+      for (const { playerId } of sockets) {
+        if (payloads.has(playerId)) continue;
         const msg: ServerMessage = { type: "game", game: this.game ? this.snapshotFor(playerId, bots.has(playerId)) : null };
-        payload = JSON.stringify(msg);
-        payloads.set(playerId, payload);
+        payloads.set(playerId, JSON.stringify(msg));
       }
-      this.sendRaw(ws, payload);
+    } catch (e) {
+      // A game that can't be shown can't be played: end it (which tells everyone).
+      console.error("view failed", e);
+      return this.abandonGame();
+    }
+    for (const { ws, playerId } of sockets) this.sendRaw(ws, payloads.get(playerId)!);
+  }
+
+  /** `playerId`'s snapshot of the game; one that fails to show is ended, and it's null. */
+  private gameSnapshotOrEnd(playerId: string, bot: boolean): GameSnapshot | null {
+    try {
+      return this.snapshotFor(playerId, bot);
+    } catch (e) {
+      console.error("view failed", e);
+      this.abandonGame();
+      return null;
     }
   }
 

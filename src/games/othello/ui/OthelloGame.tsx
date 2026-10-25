@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
-import { useSend } from "../../kit/ui/useSend";
+import { usePending, useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import { type LastMove, type OthelloView, resultText, SPEC } from "../engine";
 import type { OthelloOp } from "../index";
@@ -12,24 +12,21 @@ import "./othello.css";
 type Props = GameUIProps<OthelloView, OthelloOp>;
 const COLOR_NAME = { b: "Black", w: "White" } as const;
 
-export function OthelloGame({ view, me, members, connected, sendOp, serverNow }: Props) {
+export function OthelloGame({ view, snapshot, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
   const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
 
   const myColor = view.you.color;
   // Your move shows at once; it's taken back if the server says no.
-  const [pending, setPending] = useState<{ base: string; square: string } | null>(null);
+  const { pending, play: playMove } = usePending<string>(snapshot, me);
   const shown = useMemo((): { board: string; lastMove: LastMove | null; passed: Color | null } => {
-    const sq = pending && pending.base === view.board && myColor ? parseSquare(pending.square) : null;
+    const sq = pending && myColor ? parseSquare(pending) : null;
     if (sq === null || !myColor || !flipsFor(view.board, myColor, sq).length) return { board: view.board, lastMove: view.lastMove, passed: view.passed };
     const after = play(view.board, myColor, sq);
-    return { board: after.board, lastMove: { by: myColor, square: pending!.square, flipped: after.flips.map(squareName) }, passed: null };
+    return { board: after.board, lastMove: { by: myColor, square: pending!, flipped: after.flips.map(squareName) }, passed: null };
   }, [pending, view.board, view.lastMove, view.passed, myColor]);
-  const move = async (square: string) => {
-    setPending({ base: view.board, square });
-    if (!(await sendOp({ type: "move", square }))) setPending(null);
-  };
+  const move = (square: string) => playMove(square, () => sendOp({ type: "move", square }));
 
   const myTurn = view.phase === "playing" && myColor === view.turn;
   const bottom: Color = myColor ?? "b";

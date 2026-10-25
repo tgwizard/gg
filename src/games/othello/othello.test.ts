@@ -117,7 +117,7 @@ describe("othello", () => {
       for (let i = 0; i < 70 && state.phase === "playing"; i++) {
         const who = game.waitingOn(state)[0]!;
         const ops = game.legalOps(state, who).filter((op) => op.type === "move");
-        game.apply(state, who, game.bot.easy(game.view(state, who), ops, rand)!, ctx());
+        game.apply(state, who, game.bot.play(game.view(state, who), ops, rand)!, ctx());
         game.checkInvariants!(state);
       }
       expect(state.phase).toBe("over");
@@ -133,6 +133,6 @@ describe("othello", () => {
     state.board = cells.join("");
     const ops = game.legalOps(state, "alice").filter((op) => op.type === "move");
     expect(ops.map((op) => op.square)).toEqual(["a1", "d1", "e1"]);
-    for (let seed = 1; seed <= 5; seed++) expect(game.bot.easy(game.view(state, "alice"), ops, seededRandomInt(seed))).toEqual({ type: "move", square: "a1" });
+    for (let seed = 1; seed <= 5; seed++) expect(game.bot.play(game.view(state, "alice"), ops, seededRandomInt(seed))).toEqual({ type: "move", square: "a1" });
   });
 });

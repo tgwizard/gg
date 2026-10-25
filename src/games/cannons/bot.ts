@@ -7,7 +7,11 @@
  * change (it doesn't quite trust it, and its feel for the wind is rough). A shot that
  * hits a hill on the way makes it aim higher. It usually hits within a few shots, rarely
  * with the first.
+ *
+ * Easy, it's the same but a lot rougher: a poor feel for the wind and the distance, and
+ * corrections that overshoot or fall short.
  */
+import { easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { CannonsView, CannonView, ShotView } from "./engine";
 import type { CannonsOp } from "./index";
@@ -16,18 +20,18 @@ import { BARREL, dir, GRAVITY, groundAt, MAX_POWER, MIN_POWER, PIVOT, speedOf, W
 type Rand = (maxExclusive: number) => number;
 
 export const cannonsBot: GameBot<CannonsView, CannonsOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     if (!ops.some((op) => op.type === "fire")) return null;
     const me = view.cannons.find((c) => c.playerId === view.turn);
     if (!me) return null;
-    return { type: "fire", ...aim(view, me, rand) };
+    return { type: "fire", ...aim(view, me, rand, easy(opts)) };
   },
 };
 
 /** A number in [lo, hi). */
 const between = (rand: Rand, lo: number, hi: number) => lo + (rand(10_000) / 10_000) * (hi - lo);
 
-export function aim(view: CannonsView, me: CannonView, rand: Rand): { angle: number; power: number } {
+export function aim(view: CannonsView, me: CannonView, rand: Rand, rough = false): { angle: number; power: number } {
   const mine = view.shots.filter((s) => s.by === me.playerId);
   const others = view.cannons.filter((c) => c.alive && c !== me);
   // Stick with whoever it was shooting at, while they're still standing.
@@ -37,7 +41,7 @@ export function aim(view: CannonsView, me: CannonView, rand: Rand): { angle: num
   const distance = Math.abs(target.x - me.x);
   const toAngle = (up: number) => (side > 0 ? up : 180 - up);
   // Its feel for the wind: roughly right.
-  const windSense = between(rand, 0.5, 1.3);
+  const windSense = rough ? between(rand, 0, 1.6) : between(rand, 0.5, 1.3);
   const push = view.wind * WIND_FORCE * side * windSense;
 
   // Its shots at this cannon from the same side, the latest last.
@@ -57,7 +61,7 @@ export function aim(view: CannonsView, me: CannonView, rand: Rand): { angle: num
   if (!latest || blocked) {
     // A first guess: what the distance looks like it needs, a fair bit off.
     const guess = solvePower((p) => reachAt(up, p, push), distance);
-    const off = between(rand, 0.06, 0.18) * (rand(2) ? 1 : -1);
+    const off = (rough ? between(rand, 0.15, 0.35) : between(rand, 0.06, 0.18)) * (rand(2) ? 1 : -1);
     power = guess * (1 + off);
   } else if (latest.end === "off") {
     // Gone over everything: a good deal less.
@@ -80,10 +84,11 @@ export function aim(view: CannonsView, me: CannonView, rand: Rand): { angle: num
     }
     const miss = adjusted(latest) - distance;
     // After one shot it's a rough feel (it may over- or under-do it); with a few behind it, steadier.
-    const trust = usable.length < 2 ? between(rand, 0.45, 1.3) : between(rand, 0.75, 1.1);
+    const trust = rough ? between(rand, 0.3, 1.6) : usable.length < 2 ? between(rand, 0.45, 1.3) : between(rand, 0.75, 1.1);
     power = latest.power - (miss / perPoint) * trust;
     // Not perfectly steady hands.
-    if (rand(3) === 0) power += rand(2) ? 1 : -1;
+    if (rough) power += rand(7) - 3;
+    else if (rand(3) === 0) power += rand(2) ? 1 : -1;
   }
   return { angle: toAngle(Math.round(up)), power: Math.max(MIN_POWER, Math.min(MAX_POWER, Math.round(power))) };
 }

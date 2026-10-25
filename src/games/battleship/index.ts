@@ -89,6 +89,8 @@ export const battleship: GameDefinition<BsState, BsOp, BsView, BsConfig> = {
   removePlayer: (state, player, ctx) => leave(state, player, ctx),
   // Both players place their fleets at once; neither's placing should make the other's stale.
   concurrentOp: (op) => op.type === "arrange" || op.type === "random" || op.type === "ready" || op.type === "unready",
+  // ...but only for this game's fleets: placing for one never lands in the next.
+  round: (state) => String(state.game),
   waitingOn,
   legalOps(state, player) {
     const seat = seatOf(state, player);

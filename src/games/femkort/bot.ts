@@ -7,7 +7,10 @@
  *
  * "How likely a card is to take the last trick" counts the cards of its suit above it
  * that it hasn't seen played, against the cards the others still hold.
+ *
+ * Easy, it plays any card it may, except that it keeps its highest for the last trick.
  */
+import { chance, easy } from "../kit/bot";
 import { type Card, newDeck, rankValue, suitOf } from "../kit/cards";
 import type { GameBot } from "../types";
 import type { FemView } from "./engine";
@@ -17,9 +20,17 @@ import { winningPlay } from "./rules";
 const DECK = newDeck();
 
 export const femBot: GameBot<FemView, FemOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const me = view.players.find((p) => p.seat === view.you.seat && !p.left);
     const hand = me?.hand ?? [];
+    if (easy(opts)) {
+      if (ops.some((op) => op.type === "vote")) return { type: "vote", yes: chance(rand, 50) };
+      const legal = ops.flatMap((op) => (op.type === "play" ? [op.card] : []));
+      if (!legal.length) return null;
+      const highest = hand.reduce((a, b) => (rankValue(b) > rankValue(a) ? b : a), hand[0]!);
+      const spare = legal.length > 1 && hand.length > 1 ? legal.filter((c) => c !== highest) : legal;
+      return { type: "play", card: spare[rand(spare.length)]! };
+    }
     const odds = lastTrickOdds(view, hand);
     // Better cards: yes (or ask) with nothing much to keep for the end.
     const weak = hand.length > 0 && Math.max(...hand.map(odds)) < 0.6;

@@ -43,7 +43,7 @@ export function playUntil<State, Op, View>(
     const actor = def.waitingOn(state)[0];
     if (!actor) throw new Error("the game isn't waiting on anyone");
     const ops = def.legalOps(state, actor).filter((op) => !isLobbyOp(op));
-    const policy = opts.policies?.[actor] ?? def.bot.easy;
+    const policy = opts.policies?.[actor] ?? def.bot.play;
     // Quick: a scenario is built while you wait.
     const op = policy(def.view(state, actor), ops, rand, { quick: true });
     if (op == null) throw new Error(`${actor} has no move`);

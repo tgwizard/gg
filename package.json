@@ -9,7 +9,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "pnpm typecheck && vitest run && vite build && wrangler deploy",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.node.json && tsc -p test/integration/tsconfig.json",
     "test": "vitest run",
     "scenario": "node tools/scenario.ts",

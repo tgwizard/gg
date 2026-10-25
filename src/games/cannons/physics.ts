@@ -234,7 +234,9 @@ function closest(ax: number, ay: number, bx: number, by: number, cx: number, cy:
 /** The ball's position along a flight's path at `ms` into it (straight between points), and whether it's arrived. */
 export function along(f: Pick<Flight, "path" | "ticks">, ms: number): { x: number; y: number; done: boolean } {
   const n = f.path.length / 2;
-  const t = ms / TICK_MS;
+  // A frame can be timed a little before the flight started: it's still at the start.
+  const t = Math.max(0, ms) / TICK_MS;
+  if (n < 1) return { x: 0, y: 0, done: true };
   if (t >= f.ticks || n < 2) return { x: f.path[(n - 1) * 2]!, y: f.path[(n - 1) * 2 + 1]!, done: true };
   // Point k (before the last) is at tick k * PATH_EVERY; the last is at `ticks`.
   const timeOf = (k: number) => (k === n - 1 ? f.ticks : k * PATH_EVERY);

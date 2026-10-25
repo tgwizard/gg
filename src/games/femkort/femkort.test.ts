@@ -34,7 +34,7 @@ function setup(n = 3, config: Partial<FemConfig> = {}) {
   let now = 1_000_000;
   const ctx = (): GameContext => ({ now, randomInt: seededRandomInt(7), nameOf: (id) => id, announce: (t) => announcements.push(t) });
   const ids = ["alice", "bob", "carol", "dave", "erin", "frank"].slice(0, n);
-  const state = game.create(game.configSchema.parse(config), ctx());
+  const state = game.create(game.configSchema.parse({ mustBeat: true, ...config }), ctx());
   ids.forEach((id, seat) => game.apply(state, id, { type: "sit", seat }, ctx()));
   game.apply(state, "alice", { type: "start" }, ctx());
   return { state, ctx, ids, announcements, at: (t: number) => (now = t) };
@@ -203,6 +203,19 @@ describe("fem kort", () => {
     expect(state.result).toMatchObject({ winners: ["bob"], reason: "left" });
   });
 
+  it("keeps no trace of people who came and went without winning a deal", () => {
+    const { state, ctx } = setup(2);
+    for (let i = 0; i < 100; i++) {
+      game.apply(state, `x${i}`, { type: "sit", seat: 3 }, ctx());
+      game.apply(state, "bob", { type: "leave" }, ctx());
+      game.apply(state, "bob", { type: "sit", seat: 1 }, ctx());
+      game.apply(state, `x${i}`, { type: "leave" }, ctx());
+    }
+    expect(state.phase).toBe("playing");
+    expect(state.players.length).toBeLessThanOrEqual(3);
+    expect(game.view(state, "alice").players.length).toBeLessThanOrEqual(3);
+  });
+
   it("deals again for better cards when everyone agrees, and plays on when anyone says no", () => {
     const { state, ctx } = setup(3, { betterCards: true });
     const lead = game.waitingOn(state)[0]!;
@@ -243,7 +256,7 @@ describe("fem kort", () => {
           continue;
         }
         const ops = game.legalOps(state, who).filter((op) => !["sit", "leave", "sitOut", "sitIn", "start"].includes(op.type));
-        game.apply(state, who, game.bot.easy(game.view(state, who), ops, rand)!, ctx());
+        game.apply(state, who, game.bot.play(game.view(state, who), ops, rand)!, ctx());
         game.checkInvariants!(state);
       }
       expect(state.phase).toBe("over");
@@ -258,7 +271,7 @@ describe("fem kort", () => {
     const bot = (hand: string[], other: string[], lead: number) => {
       deal(state, [hand, other], lead);
       const me = state.players[lead === 0 ? 0 : 1]!.playerId;
-      return game.bot.easy(game.view(state, me), game.legalOps(state, me).filter((op) => op.type === "play"), seededRandomInt(1));
+      return game.bot.play(game.view(state, me), game.legalOps(state, me).filter((op) => op.type === "play"), seededRandomInt(1));
     };
     // Leading the first trick: not the ace.
     expect(bot(["As", "2h", "7c", "9d", "Jh"], ["3s", "4s", "5s", "6s", "8s"], 0)).toEqual({ type: "play", card: "2h" });
@@ -266,13 +279,13 @@ describe("fem kort", () => {
     // Following, it beats as cheaply as it may and keeps the ace.
     deal(state, [["5h", "2c", "3c", "4c", "5c"], ["Ah", "7h", "9h", "2s", "2d"]], 0);
     game.apply(state, "alice", { type: "play", card: "5h" }, { now: 0, randomInt: seededRandomInt(1), nameOf: (id) => id, announce: () => {} });
-    expect(game.bot.easy(game.view(state, "bob"), game.legalOps(state, "bob").filter((op) => op.type === "play"), seededRandomInt(1))).toEqual({ type: "play", card: "7h" });
+    expect(game.bot.play(game.view(state, "bob"), game.legalOps(state, "bob").filter((op) => op.type === "play"), seededRandomInt(1))).toEqual({ type: "play", card: "7h" });
 
     // The fourth trick, on lead with the K♠ (the A♠ gone) and a low heart: keep the king when hearts are out against it.
     deal(state, [["Ks", "4h"], ["8h", "2d"]], 0);
     state.tricks = [0, 1, 2].map((i) => ({ plays: [{ seat: 0, playerId: "alice", card: ["As", "2c", "3c"][i]! }, { seat: 1, playerId: "bob", card: ["5c", "6c", "7c"][i]! }], winner: 0 }));
     state.stock = newDeck().filter((c) => !["Ks", "4h", "8h", "2d", "As", "2c", "3c", "5c", "6c", "7c"].includes(c));
-    const fourth = game.bot.easy(game.view(state, "alice"), game.legalOps(state, "alice").filter((op) => op.type === "play"), seededRandomInt(1));
+    const fourth = game.bot.play(game.view(state, "alice"), game.legalOps(state, "alice").filter((op) => op.type === "play"), seededRandomInt(1));
     expect(fourth).toEqual({ type: "play", card: "4h" });
   });
 });

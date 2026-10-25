@@ -259,6 +259,8 @@ export function start(state: FemState, actor: string, ctx: GameContext) {
  * and five cards each go out, three then two, starting left of the dealer, who leads.
  */
 function newDeal(state: FemState, ctx: GameContext) {
+  // Someone who left without winning a deal has nothing left to show (and seat churn mustn't pile them up).
+  state.players = state.players.filter((p) => !p.left || p.deals > 0);
   for (const [seat, s] of state.seats.entries()) {
     if (!s) continue;
     const known = state.players.find((p) => p.playerId === s.playerId);
@@ -424,7 +426,7 @@ export function onDeadline(state: FemState, ctx: GameContext) {
 /** Play a card for someone who's away or out of time: what the built-in bot would. */
 function autoPlay(state: FemState, ctx: GameContext, p: FemPlayer) {
   const ops = playableFor(state, p.playerId)!.map((card) => ({ type: "play" as const, card }));
-  const op = femBot.easy(viewFor(state, p.playerId), ops, ctx.randomInt);
+  const op = femBot.play(viewFor(state, p.playerId), ops, ctx.randomInt);
   playCard(state, p.playerId, op?.type === "play" ? op.card : ops[0]!.card, ctx);
 }
 

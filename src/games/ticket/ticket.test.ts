@@ -151,6 +151,16 @@ describe("drawing cards", () => {
     expect(state.log.at(-1)).toEqual({ type: "reset" });
   });
 
+  it("redeals three locomotives when the row's own cards make up the other three", () => {
+    const { state, ctx } = setup(2);
+    rigFaceUp(state, ["loco", "loco", "green", "white", "black"]);
+    state.deck = ["red", "loco"]; // drawn from the end
+    state.discard = [];
+    drawCard(state, "a", 2, ctx()); // a locomotive comes up: three, with only red left in the deck
+    expect(state.faceUp.filter((c) => c === "loco").length).toBeLessThan(3);
+    expect(state.log.some((e) => e.type === "reset")).toBe(true);
+  });
+
   it("shuffles the discards into an empty deck", () => {
     const { state, ctx } = setup(2);
     state.discard.push(...state.deck.splice(0));

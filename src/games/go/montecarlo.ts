@@ -7,7 +7,7 @@
  * Built for speed, on typed arrays, with only simple ko (the real rules, superko and
  * all, are in ./rules; the bot only ever chooses among moves the game says are legal).
  */
-import { type Color, neighbors, sizeOf } from "./rules";
+import { chains, type Color, neighbors, sizeOf } from "./rules";
 
 const EMPTY = 0;
 const BLACK = 1;
@@ -332,14 +332,18 @@ export function estimateOwnership(board: string, toMove: Color, opts: { playouts
   return ownership;
 }
 
-/** Which stones are dead: those that end up mostly the other side's in playouts from here. Points, sorted. */
+/**
+ * Which stones are dead: whole chains (they live or die together) that end up mostly the
+ * other side's in playouts from here, judged by the chain's average. Points, sorted.
+ */
 export function estimateDead(board: string, toMove: Color, opts: { playouts: number; seed: number }): number[] {
   const ownership = estimateOwnership(board, toMove, opts);
   const dead: number[] = [];
-  for (let p = 0; p < board.length; p++) {
-    if ((board[p] === "b" && ownership[p]! < -0.3) || (board[p] === "w" && ownership[p]! > 0.3)) dead.push(p);
+  for (const ch of chains(board)) {
+    const mean = ch.stones.reduce((sum, p) => sum + ownership[p]!, 0) / ch.stones.length;
+    if (ch.color === "b" ? mean < -0.3 : mean > 0.3) dead.push(...ch.stones);
   }
-  return dead;
+  return dead.sort((a, b) => a - b);
 }
 
 export interface MoveStats {

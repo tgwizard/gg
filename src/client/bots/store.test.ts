@@ -6,7 +6,7 @@ vi.stubGlobal("window", new EventTarget());
 vi.spyOn(console, "warn").mockImplementation(() => {});
 const store = await import("./store");
 
-const setup = { name: "Marvin", color: 3, level: "easy" as const };
+const setup = { name: "Marvin", color: 3, level: "builtin" as const, strength: "easy" as const };
 
 describe("your bots", () => {
   beforeEach(() => storage.set("gg.bots", "[]"));
@@ -51,8 +51,15 @@ describe("your bots", () => {
     const bot = (await store.createBot({ ...setup, level: "ai", connectionId: "k1", model: "m", persona: "  Gloomy.  " }))!;
     expect(store.getBots()[0]).toMatchObject({ level: "ai", connectionId: "k1", effort: "low", persona: "Gloomy." });
     store.dropConnection("k1");
-    expect(store.getBots()[0]).toMatchObject({ id: bot.id, level: "easy", persona: "Gloomy." });
+    expect(store.getBots()[0]).toMatchObject({ id: bot.id, level: "builtin", strength: "hard", persona: "Gloomy." });
     expect(store.getBots()[0]!.connectionId).toBeUndefined();
+  });
+
+  it("from before there was a choice of strength play hard, as they did", () => {
+    const old = { id: "x", name: "Old", color: 1, level: "easy", secret: "a".repeat(32), playerId: "a".repeat(16), createdAt: "2026-10-20T10:00:00Z", rooms: {} };
+    storage.set("gg.bots", JSON.stringify([old]));
+    expect(store.getBots()[0]).toMatchObject({ level: "builtin" });
+    expect(store.getBots()[0]!.strength ?? "hard").toBe("hard");
   });
 
   it("come from the old per-room bots, one per name", () => {

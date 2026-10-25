@@ -142,24 +142,23 @@ function useReplay(view: CannonsView, connected: boolean) {
 
 // --- aiming ---------------------------------------------------------------------
 
-/** Your aim: what you fired last (or a first guess), changed by dragging, the controls and the keys. */
+/**
+ * Your aim: what you fired last (or a first guess), changed by dragging, the controls and the
+ * keys. Each of you on this device (hot seat) has your own, kept while the others take their turns.
+ */
 function useAim(view: CannonsView, me: string, myIndex: number) {
+  const key = `${view.game}:${me}`;
+  const [aims, setAims] = useState<Record<string, Aim>>({});
   const fresh = (): Aim => {
     const last = view.shots.findLast((s) => s.by === me);
     return last ? { angle: last.angle, power: last.power } : defaultAim(view.cannons, myIndex);
   };
-  const [aim, setAim] = useState<Aim>(fresh);
-  const game = useRef(view.game);
-  useEffect(() => {
-    if (game.current === view.game) return;
-    game.current = view.game;
-    setAim(fresh());
-  }, [view.game]);
   const clamp = (a: Aim): Aim => ({ angle: Math.max(0, Math.min(180, Math.round(a.angle))), power: Math.max(MIN_POWER, Math.min(MAX_POWER, Math.round(a.power))) });
+  const update = (change: (a: Aim) => Aim) => setAims((all) => ({ ...all, [key]: clamp(change(all[key] ?? fresh())) }));
   return {
-    value: aim,
-    set: (a: Aim) => setAim(clamp(a)),
-    nudge: (angle: number, power: number) => setAim((a) => clamp({ angle: a.angle + angle, power: a.power + power })),
+    value: aims[key] ?? fresh(),
+    set: (a: Aim) => update(() => a),
+    nudge: (angle: number, power: number) => update((a) => ({ angle: a.angle + angle, power: a.power + power })),
   };
 }
 
@@ -395,7 +394,7 @@ function CannonsResult(props: { view: CannonsView; open: boolean; me: string; na
     subtitle = r.winner ? `The last cannon standing, after ${r.shots} ${r.shots === 1 ? "shot" : "shots"}${how}.` : "Nobody's left standing.";
   }
   // Winner first, then whoever lasted longest.
-  const order = [...view.cannons].sort((a, b) => Number(b.alive) - Number(a.alive) || outOrder(view, b) - outOrder(view, a));
+  const order = [...view.cannons].sort((a, b) => Number(b.alive) - Number(a.alive) || outOrder(b) - outOrder(a));
   return (
     <GameOver
       open={props.open && !!r}
@@ -407,13 +406,12 @@ function CannonsResult(props: { view: CannonsView; open: boolean; me: string; na
       columns={["Shots", "Hits", "Out", "Wins here"]}
       rows={order.map((c) => {
         const seat = view.seats[c.seat]?.playerId === c.playerId ? view.seats[c.seat] : null;
-        const shots = view.shots.filter((s) => s.by === c.playerId);
         return {
           playerId: c.playerId,
           name: name(c.playerId),
           winner: r?.winner === c.playerId,
           left: !seat,
-          cells: [shots.length, shots.filter((s) => s.hit && s.hit !== c.playerId).length, c.alive ? "–" : c.out === "hit" ? (c.by === c.playerId ? "own goal" : `by ${c.by === me ? "you" : name(c.by!)}`) : c.out === "left" ? "left" : "time", seat?.wins ?? "–"],
+          cells: [c.fired, c.hits, c.alive ? "–" : c.out === "hit" ? (c.by === c.playerId ? "own goal" : `by ${c.by === me ? "you" : name(c.by!)}`) : c.out === "left" ? "left" : "time", seat?.wins ?? "–"],
         };
       })}
       actions={
@@ -429,9 +427,7 @@ function CannonsResult(props: { view: CannonsView; open: boolean; me: string; na
   );
 }
 
-/** When a cannon went out: the shot that hit it, or late for other reasons. */
-function outOrder(view: CannonsView, c: CannonView): number {
-  if (c.alive) return Infinity;
-  const shot = view.shots.find((s) => s.hit === c.playerId);
-  return shot ? shot.n : view.shots.length + 1;
+/** When a cannon went out: how many shots in. */
+function outOrder(c: CannonView): number {
+  return c.alive ? Infinity : (c.outAt ?? 0);
 }

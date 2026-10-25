@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import type { GameSetting } from "../../games/ui";
 import { gameUIs } from "../../games/ui-registry";
@@ -122,9 +122,11 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
   const acting = useActing(local, game);
   const actingClient = (acting.id !== you && guests.get(acting.id)) || client;
   const seen = useSyncExternalStore(actingClient.subscribe, actingClient.getSnapshot);
-  // A guest's connection may still be joining: until it has, it's your view.
-  const shown = seen.game && seen.you ? { snapshot: seen, me: seen.you.id, client: actingClient } : { snapshot, me: you, client };
-  const connected = shown.snapshot.status === "connected";
+  // A guest's connection may still be joining, or not have heard of this game yet: until it
+  // has, it's your view. One that's a move or so behind is shown, but can't play until it catches up.
+  const current = seen.you && seen.game?.instanceId === game.instanceId && seen.game.gameId === game.gameId;
+  const shown = current ? { snapshot: seen, me: seen.you!.id, client: actingClient } : { snapshot, me: you, client };
+  const connected = shown.snapshot.status === "connected" && shown.snapshot.game!.version >= game.version;
 
   if (!ui) return <p className="muted">This room is playing a game this version of gg doesn't know ({game.gameId}). Try reloading.</p>;
 
@@ -188,15 +190,17 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
       </InTopbar>
       {hotSeat && <HotSeatBar local={local} acting={shown.me} members={members} waitingOn={game.waitingOn} onPick={acting.pick} />}
       {/* Not remounted when it's shown as someone else: the move just made still animates. */}
-      <ui.Game
-        view={shown.snapshot.game!.view}
-        snapshot={shown.snapshot.game!}
-        me={shown.me}
-        members={members}
-        connected={connected}
-        sendOp={sendOp}
-        serverNow={serverNow}
-      />
+      <GameErrorBoundary at={`${shown.snapshot.game!.instanceId}:${shown.snapshot.game!.version}:${shown.me}`}>
+        <ui.Game
+          view={shown.snapshot.game!.view}
+          snapshot={shown.snapshot.game!}
+          me={shown.me}
+          members={members}
+          connected={connected}
+          sendOp={sendOp}
+          serverNow={serverNow}
+        />
+      </GameErrorBoundary>
     </div>
   );
 }
@@ -379,4 +383,27 @@ function GearIcon() {
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
     </svg>
   );
+}
+
+/** A game that fails to draw takes down only itself (the room, chat and End game stay), until the game next changes. */
+class GameErrorBoundary extends Component<{ at: string; children: ReactNode }, { failedAt: string | null }> {
+  state = { failedAt: null as string | null };
+  static getDerivedStateFromError() {
+    return { failedAt: "" };
+  }
+  componentDidCatch(error: unknown) {
+    console.error("game failed to render", error);
+    this.setState({ failedAt: this.props.at });
+  }
+  render() {
+    if (this.state.failedAt === null || (this.state.failedAt && this.state.failedAt !== this.props.at)) return this.props.children;
+    return (
+      <div className="card game-failed" role="alert">
+        <p>Something went wrong showing this game.</p>
+        <button className="btn" onClick={() => this.setState({ failedAt: null })}>
+          Try again
+        </button>
+      </div>
+    );
+  }
 }

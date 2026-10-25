@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, nextStarter, playerOf, SeatPrompt, useResultDelay, winsText } from "../../kit/ui/Duel";
-import { useSend } from "../../kit/ui/useSend";
+import { usePending, useSend } from "../../kit/ui/useSend";
 import { playerStyle, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type FourView, resultText, SPEC } from "../engine";
@@ -16,7 +16,7 @@ type Props = GameUIProps<FourView, FourOp>;
 /** How long the winning line shows before the results come up over it, for a game that ends while you watch. */
 const RESULT_DELAY_MS = 1600;
 
-export function FourGame({ view, me, members, connected, sendOp, serverNow }: Props) {
+export function FourGame({ view, snapshot, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
   const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
@@ -24,18 +24,15 @@ export function FourGame({ view, me, members, connected, sendOp, serverNow }: Pr
   const myPiece = view.you.color;
   const size = view.size;
   // Your move shows at once; it's taken back if the server says no.
-  const [pending, setPending] = useState<{ base: string; column: number } | null>(null);
+  const { pending, play } = usePending<number>(snapshot, me);
   const shown = useMemo((): { board: string; last: number | null; line: number[] } => {
     const line = view.result?.cells ?? [];
     const fromView = { board: view.board, last: view.lastMove?.cell ?? null, line };
-    if (!pending || pending.base !== view.board || !myPiece || landing(view.board, size, pending.column - 1) === null) return fromView;
-    const after = drop(view.board, size, myPiece, pending.column - 1);
+    if (pending === null || !myPiece || landing(view.board, size, pending - 1) === null) return fromView;
+    const after = drop(view.board, size, myPiece, pending - 1);
     return { board: after.board, last: after.cell, line: fourThrough(after.board, size, after.cell) };
   }, [pending, view.board, view.lastMove, view.result, myPiece, size]);
-  const move = async (column: number) => {
-    setPending({ base: view.board, column });
-    if (!(await sendOp({ type: "drop", column }))) setPending(null);
-  };
+  const move = (column: number) => play(column, () => sendOp({ type: "drop", column }));
 
   const myTurn = view.phase === "playing" && myPiece === view.turn;
   const bottom: Piece = myPiece ?? "x";

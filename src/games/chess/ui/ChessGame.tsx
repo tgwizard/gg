@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
-import { useSend } from "../../kit/ui/useSend";
+import { usePending, useSend } from "../../kit/ui/useSend";
 import type { GameUIProps } from "../../ui";
 import { type ChessView, type LastMove, resultText, SPEC } from "../engine";
 import type { ChessOp } from "../index";
@@ -13,29 +13,26 @@ type Props = GameUIProps<ChessView, ChessOp>;
 const COLOR_NAME = { w: "White", b: "Black" } as const;
 const PIECE_NAME: Record<PieceType, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 
-export function ChessGame({ view, me, members, connected, sendOp, serverNow }: Props) {
+export function ChessGame({ view, snapshot, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
   const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
 
   // Your move shows at once; it's taken back if the server says no.
-  const [pending, setPending] = useState<{ base: string; uci: string } | null>(null);
+  const { pending, play } = usePending<string>(snapshot, me);
   const shown = useMemo((): { fen: string; lastMove: LastMove | null } => {
-    if (!pending || pending.base !== view.fen) return { fen: view.fen, lastMove: view.lastMove };
+    if (!pending) return { fen: view.fen, lastMove: view.lastMove };
     const pos = parseFen(view.fen);
     const legal = legalMoves(pos);
-    const m = legal.find((l) => sameMove(l, parseUci(pending.uci)!));
+    const m = legal.find((l) => sameMove(l, parseUci(pending)!));
     if (!m) return { fen: view.fen, lastMove: view.lastMove };
     const facts = moveFacts(pos, m);
     return {
       fen: toFen(makeMove(pos, m)),
-      lastMove: { uci: pending.uci, san: toSan(pos, m, legal), piece: facts.piece, took: facts.took, tookAt: facts.tookAt === null ? null : squareName(facts.tookAt) },
+      lastMove: { uci: pending, san: toSan(pos, m, legal), piece: facts.piece, took: facts.took, tookAt: facts.tookAt === null ? null : squareName(facts.tookAt) },
     };
   }, [pending, view.fen, view.lastMove]);
-  const move = async (uci: string) => {
-    setPending({ base: view.fen, uci });
-    if (!(await sendOp({ type: "move", move: uci }))) setPending(null);
-  };
+  const move = (uci: string) => play(uci, () => sendOp({ type: "move", move: uci }));
 
   const myColor = view.you.color;
   const [flipped, setFlipped] = useState(false);

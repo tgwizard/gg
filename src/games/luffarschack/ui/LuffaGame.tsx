@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DuelControls, DuelFooter, DuelResult, DuelSide, DuelStatus, DuelTable, nextStarter, playerOf, SeatPrompt, useResultDelay, winsText } from "../../kit/ui/Duel";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
-import { useSend } from "../../kit/ui/useSend";
+import { usePending, useSend } from "../../kit/ui/useSend";
 import { playerStyle, useMedia, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type LuffaView, resultText, SPEC } from "../engine";
@@ -19,7 +19,7 @@ const RESULT_DELAY_MS = 2000;
 
 const NAMES = { x: "cross", o: "circle" } as const;
 
-export function LuffaGame({ view, me, members, connected, sendOp, serverNow }: Props) {
+export function LuffaGame({ view, snapshot, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
   const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
@@ -28,19 +28,18 @@ export function LuffaGame({ view, me, members, connected, sendOp, serverNow }: P
   const myPiece = view.you.color;
   const n = view.size;
   // Your mark shows at once; it's taken back if the server says no.
-  const [pending, setPending] = useState<{ base: string; cell: number } | null>(null);
+  const { pending, play } = usePending<number>(snapshot, me);
   const shown = useMemo(() => {
     const fromView = { board: view.board, order: view.moves.map((m) => parseSquare(m.square, n)!), last: view.lastMove?.cell ?? null, runs: view.result?.runs ?? [], winner: view.result?.winner ?? null };
-    if (!pending || pending.base !== view.board || !myPiece || view.board[pending.cell] !== ".") return fromView;
-    const board = place(view.board, pending.cell, myPiece);
-    const runs = winningRuns(board, n, pending.cell);
-    return { board, order: [...fromView.order, pending.cell], last: pending.cell, runs, winner: runs.length ? myPiece : null };
+    if (pending === null || !myPiece || view.board[pending] !== ".") return fromView;
+    const board = place(view.board, pending, myPiece);
+    const runs = winningRuns(board, n, pending);
+    return { board, order: [...fromView.order, pending], last: pending, runs, winner: runs.length ? myPiece : null };
   }, [pending, view.board, view.moves, view.lastMove, view.result, myPiece, n]);
   const mark = async (square: string) => {
     const cell = parseSquare(square, n);
     if (cell === null) return;
-    setPending({ base: view.board, cell });
-    if (!(await sendOp({ type: "mark", square }))) setPending(null);
+    await play(cell, () => sendOp({ type: "mark", square }));
   };
 
   const playing = view.phase === "playing";

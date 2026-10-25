@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ByoYomiClock, formatClock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
 import type { GameUIProps } from "../../ui";
-import { useSend } from "../../kit/ui/useSend";
+import { usePending, useSend } from "../../kit/ui/useSend";
 import { type GoView, type LastMove, resultText, SPEC } from "../engine";
 import type { GoOp } from "../index";
 import { type Color, other, parsePoint, pointName, tryPlay } from "../rules";
@@ -12,7 +12,7 @@ import "./go.css";
 type Props = GameUIProps<GoView, GoOp>;
 const COLOR_NAME = { b: "Black", w: "White" } as const;
 
-export function GoGame({ view, me, members, connected, sendOp, serverNow }: Props) {
+export function GoGame({ view, snapshot, me, members, connected, sendOp, serverNow }: Props) {
   const name = (id: string) => members.get(id)?.name ?? "Player";
   const online = (id: string) => members.get(id)?.online !== false;
   const { busy, send } = useSend(sendOp);
@@ -20,17 +20,14 @@ export function GoGame({ view, me, members, connected, sendOp, serverNow }: Prop
   const myColor = view.you.color;
   const played = view.moves.filter((m) => m.point).length;
   // Your stone shows at once; it's taken back if the server says no.
-  const [pending, setPending] = useState<{ base: string; point: string } | null>(null);
+  const { pending, play } = usePending<string>(snapshot, me);
   const shown = useMemo((): { board: string; lastMove: LastMove | null; played: number } => {
-    const p = pending && pending.base === view.board && myColor ? parsePoint(pending.point, view.size) : null;
+    const p = pending && myColor ? parsePoint(pending, view.size) : null;
     const after = p === null || !myColor ? null : tryPlay(view.board, myColor, p);
     if (!after || "illegal" in after) return { board: view.board, lastMove: view.lastMove, played };
-    return { board: after.board, lastMove: { by: myColor!, point: pending!.point, captured: after.captured.map((q) => pointName(q, view.size)) }, played: played + 1 };
+    return { board: after.board, lastMove: { by: myColor!, point: pending!, captured: after.captured.map((q) => pointName(q, view.size)) }, played: played + 1 };
   }, [pending, view.board, view.lastMove, view.size, played, myColor]);
-  const move = async (point: string) => {
-    setPending({ base: view.board, point });
-    if (!(await sendOp({ type: "play", point }))) setPending(null);
-  };
+  const move = (point: string) => play(point, () => sendOp({ type: "play", point }));
 
   const playing = view.phase === "playing";
   const myTurn = playing && myColor === view.turn;
@@ -220,9 +217,11 @@ function CountingControls(props: { view: GoView; name(id: string): string; busy:
             Accept score
           </button>
         )}
-        <button className="btn small" disabled={disabled} onClick={() => send({ type: "resume" })} data-testid="go-resume">
-          Resume play
-        </button>
+        {view.scoring!.canResume && (
+          <button className="btn small" disabled={disabled} onClick={() => send({ type: "resume" })} data-testid="go-resume">
+            Resume play
+          </button>
+        )}
       </span>
     </div>
   );

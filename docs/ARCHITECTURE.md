@@ -76,7 +76,7 @@ client-generated `cid`.
 | `renameRoom {cid, name}` | name (or unname) the room |
 | `chat {cid, text}` | chat message |
 | `selectGame {cid, gameId, config}` / `endGame {cid, instanceId}` | game lifecycle |
-| `gameOp {cid, instanceId, op, ifVersion?}` | a move |
+| `gameOp {cid, instanceId, op, ifVersion?, ifRound?}` | a move |
 
 | server → client | purpose |
 | --- | --- |
@@ -100,14 +100,23 @@ all look like a short blip, never lost or duplicated actions.
   (redacted) view, stamped with a version. Turn-based state is small, and clients
   can't drift.
 - **Idempotent mutations.** Results are stored per `(player, cid)` in the `ops`
-  table (1h retention). Chat dedupes on `(player, cid)` in the chat table.
+  table (2h retention, longer than clients resend for), chat included, so a resent
+  message is never posted twice however much chat came after it.
 - **Outbox.** The client keeps un-acked mutations and resends them after
   reconnecting. Chat typed while offline is queued and shown as pending, and kept
   in the tab's sessionStorage so it survives a refresh (resent with the same cid;
-  dropped after an hour, past the server's dedupe memory). Game
+  dropped after an hour, when sending or restoring it). Chat goes out at a pace within
+  the server's limits (ten at once, then about one a second), so a long queue after a
+  reconnect is flushed rather than refused, and a message refused for coming too fast
+  waits and goes again; at most 30 wait at a time. Game
   ops need a live connection, and every op carries `ifVersion` (the game version
   the player was looking at), so it's rejected (`stale`) instead of applied to a
   game the player hasn't seen, whether it's a first send or a resend.
+- **A broken game doesn't break the room.** If a game throws on a deadline, when
+  taking someone out, or building a view, the room ends that game with a message in
+  the chat (`abandonGame`) instead of failing every move, alarm and join after it. On
+  the page, a game that fails to draw shows "Something went wrong" in its place (an
+  error boundary), with the room, chat and *End game* still working.
 - **Liveness.** The client pings every 10s and treats 8s of silence as a dead
   connection (catching half-open sockets), reconnecting with jittered
   exponential backoff (max 10s), immediately on `online`, and on tab focus. The
@@ -164,12 +173,13 @@ interface GameDefinition<State, Op, View, Config> {
   players(state): string[];                  // who's taking part (e.g. seated)
   removePlayer(state, player, ctx): void;    // gone for good (a removed bot): give up their place
   concurrentOp?(op): boolean;                // ops that skip the version check (own fleet)
+  round?(state): string;                     // ...but only within this round of them
   waitingOn(state): string[];                // whose move it is
   legalOps(state, player): Op[];             // what they could do now (bots, fuzzing)
   nextDeadline?(state): number | null;       // timers, via the DO alarm
   onDeadline?(state, ctx): void;
   checkInvariants?(state): void;             // e.g. chips are conserved
-  bot: { easy(view, ops, rand): Op | null }; // the no-AI bot (see Bots)
+  bot: { play(view, ops, rand, opts): Op | null }; // the no-AI bot, easy or hard (see Bots)
 }
 ```
 
@@ -375,7 +385,9 @@ Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firin
   possibly unfinished layout), or `random` lets the server deal a valid fleet.
   `ready` needs all five; `unready` is allowed until both are ready. Placing ops
   are `concurrentOp`s: both players place at once, so one's placing never makes
-  the other's click stale. The other
+  the other's click stale; `round` (the game's number) keeps one held up by a
+  reconnect from landing in the next game. Fem kort's votes on better cards work the
+  same way, each call for them its own round. The other
   side only learns "placing…" or "ready".
 - **Hidden information:** a fleet's layout is only in its owner's view until the
   game is over, when both are revealed. Shots and their results are public, and
@@ -706,20 +718,29 @@ A bot is just another member of the room, played from its owner's browser:
 - **One decision for every game** (`kit/bot.ts`, `botMove`). Table moves are the
   same everywhere: take a free seat, sit back in if it was sat out, stand up when
   leaving, never start a game (that's for people). The game's own moves are up to
-  the game's `bot.easy(view, ops, rand)`: tic-tac-toe takes wins and blocks half
-  the time, poker plays loose and passive with a rough sense of hand strength,
+  the game's `bot.play(view, ops, rand, { strength })`. **Hard** (bots from before
+  there was a choice, and AI bots' stand-ins) plays as described next; **easy** (new
+  bots' default) like someone new to the game: it looks less far ahead (Four in a Row
+  two moves, Go a few hundred playouts, chess not at all), misses things now and then
+  (blocks, its own wins in tic-tac-toe, fives to stop in Luffarschack), and aims
+  worse in Cannons; in the card games it plays without memory or much thought.
+  `src/games/strength.test.ts` checks hard clearly beats easy. On hard: tic-tac-toe takes
+  wins and blocks, poker plays loose and passive with a rough sense of hand strength,
   Finns i sjön asks for what it holds most of and remembers some asks, Battleship
-  places at random and hunts around hits, Coast to Coast keeps its cheapest
+  places at random and hunts around every hit, Coast to Coast keeps its cheapest
   tickets and claims routes on the cheapest path to them, chess looks one move ahead
   (mates, material, no free pieces for the other side) with some randomness, Othello
   weighs squares (corners, edges) and the replies it leaves, Go runs a few
   thousand random playouts per move, Four in a Row searches with alpha-beta, Luffarschack
   answers threats and looks for a win by fours, Fem
   kort keeps its strongest card for the last trick and dumps low cards early, and
-  Cannons aims like a person, correcting from where its last shots landed. The bot runs on the page, so it decides within
-  a few hundred ms; `{ quick: true }` (the conformance suite, building /try
-  positions) asks a searching bot to cut its search short. It decides from the view
-  only, so it can't cheat. The conformance suite seats a table of built-in bots in every game and
+  Cannons aims like a person, correcting from where its last shots landed. The bot
+  decides in a Web Worker (`thinker.ts`, `think.worker.ts`: one for all the bots on the
+  page), so a search never holds up the page; still, it should decide within half a
+  second or so. An answer for a game that has moved on meanwhile is dropped.
+  `{ quick: true }` (the conformance suite, building /try positions) asks a searching
+  bot to cut its search short. It decides from the view only, so it can't cheat. The
+  conformance suite seats a table of built-in bots, easy and hard, in every game and
   fails if the game ever waits on a bot that has no move.
 - **Where it runs.** While the owner has the room open. One tab plays each bot
   (a Web Lock per bot); other tabs of the room wait and take over if it closes.
@@ -738,7 +759,7 @@ A bot is just another member of the room, played from its owner's browser:
 
 ### AI bots (`src/client/bots/ai`)
 
-An AI bot is the same bot, with the owner's model deciding instead of `bot.easy`.
+An AI bot is the same bot, with the owner's model deciding instead of `bot.play`.
 When adding one you pick one of your AI keys, a model and an effort (the cheapest
 model at low effort by default; a key's model list is saved with it), and
 optionally a personality. The room's chat and the bot's own view of the game go to
@@ -819,6 +840,12 @@ room for more kinds later (`GAME_TAGS` in `games/types.ts`).
   next changes, which is how a guest takes a seat. The turn pill says "Sam's turn", as
   yours, and doesn't chime as the turn passes between you. In other games guests are
   just members.
+- **State that belongs to one of you.** The game's page isn't remounted on a switch (the
+  move just made still animates), so what it keeps for "you" is keyed by player: a move
+  shown before the server has it (`usePending`, also keyed by game and version, so it's
+  gone once the game changes), and Cannons' aim. A guest's connection showing another
+  game (it hasn't caught up) isn't used; one a move behind is shown but can't play
+  until it catches up.
 
 ## Limits
 
@@ -858,8 +885,10 @@ How limits look to the user:
   network error in the browser, so it couldn't be explained. The client shows the
   message in its banner, hides "Retry now", and waits the requested time (plus
   jitter) before reconnecting.
-- **Refused messages** get a normal `ack` with `rate_limited`. Chat puts the text
-  back in the input with a toast, and moves show a toast.
+- **Refused messages** get a normal `ack` with `rate_limited`. The client paces chat
+  to stay under the limits, so a refused chat message just waits and goes again;
+  someone more than 30 messages ahead gets their text back in the input with a toast.
+  Refused moves show a toast.
 - **Room creation** returns 429 JSON with a message, shown on the home page.
 - **Too many tabs** of the same player: the oldest gets close code 4409 and shows
   "Open in another tab" with a "Use this tab" button. It does not auto-reconnect,
@@ -893,4 +922,19 @@ every 5 minutes for the presence sweep.
   bots on the server, with AI keys there too.
 - Bots take free seats once a person sits down (or after 10 s), so in a full game
   a person may need to remove one to get a seat.
-- TODO: CI (GitHub Actions running `pnpm test:all`). For now, tests run locally.
+- CI (`.github/workflows/ci.yml`) runs the typecheck and the unit and integration
+  tests; the browser tests run locally. `pnpm run deploy` runs the typecheck and those
+  tests before building.
+- An AI bot sees its own hidden cards alongside the room's chat, and what it says goes
+  to everyone: "keep your cards to yourself" is an instruction to the model, not
+  something enforced, so people can try to talk it into telling. That's part of the
+  fun (as at a real table), not something to fix.
+- Every game's page is in the main bundle (about 800 kB, 250 kB gzipped); loading a
+  game's UI only when it's picked would make the first visit lighter on a phone.
+- Battleship's placing ops are concurrent within a game (`round` keeps them out of the
+  next one). Within a game, resends keep the player's own order: a *Ready* lost on the
+  way lands before a change made after it, and that change is then refused ("You're
+  ready"); *Change fleet* and make it again.
+- Go limits play-resumes from counting to 3 per game, and counts any game that reaches
+  4 moves per point (324 on 9×9), so no-progress pass/resume cycles can't grow a game
+  without bound. Fem kort forgets people who left without winning a deal.

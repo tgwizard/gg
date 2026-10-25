@@ -415,7 +415,11 @@ function foldOutOfTurn(state: PokerState, p: HandPlayer, ctx: GameContext) {
   log(hand, p, "Fold (left)");
   const live = hand.players.filter((x) => !x.folded);
   if (live.length === 1) return finishUncontested(state, live[0]!, ctx);
-  if (hand.status === "betting" && hand.toAct === p.seat) advance(state, p.seat, ctx);
+  if (hand.status !== "betting" || hand.toAct === null) return;
+  // Play moves on from them, or from whoever's to act if this leaves them nothing to decide
+  // (everyone they were betting against is all-in); otherwise their turn and clock stand.
+  const current = hand.players.find((x) => x.seat === hand.toAct)!;
+  if (current === p || !needsAction(hand, current)) advance(state, hand.toAct, ctx);
 }
 
 function advance(state: PokerState, from: number, ctx: GameContext) {

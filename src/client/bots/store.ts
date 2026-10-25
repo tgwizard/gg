@@ -7,15 +7,18 @@ import { sanitizeName } from "../../shared/protocol";
 import { type LocalPlayer, type LocalRoom, localPlayers } from "../local";
 import { addConnectionUsage, addUsage } from "../llm/connections";
 import type { Effort, Usage } from "../llm/types";
+import type { BotStrength } from "../../games/types";
 
-/** "easy" is the built-in bot, without AI; "ai" plays with one of your AI connections (see /settings). */
-export type BotLevel = "easy" | "ai";
+/** "builtin" plays without AI (each game's own bot); "ai" with one of your AI connections (see /settings). */
+export type BotLevel = "builtin" | "ai";
 
 /** What a bot is: everything you choose when making or editing one. */
 export interface BotSetup {
   name: string;
   color: number;
   level: BotLevel;
+  /** For built-in bots: how well it plays ("hard" when unset: bots from before there was a choice). */
+  strength?: BotStrength;
   /** For AI bots: which of your AI keys it uses, */
   connectionId?: string;
   /** with which of its models, */
@@ -42,11 +45,16 @@ export const MAX_BOTS = 24;
 
 const NAMES = ["Beep", "Boop", "Sprocket", "Gizmo", "Widget", "Rivet", "Servo", "Pixel", "Bolt", "Dynamo", "Tinker", "Cogsworth"];
 
+type Older = Omit<BotRecord, "level"> & { level: BotLevel | "easy"; roomId?: string; addedAt?: string; removing?: true };
+
 /**
- * Bots used to be made per room. Each name becomes one bot, kept with the identity it
- * had in its first room; it stays in that room (its namesakes elsewhere are left behind).
+ * Bots from before. The built-in bot was called "easy" before it had a strength (and it
+ * played as it does on hard). And bots used to be made per room: each name becomes one
+ * bot, kept with the identity it had in its first room; it stays in that room (its
+ * namesakes elsewhere are left behind).
  */
-function fromOlder(list: (BotRecord & { roomId?: string; addedAt?: string; removing?: true })[]): BotRecord[] {
+function fromOlder(older: BotRecord[]): BotRecord[] {
+  const list = (older as Older[]).map((b): BotRecord & Older => ({ ...b, level: b.level === "easy" ? "builtin" : b.level }));
   if (!list.some((b) => typeof b.roomId === "string")) return list;
   const byName = new Map<string, BotRecord>();
   for (const old of list) {
@@ -113,7 +121,7 @@ export function updateBot(id: string, setup: BotSetup) {
 
 /** An AI key is gone: its bots play built-in until given another. */
 export function dropConnection(connectionId: string) {
-  bots.save(getBots().map((b) => (b.connectionId === connectionId ? { ...b, ...clean({ ...b, level: "easy" }), error: undefined } : b)));
+  bots.save(getBots().map((b) => (b.connectionId === connectionId ? { ...b, ...clean({ ...b, level: "builtin" }), error: undefined } : b)));
 }
 
 /** Count the tokens an AI bot's call used, for the bot and for the key it used. */
@@ -137,7 +145,8 @@ function clean(setup: BotSetup): BotSetup {
   return {
     name: sanitizeName(setup.name),
     color: setup.color,
-    level: ai ? "ai" : "easy",
+    level: ai ? "ai" : "builtin",
+    strength: ai ? undefined : (setup.strength ?? "hard"),
     connectionId: ai ? setup.connectionId : undefined,
     model: ai ? setup.model : undefined,
     effort: ai ? (setup.effort ?? "low") : undefined,

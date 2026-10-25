@@ -32,7 +32,7 @@ import { femKortMeta } from "./meta";
 const configSchema = z.object({
   turnSeconds: z.number().int().min(0).max(600).default(30),
   dealsToWin: z.number().int().min(1).max(9).default(3),
-  mustBeat: z.boolean().default(true),
+  mustBeat: z.boolean().default(false),
   twoInARow: z.boolean().default(false),
   betterCards: z.boolean().default(false),
 });
@@ -81,6 +81,8 @@ export const femKort: GameDefinition<FemState, FemOp, FemView, FemConfig> = {
   removePlayer: (state, player, ctx) => leave(state, player, ctx),
   // Answering a call for better cards is your own business: everyone answers at once.
   concurrentOp: (op) => op.type === "vote",
+  // Each call for better cards is its own vote: the game, the deal, and how many have been called this deal.
+  round: (state) => `${state.game}:${state.deal}:${state.asked.length}`,
   waitingOn,
   legalOps(state, player) {
     const ops: FemOp[] = legalLobbyOps(state, player, { sitOut: true, canStart: canStart(state) });

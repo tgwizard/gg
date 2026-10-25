@@ -96,7 +96,7 @@ test("add Meta keys, make an AI bot with one, remove it", async ({ page, context
   await page.getByRole("button", { name: "+ New bot" }).click();
   await page.getByLabel("Bot's name").fill("Captain");
   await page.getByLabel("Personality").fill("A grumpy old sea captain.");
-  await page.getByLabel("Plays").selectOption({ index: 1 });
+  await page.getByLabel("Plays").selectOption({ index: 2 });
   await expect(page.getByRole("combobox", { name: "Model" })).toHaveValue("muse-spark-1.3-contributor");
   await expect(page.getByRole("combobox", { name: "Model" }).getByRole("option")).toHaveCount(3); // chat models only
   await expect(page.getByRole("combobox", { name: "Effort" })).toHaveValue("low");
@@ -121,7 +121,7 @@ test("add Meta keys, make an AI bot with one, remove it", async ({ page, context
   // Without its key, it plays built-in.
   await card.getByRole("button", { name: "Remove" }).click();
   await expect(card).toHaveCount(0);
-  await expect(bot).toContainText("Built-in bot · no AI");
+  await expect(bot).toContainText("Built-in bot · hard · no AI");
   expect(await page.evaluate(() => localStorage.getItem("gg.llm.connections"))).toBe("[]");
   await page.getByRole("button", { name: "Delete all bots" }).click();
   await page.getByRole("button", { name: "Delete all", exact: true }).click();

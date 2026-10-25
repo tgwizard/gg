@@ -3,14 +3,18 @@
  * winning material, checks and castling, and steers clear of moves that hand over
  * material or allow a mate in one. Beyond that it plays with some randomness, so it
  * blunders now and then and can be beaten. It takes a draw when it's well behind.
+ *
+ * Easy, it doesn't look at the answers to its moves at all, so it hangs pieces and walks
+ * into mates, and it's a good deal more random.
  */
+import { easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { ChessView } from "./engine";
 import type { ChessOp } from "./index";
 import { attacked, colorOf, inCheck, isCapture, legalMoves, type Move, makeMove, material, other, parseFen, parseUci, type Position, typeOf, VALUE } from "./rules";
 
 export const chessBot: GameBot<ChessView, ChessOp> = {
-  easy(view, ops, rand) {
+  play(view, ops, rand, opts) {
     const me = view.you.color;
     if (!me) return null;
     const pos = parseFen(view.fen);
@@ -19,10 +23,11 @@ export const chessBot: GameBot<ChessView, ChessOp> = {
     const moves = ops.filter((op) => op.type === "move");
     // Not its move: turn the offer down rather than leave it hanging.
     if (!moves.length) return ops.find((op) => op.type === "declineDraw") ?? null;
+    const soft = easy(opts);
     let best = moves[0]!;
     let bestScore = -Infinity;
     for (const op of moves) {
-      const s = score(pos, parseUci(op.move)!) + rand(100) / 100;
+      const s = soft ? glance(pos, parseUci(op.move)!) + rand(400) / 100 : score(pos, parseUci(op.move)!) + rand(100) / 100;
       if (s > bestScore) [best, bestScore] = [op, s];
     }
     return best;
@@ -30,6 +35,15 @@ export const chessBot: GameBot<ChessView, ChessOp> = {
 };
 
 const CENTER = new Set([27, 28, 35, 36]);
+
+/** How good `m` looks at a glance, in pawns: what it takes, and mate if it's mate. */
+function glance(pos: Position, m: Move): number {
+  const next = makeMove(pos, m);
+  if (inCheck(next) && !legalMoves(next).length) return 1000;
+  let s = isCapture(pos, m) ? (pos.board[m.to] ? VALUE[typeOf(pos.board[m.to]!)] : 1) : 0;
+  if (m.promotion) s += VALUE[m.promotion] - 1;
+  return s;
+}
 
 /** How good `m` looks, in pawns, one move deep. */
 function score(pos: Position, m: Move): number {

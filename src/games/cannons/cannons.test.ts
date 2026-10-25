@@ -3,7 +3,7 @@ import { seededRandomInt } from "../kit/testing";
 import type { GameContext } from "../types";
 import { type CannonsConfig, type CannonsState, onDeadline, SETTLE_MS } from "./engine";
 import { cannons as game } from "./index";
-import { COLUMNS, CRATER_RADIUS, crater, dir, flight, groundAt, HIT_RADIUS, root, STEP, TICK_MS, WIDTH } from "./physics";
+import { along, COLUMNS, CRATER_RADIUS, crater, dir, flight, groundAt, HIT_RADIUS, root, STEP, TICK_MS, WIDTH } from "./physics";
 import { makeField } from "./terrain";
 
 const flat = (h = 100) => Array.from({ length: COLUMNS }, () => h);
@@ -53,6 +53,12 @@ describe("cannons physics", () => {
     }
     expect(dir(90)).toEqual({ cos: 0, sin: 1 });
     for (const x of [0.05, 0.5, 2, 1234.5]) expect(root(x)).toBeCloseTo(Math.sqrt(x), 12);
+  });
+
+  it("places the ball at the start for a frame timed just before the flight began", () => {
+    const f = flight({ terrain: flat(), cannons: [{ x: 100, alive: true }, { x: 700, alive: true }], shooter: 0, angle: 45, power: 40, wind: 0 });
+    expect(along(f, -0.01)).toEqual({ x: f.path[0], y: f.path[1], done: false });
+    expect(Number.isFinite(along({ path: [], ticks: 0 }, 5).x)).toBe(true);
   });
 
   it("flies the same way every time, and lands where the numbers say", () => {
@@ -184,6 +190,25 @@ describe("cannons", () => {
     expect(game.waitingOn(state)).toEqual(["bob"]);
   });
 
+  it("counts every shot and hit for the result, beyond the shots it keeps", () => {
+    const { state, ctx, land } = setup();
+    onFlat(state, [100, 700]);
+    for (let i = 0; i < 50; i++) {
+      const c = state.cannons[state.turn]!;
+      game.apply(state, c.playerId, { type: "fire", angle: c.x < 400 ? 60 : 120, power: 10 }, ctx());
+      land();
+    }
+    expect(state.shots.length).toBeLessThan(50);
+    const target = cannonOf(state, "bob");
+    game.apply(state, state.cannons[state.turn]!.playerId, { type: "fire", angle: 45, power: hittingPower(state, 45, target) }, ctx());
+    land();
+    const view = game.view(state, "alice");
+    expect(view.cannons.map((c) => [c.playerId, c.fired, c.hits, c.outAt]).sort()).toEqual([
+      ["alice", 26, 1, null],
+      ["bob", 25, 0, 51],
+    ]);
+  });
+
   it("plays on in a free for all until one cannon is left", () => {
     const { state, ctx, land } = setup({}, ["a", "b", "c"]);
     onFlat(state, [100, 400, 700]);
@@ -297,7 +322,7 @@ describe("the built-in bot", () => {
       }
       const who = game.waitingOn(state)[0]!;
       if (who === "bot") {
-        game.apply(state, who, game.bot.easy(game.view(state, who), game.legalOps(state, who).filter((op) => op.type === "fire"), rand)!, ctx());
+        game.apply(state, who, game.bot.play(game.view(state, who), game.legalOps(state, who).filter((op) => op.type === "fire"), rand)!, ctx());
         shots++;
       } else {
         // The dummy fires away from the bot, harmlessly.
@@ -323,7 +348,7 @@ describe("the built-in bot", () => {
 
   it("waits when it's not its turn", () => {
     const { state } = setup();
-    expect(game.bot.easy(game.view(state, "bob"), [], seededRandomInt(1))).toBeNull();
-    expect(game.bot.easy(game.view(state, "alice"), game.legalOps(state, "alice").filter((op) => op.type === "fire"), seededRandomInt(1))).toMatchObject({ type: "fire" });
+    expect(game.bot.play(game.view(state, "bob"), [], seededRandomInt(1))).toBeNull();
+    expect(game.bot.play(game.view(state, "alice"), game.legalOps(state, "alice").filter((op) => op.type === "fire"), seededRandomInt(1))).toMatchObject({ type: "fire" });
   });
 });

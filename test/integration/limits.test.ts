@@ -64,7 +64,7 @@ describe("rate limits", () => {
     const room = await createRoom();
     const { client } = await TestClient.join(room, secret("flood"), "Flood");
     for (let i = 0; i < 120; i++) client.send({ type: "chat", cid: `f${i}`, text: "spam" });
-    await sleep(50);
+    for (let waited = 0; !client.closed && waited < 3_000; waited += 25) await sleep(25);
     expect(client.closed?.code).toBe(CloseCode.RateLimited);
     expect(client.received.some((m) => m.type === "error" && m.code === RATE_LIMITED && m.retryAfterMs! > 0)).toBe(true);
   });

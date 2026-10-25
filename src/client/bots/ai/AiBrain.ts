@@ -31,7 +31,7 @@ export interface BrainHost {
   sendOp(op: unknown, at: GameAt): Promise<void>;
   say(text: string): void;
   /** The built-in bot's move, when the model can't or won't make one. */
-  easyMove(): unknown;
+  builtinMove(): Promise<unknown>;
   usage(u: LLMUsage): void;
   error(message: string | undefined): void;
   /** What it's doing, for everyone to see (null when done). */
@@ -57,9 +57,13 @@ type Reason = "turn" | "chat" | "heartbeat" | "retry";
 export interface GameAt {
   instanceId: string;
   version: number;
+  round?: string;
 }
 
 const LOBBY = "lobby";
+/** Why a model call was cancelled. */
+const TOO_SLOW = "too slow";
+const SUPERSEDED = "its move came up";
 
 const CHAT_PAUSE_MS = 2_500;
 const HEARTBEAT_MS = 60_000;
@@ -111,8 +115,9 @@ export class AiBrain {
   private timers = new Map<Reason | "standIn", ReturnType<typeof setTimeout>>();
   private heartbeat = setInterval(() => this.news && this.wake("heartbeat"), HEARTBEAT_MS);
   private client: { connectionId: string; llm: Promise<LLMClient> } | null = null;
-  /** The model call in flight. */
+  /** The model call in flight, and whether it's about its own move. */
   private call: AbortController | null = null;
+  private callForMove = false;
 
   constructor(
     private setup: BrainSetup,
@@ -164,7 +169,11 @@ export class AiBrain {
       this.seenVersion = game.version;
       this.seenVersionAt = Date.now();
       this.news = true;
-      if (gameMoves(game.legalOps ?? []).length) this.wake("turn");
+      if (gameMoves(game.legalOps ?? []).length) {
+        // Its move comes first: a call about chat or watching is dropped (and its update goes out with the move's).
+        if (this.call && !this.callForMove) this.call.abort(SUPERSEDED);
+        this.wake("turn");
+      }
     }
   }
 
@@ -237,7 +246,7 @@ export class AiBrain {
     if (!you || (game?.instanceId ?? LOBBY) !== this.context || (game && !def)) return;
     if (this.messages.length > MAX_MESSAGES) this.restart(snap);
     const generation = this.generation;
-    const at = game ? { instanceId: game.instanceId, version: game.version } : null;
+    const at = game ? { instanceId: game.instanceId, version: game.version, round: game.round } : null;
 
     const moves = game ? gameMoves(game.legalOps ?? []) : [];
     // Its move only when the game waits on it; other moves it has (a draw offer, playing again) are up to it.
@@ -275,7 +284,8 @@ export class AiBrain {
     this.host.activity(turn ? "Thinking about its move" : reasons.has("chat") ? "Reading the chat" : game ? "Watching the game" : "Thinking");
     const call = new AbortController();
     this.call = call;
-    const watchdog = setTimeout(() => call.abort(), this.callTimeout(snap, turn));
+    this.callForMove = turn;
+    const watchdog = setTimeout(() => call.abort(TOO_SLOW), this.callTimeout(snap, turn));
     try {
       this.calls.push(Date.now());
       answer = await (await this.llm()).generate({
@@ -294,8 +304,8 @@ export class AiBrain {
       if (this.stopped || generation !== this.generation) return;
       this.messages.pop();
       Object.assign(this, before);
-      // Otherwise a cancelled call is one that took too long.
-      const tooSlow = call.signal.aborted;
+      if (call.signal.reason === SUPERSEDED) return this.host.log("call dropped for its move");
+      const tooSlow = call.signal.reason === TOO_SLOW;
       const message = tooSlow ? "The model took too long to answer." : e instanceof Error ? e.message : "Couldn't reach the model.";
       this.host.log("model error", { ms: Date.now() - started, message, code: e instanceof LLMError ? e.code : undefined });
       this.host.error(message);
@@ -395,18 +405,21 @@ export class AiBrain {
   private standIn(why: string) {
     const game = this.host.snapshot().game;
     if (!game) return;
-    const at = { instanceId: game.instanceId, version: game.version };
+    const at = { instanceId: game.instanceId, version: game.version, round: game.round };
     this.host.log("stand-in", { why, ...at });
     this.host.standIn(why);
     this.host.activity("Playing without AI");
     const [min, max] = STAND_IN_MS;
-    const timer = setTimeout(() => {
+    const stillThere = () => {
+      const now = this.host.snapshot().game;
+      return !this.stopped && now?.instanceId === at.instanceId && now.version === at.version;
+    };
+    const timer = setTimeout(async () => {
       this.timers.delete("standIn");
       this.host.activity(null);
-      const now = this.host.snapshot().game;
-      if (this.stopped || now?.instanceId !== at.instanceId || now.version !== at.version) return;
-      const op = this.host.easyMove();
-      if (op != null) void this.host.sendOp(op, at).catch(() => {});
+      if (!stillThere()) return;
+      const op = await this.host.builtinMove();
+      if (op != null && stillThere()) void this.host.sendOp(op, at).catch(() => {});
     }, min + Math.floor(Math.random() * (max - min)));
     this.timers.set("standIn", timer);
   }

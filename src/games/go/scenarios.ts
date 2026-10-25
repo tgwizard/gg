@@ -37,7 +37,7 @@ function reach(
     const state = start(players, c, opts.config);
     try {
       // Better than the quick bots, so the position looks like a real game.
-      const policy = (playouts: number) => (view: GoView, ops: GoOp[], rand: (n: number) => number) => goMove(view, ops, rand, { playouts, timeMs: 40 });
+      const policy = (playouts: number) => (view: GoView, ops: GoOp[], rand: (n: number) => number) => goMove(view, ops, rand, { playouts, timeMs: Infinity });
       playUntil(game, state, c, done, { seed, maxSteps: opts.maxSteps ?? 400, policies: { [players[0]!]: policy(black), [players[1]!]: policy(white) } });
       freshClocks(state, ctx);
       return state;

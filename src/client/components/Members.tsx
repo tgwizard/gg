@@ -105,7 +105,7 @@ export function MemberButton({ member, snapshot, bots, guests, roomId }: { membe
 /** "AI bot (muse-spark-1.3, low effort, Meta), playing from Adam's browser." */
 function botSummary(m: Member, owner: string): string {
   const where = owner === "you" ? "playing from this browser" : `playing from ${owner}'s browser`;
-  if (m.bot?.level !== "ai") return `Built-in bot, no AI, ${where}.`;
+  if (m.bot?.level !== "ai") return `Built-in bot (${m.bot?.strength ?? "hard"}), no AI, ${where}.`;
   const how = [m.bot.model, m.bot.effort && `${m.bot.effort} effort`, m.bot.provider].filter(Boolean).join(", ");
   return `AI bot${how ? ` (${how})` : ""}, ${where}.`;
 }
@@ -165,7 +165,7 @@ function AboutBot({ member, owner, you }: { member: Member; owner: string; you: 
                 <strong className="name" style={playerStyle(member.color)}>
                   {member.name}
                 </strong>
-                <span className="muted small">{ai ? "AI bot" : "Built-in bot · no AI"}</span>
+                <span className="muted small">{ai ? "AI bot" : `Built-in bot · ${member.bot?.strength ?? "hard"} · no AI`}</span>
               </div>
             </div>
             {member.bot?.persona && <p className="bot-persona">“{member.bot.persona}”</p>}
@@ -214,7 +214,7 @@ export function InviteBot({ roomId, members, disabled, className = "btn ghost sm
     setOpen(false);
     setMaking(null);
   };
-  const fresh = (): BotSetup => ({ ...suggestBot({ names: members.map((m) => m.name), colors: members.map((m) => m.color) }), level: "easy" });
+  const fresh = (): BotSetup => ({ ...suggestBot({ names: members.map((m) => m.name), colors: members.map((m) => m.color) }), level: "builtin", strength: "easy" });
   return (
     <>
       <button

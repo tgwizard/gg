@@ -160,7 +160,7 @@ describe("chess", () => {
       for (let i = 0; i < 600 && state.phase === "playing"; i++) {
         const who = game.waitingOn(state)[0]!;
         const ops = game.legalOps(state, who).filter((op) => op.type !== "leave" && op.type !== "resign");
-        const op = game.bot.easy(game.view(state, who), ops, rand)!;
+        const op = game.bot.play(game.view(state, who), ops, rand)!;
         game.apply(state, who, op, ctx());
         game.checkInvariants!(state);
       }
@@ -172,6 +172,6 @@ describe("chess", () => {
     const { state } = setup();
     state.fen = "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1";
     const view = game.view(state, "alice");
-    expect(game.bot.easy(view, game.legalOps(state, "alice").filter((op) => op.type === "move"), seededRandomInt(3))).toEqual({ type: "move", move: "a1a8" });
+    expect(game.bot.play(view, game.legalOps(state, "alice").filter((op) => op.type === "move"), seededRandomInt(3))).toEqual({ type: "move", move: "a1a8" });
   });
 });

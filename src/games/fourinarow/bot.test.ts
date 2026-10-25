@@ -22,13 +22,13 @@ describe("four in a row bot", () => {
     // x wins in column 4 (across the bottom); o threatens column 7 (up).
     const v = view([".......", ".......", "......o", "......o", "......o", "xxx..ox"]);
     expect(best(v).column).toBe(3);
-    for (const quick of [true, false]) expect(game.bot.easy(v, ops(v), seededRandomInt(3), { quick })).toEqual({ type: "drop", column: 4 });
+    for (const quick of [true, false]) expect(game.bot.play(v, ops(v), seededRandomInt(3), { quick })).toEqual({ type: "drop", column: 4 });
   });
 
   it("blocks a loss in one", () => {
     // o has three up column 2; x must drop there.
     const v = view([".......", ".......", ".......", ".o.....", ".o..x..", "xo.xxo."]);
-    for (let seed = 1; seed <= 3; seed++) expect(game.bot.easy(v, ops(v), seededRandomInt(seed), { quick: true })).toEqual({ type: "drop", column: 2 });
+    for (let seed = 1; seed <= 3; seed++) expect(game.bot.play(v, ops(v), seededRandomInt(seed), { quick: true })).toEqual({ type: "drop", column: 2 });
     expect(best(v).column).toBe(1);
   });
 
@@ -58,7 +58,7 @@ describe("four in a row bot", () => {
     for (let i = 0; i < 42 && state.phase === "playing"; i++) {
       const who = game.waitingOn(state)[0]!;
       const v = game.view(state, who);
-      const op = who === "bot" ? { type: "drop" as const, column: think(v, rand, { maxDepth: 10, timeMs: Infinity }).column + 1 } : game.bot.easy(v, game.legalOps(state, who), rand, { quick: true })!;
+      const op = who === "bot" ? { type: "drop" as const, column: think(v, rand, { maxDepth: 10, timeMs: Infinity }).column + 1 } : game.bot.play(v, game.legalOps(state, who), rand, { quick: true })!;
       game.apply(state, who, op, ctx);
     }
     expect(state.result?.winner).toBe("x");
@@ -75,7 +75,7 @@ describe("four in a row bot", () => {
 
   it("is repeatable when quick, but still varies with the seed", () => {
     const v = view([".......", ".......", ".......", ".......", "...o...", "..xx..."], "o");
-    const pick = (seed: number) => game.bot.easy(v, ops(v), seededRandomInt(seed), { quick: true });
+    const pick = (seed: number) => game.bot.play(v, ops(v), seededRandomInt(seed), { quick: true });
     expect(pick(1)).toEqual(pick(1));
     const picks = new Set(Array.from({ length: 12 }, (_, i) => JSON.stringify(pick(i + 1))));
     expect(picks.size).toBeGreaterThan(1);
