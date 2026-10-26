@@ -122,6 +122,13 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
   const current = seen.you && seen.game?.instanceId === game.instanceId && seen.game.gameId === game.gameId;
   const shown = current ? { snapshot: seen, me: seen.you!.id, client: actingClient } : { snapshot, me: you, client };
   const connected = shown.snapshot.status === "connected" && shown.snapshot.game!.version >= game.version;
+  const top = useRef<HTMLDivElement>(null);
+  // A game that's just opened starts at its top: the set-up you started it from may have
+  // been scrolled well down (on a phone, the whole page scrolls; wider, the stage does).
+  useEffect(() => {
+    top.current?.closest(".stage")?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+  }, [game.instanceId]);
 
   if (!ui) return <p className="muted">This room is playing a game this version of gg doesn't know ({game.gameId}). Try reloading.</p>;
 
@@ -136,7 +143,7 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
   }
 
   return (
-    <div className="active-game">
+    <div className="active-game" ref={top}>
       <InTopbar>
         <div className="game-header">
           <div className="game-header-title">

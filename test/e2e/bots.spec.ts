@@ -115,7 +115,7 @@ test("a bot plays from one tab at a time, and another tab takes over when it clo
   await expect(member(second)).toHaveClass(/online/, { timeout: 15_000 });
   await second.waitForTimeout(500);
   await expect(member(second)).toHaveClass(/online/);
-  await second.getByRole("button", { name: `Remove ${bot}` }).click();
+  await member(second).getByRole("button", { name: `Remove ${bot}` }).click();
   await expect(member(second)).toHaveCount(0);
 });
 
@@ -177,4 +177,15 @@ test("bots are yours across rooms: invite one into another room, edit it everywh
   await alice.page.goto(first);
   await expectConnected(alice.page);
   await expect(alice.page.getByTestId("member").filter({ hasText: bot })).toHaveCount(0);
+});
+
+test("your bots can be taken out from the invite panel too, not only the sidebar", async ({ browser }) => {
+  const { page } = await newPlayer(browser);
+  await createRoom(page, "Alice");
+  const bot = await addBot(page, "Robo");
+  const invite = page.getByTestId("invite-section");
+  await invite.getByRole("button", { name: `Remove ${bot}` }).click();
+  await expect(chat(page)).toContainText(`Alice removed ${bot}.`);
+  await expect(invite.getByText(bot)).toHaveCount(0);
+  await expect(page.getByTestId("member").filter({ hasText: bot })).toHaveCount(0);
 });

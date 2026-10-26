@@ -51,7 +51,8 @@ these through the browser and reports back.
 - [ ] Two people pick the same color: whoever joined first keeps it, the other sees "X is taken here, so you're Y" and gets the next free color; taken colors are marked in the profile picker (top right).
 - [ ] Rename the room from the top bar: everyone sees the new name and a chat note; clearing it shows "Name this room".
 - [ ] Create a room from the home page. The URL is `/r/<10-char code>`, and the status light in the top bar is green; hovering or clicking it shows latency, since when, and reconnects.
-- [ ] The people icon by the room's name shows the code and Copy invite link on hover, and stays open on click. Before a game, "Invite friends to play" shows the link, who's here (click yourself or your bots to edit), and *+ Invite a bot*.
+- [ ] The people icon by the room's name shows the code and Copy invite link on hover, and stays open on click. Before a game, "Invite friends to play" shows the link, who's here (click yourself or your bots to edit; × takes your bots and players on your device out, as in the sidebar), *+ Invite a bot* and *+ Player on this device*.
+- [ ] Phone: pick a game, scroll down to its set-up and start it: the game opens scrolled to its top. Wide: the same, in the stage.
 - [ ] The top bar: the status light, the sound switch (not on a phone) and a cog (sound, dark mode, *All settings*) by your name. On a phone it's one row: the room name shortens and your name is just your avatar.
 - [ ] Type the code (lower-case, with a space) into *Room code or link* on the home page: it shows upper-case and joins the room.
 - [ ] With 1Password (or another password manager) installed, the name, code and chat inputs don't offer to autofill.

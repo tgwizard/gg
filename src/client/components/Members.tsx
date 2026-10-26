@@ -15,10 +15,6 @@ export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnap
   const waiting = new Set(snapshot.game?.waitingOn ?? []);
   const members = [...snapshot.members].sort((a, b) => Number(b.online) - Number(a.online));
   const names = new Map(snapshot.members.map((m) => [m.id, m.name]));
-  const mine = new Map<string, { id: string; deleted?: true; rooms: BotRecord["rooms"]; error?: string; remove(): void; kind: string }>([
-    ...bots.map((b) => [b.playerId, { ...b, kind: "bot", remove: () => removeFromRoom(b.id, roomId) }] as const),
-    ...guests.map((g) => [g.playerId, { ...g, kind: "player", remove: () => removeGuest(g.id, roomId) }] as const),
-  ]);
   const connected = snapshot.status === "connected";
   const full = ownedIn(roomId) >= MAX_OWNED_PER_PLAYER;
 
@@ -26,37 +22,23 @@ export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnap
     <Panel className="members" title="In this room" actions={<span className="label">{members.filter((m) => m.online).length} online</span>}>
       <ul>
         {members.map((m) => {
-          const record = mine.get(m.id);
-          const leaving = !!record && (!!record.deleted || !!record.rooms[roomId]?.removing);
+          const record = yours(m.id, bots, guests);
+          const leaving = isLeaving(record, roomId);
           return (
             <li key={m.id} className={m.online ? "online" : "away"} data-testid="member">
               {/* On the avatar's corner, so it never takes room from the name. */}
               {m.activity && <ActivityBubble text={m.activity} compact />}
               <MemberButton member={m} snapshot={snapshot} bots={bots} guests={guests} roomId={roomId} />
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
-              {m.kind === "bot" && (
-                <span className="tag brand" title={botSummary(m, record ? "you" : (names.get(m.ownerId ?? "") ?? "Someone"))}>
-                  {m.bot?.level === "ai" ? "AI bot" : "bot"}
-                </span>
-              )}
+              {m.kind === "bot" && <BotTag member={m} owner={record ? "you" : (names.get(m.ownerId ?? "") ?? "Someone")} />}
               {m.kind === "guest" && <GuestTag member={m} owner={m.ownerId === snapshot.you?.id ? null : (names.get(m.ownerId ?? "") ?? "someone")} />}
-              {record?.error && !leaving && (
+              {record && "error" in record && record.error && !leaving && (
                 <span className="tag danger" title={record.error}>
                   AI problem
                 </span>
               )}
-              {leaving && <span className="tag">leaving…</span>}
-              {waiting.has(m.id) && <span className="tag gold">to act</span>}
-              {record && !leaving && (
-                <button
-                  className="member-remove"
-                  onClick={record.remove}
-                  aria-label={`Remove ${m.name}`}
-                  title={`Take ${m.name} out of this room (${record.kind === "bot" ? "it stays one of your bots" : "they stay on this device"})`}
-                >
-                  ×
-                </button>
-              )}
+              {waiting.has(m.id) && !leaving && <span className="tag gold">to act</span>}
+              <RemoveMember member={m} bots={bots} guests={guests} roomId={roomId} />
             </li>
           );
         })}
@@ -67,6 +49,45 @@ export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnap
         {full && <span className="muted small">Up to {MAX_OWNED_PER_PLAYER} bots or players on your device each.</span>}
       </div>
     </Panel>
+  );
+}
+
+/** One of your bots, or someone playing on your device: the ones you can take out of the room. */
+function yours(id: string, bots: BotRecord[], guests: GuestRecord[]): BotRecord | GuestRecord | undefined {
+  return bots.find((b) => b.playerId === id) ?? guests.find((g) => g.playerId === id);
+}
+
+function isLeaving(record: BotRecord | GuestRecord | undefined, roomId: string): boolean {
+  return !!record && (!!record.deleted || !!record.rooms[roomId]?.removing);
+}
+
+/**
+ * × to take one of your bots, or someone playing on your device, out of the room (or
+ * "leaving…" while that happens); nothing for anyone else.
+ */
+export function RemoveMember({ member, bots, guests, roomId }: { member: Member; bots: BotRecord[]; guests: GuestRecord[]; roomId: string }) {
+  const record = yours(member.id, bots, guests);
+  if (!record) return null;
+  if (isLeaving(record, roomId)) return <span className="tag">leaving…</span>;
+  const bot = member.kind === "bot";
+  return (
+    <button
+      className="member-remove"
+      onClick={() => (bot ? removeFromRoom(record.id, roomId) : removeGuest(record.id, roomId))}
+      aria-label={`Remove ${member.name}`}
+      title={`Take ${member.name} out of this room (${bot ? "it stays one of your bots" : "they stay on this device"})`}
+    >
+      ×
+    </button>
+  );
+}
+
+/** "bot" / "AI bot", with what it is and whose browser it plays from on hover. */
+export function BotTag({ member, owner }: { member: Member; owner: string }) {
+  return (
+    <span className="tag brand" title={botSummary(member, owner)}>
+      {member.bot?.level === "ai" ? "AI bot" : "bot"}
+    </span>
   );
 }
 

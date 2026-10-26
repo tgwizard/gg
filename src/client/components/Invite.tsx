@@ -5,7 +5,7 @@ import type { BotRecord } from "../bots/store";
 import type { GuestRecord } from "../guests";
 import { ownedIn } from "../local";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { AddGuest, GuestTag, InviteBot, MemberButton } from "./Members";
+import { AddGuest, BotTag, GuestTag, InviteBot, MemberButton, RemoveMember } from "./Members";
 import { Popover, usePeek } from "./Popover";
 
 /** A people icon by the room's name: hover or click it for the room code and invite link. */
@@ -58,7 +58,9 @@ export function InviteSection({ snapshot, roomId, bots, guests }: { snapshot: Ro
             <li key={m.id} className="invite-person">
               <MemberButton member={m} snapshot={snapshot} bots={bots} guests={guests} roomId={roomId} />
               {m.id === snapshot.you?.id && <span className="tag accent">you</span>}
+              {m.kind === "bot" && <BotTag member={m} owner={m.ownerId === snapshot.you?.id ? "you" : (snapshot.members.find((o) => o.id === m.ownerId)?.name ?? "Someone")} />}
               {m.kind === "guest" && <GuestTag member={m} owner={m.ownerId === snapshot.you?.id ? null : (snapshot.members.find((o) => o.id === m.ownerId)?.name ?? "someone")} />}
+              <RemoveMember member={m} bots={bots} guests={guests} roomId={roomId} />
             </li>
           ))}
           <li>

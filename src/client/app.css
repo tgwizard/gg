@@ -596,7 +596,8 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .invite-here { display: flex; flex-direction: column; gap: 8px; }
 .invite-people { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .invite-person { display: inline-flex; align-items: center; gap: 7px; padding: 3px 12px 3px 3px; border-radius: var(--pill); background: var(--surface-2); border: 1px solid var(--line); font-weight: 700; }
-.invite-person:has(.tag) { padding-right: 5px; }
+.invite-person:has(.tag, .member-remove) { padding-right: 5px; }
+.invite-person .member-remove { margin-left: -2px; }
 .invite-person .member-edit, .invite-person .member-plain { margin: -3px 0 -3px -3px; padding: 3px 6px 3px 3px; font-weight: 700; }
 .invite-person .member-edit:hover { background: var(--surface); }
 .member-plain { display: flex; align-items: center; gap: 8px; min-width: 0; }

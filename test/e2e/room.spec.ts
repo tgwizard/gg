@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { devices, expect, test } from "@playwright/test";
 import { generateRoomCode } from "../../src/shared/roomCode";
 import { chat, createRoom, expectConnected, joinRoom, newPlayer, sendChat } from "./helpers";
 
@@ -169,4 +169,18 @@ test("home, someone new: Save asks for a name, then the profile goes up to the c
   await expect(page.getByLabel("Your name")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Ada/ })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("gg.name"))).toBe("Ada");
+});
+
+test("on a phone, a game starts at its top, however far down it was set up", async ({ browser }) => {
+  const context = await browser.newContext({ ...devices["Pixel 7"], extraHTTPHeaders: { "CF-Connecting-IP": `10.32.${Math.floor(Math.random() * 250)}.7` } });
+  const page = await context.newPage();
+  await createRoom(page, "Alice");
+  await page.getByRole("button", { name: /Tic-tac-toe/ }).click();
+  const start = page.getByRole("button", { name: "Start tic-tac-toe" });
+  await start.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(100);
+  await start.click();
+  await expect(page.locator(".active-game")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+  await context.close();
 });
