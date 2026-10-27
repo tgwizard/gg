@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { ByoYomiClock, formatClock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
+import { Button, busyWhy } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { usePending, useSend } from "../../kit/ui/useSend";
 import { type GoView, type LastMove, resultText, SPEC } from "../engine";
@@ -95,7 +96,7 @@ export function GoGame({ view, snapshot, me, members, connected, sendOp, serverN
             counting={view.phase === "waiting" ? null : counting}
             onMark={view.phase === "scoring" && myColor && connected && !busy ? (point) => send({ type: "mark", point }) : null}
           >
-            <SeatPrompt view={view} game="Go" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} disabled={!connected || busy} send={send} testId="go-sit" />
+            <SeatPrompt view={view} game="Go" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} why={busyWhy({ busy, connected })} send={send} testId="go-sit" />
           </Board>
         </div>
       }
@@ -140,9 +141,9 @@ export function GoGame({ view, snapshot, me, members, connected, sendOp, serverN
           ) : (
             <DuelControls view={view} busy={busy} connected={connected} send={send} testId="go">
               {myColor && (
-                <button className="btn small" disabled={busy || !connected || !myTurn} onClick={() => send({ type: "pass" })} data-testid="go-pass">
+                <Button className="btn small" why={(myTurn ? null : `It's ${view.sides ? name(view.sides[view.turn]) : COLOR_NAME[view.turn]}'s turn.`) ?? busyWhy({ busy, connected })} onClick={() => send({ type: "pass" })} data-testid="go-pass">
                   {myTurn && view.passed === other(myColor) ? "Pass & count" : "Pass"}
-                </button>
+                </Button>
               )}
             </DuelControls>
           )}
@@ -197,7 +198,7 @@ function LastMoveLine({ view, last, me, name }: { view: GoView; last: LastMove |
 function CountingControls(props: { view: GoView; name(id: string): string; busy: boolean; connected: boolean; send(op: GoOp): unknown; serverNow: number }) {
   const { view, send } = props;
   const c = view.you.color!;
-  const disabled = props.busy || !props.connected;
+  const why = busyWhy(props);
   const accepted = view.scoring!.accepted;
   const them = view.sides?.[other(c)];
   const left = Math.max(0, view.scoring!.deadline - props.serverNow);
@@ -213,14 +214,14 @@ function CountingControls(props: { view: GoView; name(id: string): string; busy:
             ✓ Accepted. Waiting for {them ? props.name(them) : "the other player"}.
           </span>
         ) : (
-          <button className="btn primary small" disabled={disabled} onClick={() => send({ type: "accept" })} data-testid="go-accept">
+          <Button className="btn primary small" why={why} onClick={() => send({ type: "accept" })} data-testid="go-accept">
             Accept score
-          </button>
+          </Button>
         )}
         {view.scoring!.canResume && (
-          <button className="btn small" disabled={disabled} onClick={() => send({ type: "resume" })} data-testid="go-resume">
+          <Button className="btn small" why={why} onClick={() => send({ type: "resume" })} data-testid="go-resume">
             Resume play
-          </button>
+          </Button>
         )}
       </span>
     </div>

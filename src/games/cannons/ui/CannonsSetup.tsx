@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import { TimerField } from "../../kit/ui/TimerField";
 import { type CannonsConfig, WIND_MAX } from "../engine";
@@ -15,7 +16,7 @@ const WIND: { value: CannonsConfig["wind"]; label: string }[] = [
   { value: "strong", label: "Strong" },
 ];
 
-export function CannonsSetup({ busy, disabled, onStart }: GameSetupProps<CannonsConfig>) {
+export function CannonsSetup({ busy, connected, onStart }: GameSetupProps<CannonsConfig>) {
   const [config, setConfig] = useState<CannonsConfig>({ players: 2, terrain: "hilly", wind: "light", turnSeconds: 45 });
   const choices = <K extends "players" | "terrain" | "wind">(key: K, label: string, options: { value: CannonsConfig[K]; label: string }[]) => (
     <div className="cn-setup-row">
@@ -54,9 +55,9 @@ export function CannonsSetup({ busy, disabled, onStart }: GameSetupProps<Cannons
       {choices("terrain", "Landscape", TERRAIN)}
       {choices("wind", `Wind (up to ${WIND_MAX[config.wind]} either way)`, WIND)}
       <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="run out and your turn goes by without a shot" />
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start Cannons"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -6,6 +6,7 @@
  */
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 import type { DuelSeat, DuelView, Side } from "../duel";
+import { Button, busyWhy } from "../../../ui";
 import { reducedMotion } from "./Flights";
 import { GameOver } from "./GameOver";
 import { PlayerPlate } from "./PlayerPlate";
@@ -107,7 +108,8 @@ export function SeatPrompt(props: {
   /** What sitting down means, before anyone has. */
   blurb: string;
   name(id: string): string;
-  disabled: boolean;
+  /** Why sitting down can't be done this moment (`busyWhy`), if it can't. */
+  why: string | null;
   send(op: DuelOp): unknown;
   testId: string;
 }) {
@@ -120,9 +122,9 @@ export function SeatPrompt(props: {
         <div className="duel-prompt box" role="dialog" aria-label="Take a seat">
           <h3 className="display">{open.length === 2 ? `Play ${props.game}` : `Take on ${props.name(view.seats[1 - open[0]!]!.playerId)}`}</h3>
           <p className="muted">{open.length === 2 ? props.blurb : "The game starts as soon as you sit down."}</p>
-          <button className="btn primary big" disabled={props.disabled} onClick={() => props.send({ type: "sit", seat: open[0]! })} data-testid={props.testId}>
+          <Button className="btn primary big" why={props.why} onClick={() => props.send({ type: "sit", seat: open[0]! })} data-testid={props.testId}>
             Take a seat
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="duel-prompt box" role="status">
@@ -195,7 +197,7 @@ export function DuelControls(props: {
 }) {
   const { view, send } = props;
   const [confirm, setConfirm] = useState(false);
-  const disabled = props.busy || !props.connected;
+  const why = busyWhy(props);
   const playing = props.playing ?? (view.phase === "playing" && view.you.color !== null);
   useEffect(() => setConfirm(false), [view.phase, view.game]);
 
@@ -205,9 +207,9 @@ export function DuelControls(props: {
       <div className="duel-controls">
         <span>Resign this game?</span>
         <span className="row">
-          <button className="btn danger small" disabled={disabled} onClick={() => send({ type: "resign" })} data-testid={`${props.testId}-resign-yes`}>
+          <Button className="btn danger small" why={why} onClick={() => send({ type: "resign" })} data-testid={`${props.testId}-resign-yes`}>
             Resign
-          </button>
+          </Button>
           <button className="btn small" onClick={() => setConfirm(false)}>
             Keep playing
           </button>
@@ -219,9 +221,9 @@ export function DuelControls(props: {
     main = (
       <span className="row">
         {props.children}
-        <button className="btn small" disabled={disabled} onClick={() => setConfirm(true)} data-testid={`${props.testId}-resign`}>
+        <Button className="btn small" why={why} onClick={() => setConfirm(true)} data-testid={`${props.testId}-resign`}>
           ⚑ Resign
-        </button>
+        </Button>
       </span>
     );
   } else if (view.phase === "over") {
@@ -229,9 +231,9 @@ export function DuelControls(props: {
     if (view.you.seat !== null && !view.canRematch) main = <span className="muted">Waiting for an opponent to sit down.</span>;
     else if (view.you.seat === null && openSeat !== undefined) {
       main = (
-        <button className="btn" disabled={disabled} onClick={() => send({ type: "sit", seat: openSeat })}>
+        <Button className="btn" why={why} onClick={() => send({ type: "sit", seat: openSeat })}>
           Take the open seat
-        </button>
+        </Button>
       );
     }
   }
@@ -302,9 +304,9 @@ export function DuelResult<C extends string>(props: {
       actions={
         view.canRematch &&
         view.you.seat !== null && (
-          <button className="btn primary" disabled={props.busy || !props.connected} onClick={() => props.send({ type: "rematch" })}>
+          <Button className="btn primary" why={busyWhy(props)} onClick={() => props.send({ type: "rematch" })}>
             Play again{props.again && ` (${props.again})`}
-          </button>
+          </Button>
         )
       }
     />
@@ -327,9 +329,9 @@ export function DuelFooter(props: { view: Table<string>; moved: boolean; busy: b
       log={props.log}
       actions={
         view.you.seat !== null && (
-          <button className="btn ghost small" disabled={!props.connected || props.busy} onClick={() => props.send({ type: "leave" })}>
+          <Button className="btn ghost small" why={busyWhy(props)} onClick={() => props.send({ type: "leave" })}>
             {inGame ? (props.moved ? "Resign & leave" : "Leave (calls the game off)") : "Leave seat"}
-          </button>
+          </Button>
         )
       }
     />

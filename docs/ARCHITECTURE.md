@@ -151,9 +151,11 @@ display type and Nunito for everything else.
 - **No disabled buttons.** A button that can't be used right now is a `Button` with `why`
   (`src/ui/Button.tsx`): it looks unavailable (`aria-disabled`, greyed), and pressing it
   says why in a bubble over it for a few seconds ("Reconnecting…", "It's Sam's turn")
-  instead of doing nothing. `busyWhy({busy, connected})` has the usual reasons. Unicorn
-  race follows this; the older games and the room UI still have plain `disabled`
-  buttons to convert.
+  instead of doing nothing. `busyWhy({busy, connected})` has the usual reasons; a game
+  adds its own ("That column is full.", "You have to follow suit: play a ♥."). Board
+  cells and cards in hand that are buttons follow it too (their own CSS keeps
+  `:not(:disabled, .unavailable)` off hover effects). Only inputs, selects and sliders
+  keep `disabled`.
 - `mode.ts`: light/dark. Follows the system until you choose (the settings cog, /settings, or
   Ctrl+Shift+L); the choice is remembered per browser. `index.html` applies it before first paint.
 - Artwork lives in `public/icons/` (generated illustrations for gg and each game;

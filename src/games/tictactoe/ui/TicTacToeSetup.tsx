@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import { TimerField } from "../../kit/ui/TimerField";
 import type { TttConfig } from "../index";
 
-export function TicTacToeSetup({ busy, disabled, onStart }: GameSetupProps<TttConfig>) {
+export function TicTacToeSetup({ busy, connected, onStart }: GameSetupProps<TttConfig>) {
   const [turnSeconds, setTurnSeconds] = useState(30);
   return (
     <form
@@ -14,9 +15,9 @@ export function TicTacToeSetup({ busy, disabled, onStart }: GameSetupProps<TttCo
       }}
     >
       <TimerField value={turnSeconds} onChange={setTurnSeconds} hint="run out and you forfeit the round" />
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start tic-tac-toe"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -1,7 +1,7 @@
 import { type FormEvent, type ReactNode, useId, useRef, useState } from "react";
 import { PLAYER_COLORS } from "../../shared/colors";
 import { MAX_NAME_LENGTH } from "../../shared/protocol";
-import { Avatar, playerStyle, useMedia } from "../../ui";
+import { Avatar, Button, playerStyle, useMedia } from "../../ui";
 import { noAutofill } from "../noAutofill";
 import { Popover } from "./Popover";
 import { SettingsLink } from "./SettingsLink";
@@ -117,9 +117,9 @@ export function ProfileForm(props: {
       </div>
       {props.children}
       <div className="row">
-        <button className="btn primary" disabled={!name.trim()}>
+        <Button className="btn primary" why={name.trim() ? null : "Type a name first."}>
           {props.submitLabel}
-        </button>
+        </Button>
         {props.onCancel && (
           <button type="button" className="btn ghost" onClick={props.onCancel}>
             Cancel

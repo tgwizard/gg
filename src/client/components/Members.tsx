@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { MAX_OWNED_PER_PLAYER, type Member } from "../../shared/protocol";
-import { ActivityBubble, Avatar, Panel, PlayerName, playerStyle } from "../../ui";
+import { ActivityBubble, Avatar, Button, busyWhy, Panel, PlayerName, playerStyle } from "../../ui";
 import { type BotRecord, type BotSetup, createBot, inviteBot, removeFromRoom, suggestBot, updateBot, useMyBots } from "../bots/store";
 import { createGuest, type GuestRecord, inviteGuest, removeGuest, updateGuest, useMyGuests } from "../guests";
 import { saveColor, saveName } from "../identity";
@@ -44,8 +44,8 @@ export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnap
         })}
       </ul>
       <div className="members-foot">
-        <InviteBot roomId={roomId} members={snapshot.members} disabled={!connected || full} />
-        <AddGuest roomId={roomId} members={snapshot.members} disabled={!connected || full} />
+        <InviteBot roomId={roomId} members={snapshot.members} why={bringWhy(roomId, connected)} />
+        <AddGuest roomId={roomId} members={snapshot.members} why={bringWhy(roomId, connected)} />
         {full && <span className="muted small">Up to {MAX_OWNED_PER_PLAYER} bots or players on your device each.</span>}
       </div>
     </Panel>
@@ -224,7 +224,12 @@ function takenColors(members: Member[], except?: string): Map<number, string> {
  * "+ Invite a bot": your bots that aren't here yet, one click each, or a new one made on
  * the spot (it's yours from then on, for any room).
  */
-export function InviteBot({ roomId, members, disabled, className = "btn ghost small" }: { roomId: string; members: Member[]; disabled: boolean; className?: string }) {
+/** Why you can't bring another bot or player into the room this moment, if you can't. */
+export function bringWhy(roomId: string, connected: boolean): string | null {
+  return busyWhy({ connected }) ?? (ownedIn(roomId) >= MAX_OWNED_PER_PLAYER ? `You can bring up to ${MAX_OWNED_PER_PLAYER} bots or players on this device.` : null);
+}
+
+export function InviteBot({ roomId, members, why, className = "btn ghost small" }: { roomId: string; members: Member[]; why: string | null; className?: string }) {
   const [open, setOpen] = useState(false);
   const [making, setMaking] = useState<BotSetup | null>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -238,10 +243,10 @@ export function InviteBot({ roomId, members, disabled, className = "btn ghost sm
   const fresh = (): BotSetup => ({ ...suggestBot({ names: members.map((m) => m.name), colors: members.map((m) => m.color) }), level: "builtin", strength: "easy" });
   return (
     <>
-      <button
+      <Button
         ref={button}
         className={className}
-        disabled={disabled}
+        why={why}
         aria-expanded={open}
         onClick={() => {
           if (open) return close();
@@ -251,7 +256,7 @@ export function InviteBot({ roomId, members, disabled, className = "btn ghost sm
         }}
       >
         + Invite a bot
-      </button>
+      </Button>
       {open && button.current && (
         <Popover anchor={button.current} label="Invite a bot" onClose={close}>
           {making ? (
@@ -369,7 +374,7 @@ function EditGuest({ guest, member, members }: { guest: GuestRecord; member: Mem
  * where nothing is hidden (hot seat). The people who've played here before, one click
  * each, or someone new.
  */
-export function AddGuest({ roomId, members, disabled, className = "btn ghost small" }: { roomId: string; members: Member[]; disabled: boolean; className?: string }) {
+export function AddGuest({ roomId, members, why, className = "btn ghost small" }: { roomId: string; members: Member[]; why: string | null; className?: string }) {
   const [open, setOpen] = useState(false);
   const [making, setMaking] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -384,10 +389,10 @@ export function AddGuest({ roomId, members, disabled, className = "btn ghost sma
   const color = Array.from({ length: 16 }, (_, i) => i).find((c) => !taken.has(c)) ?? 0;
   return (
     <>
-      <button
+      <Button
         ref={button}
         className={className}
-        disabled={disabled}
+        why={why}
         aria-expanded={open}
         onClick={() => {
           if (open) return close();
@@ -396,7 +401,7 @@ export function AddGuest({ roomId, members, disabled, className = "btn ghost sma
         }}
       >
         + Player on this device
-      </button>
+      </Button>
       {open && button.current && (
         <Popover anchor={button.current} label="Player on this device" onClose={close}>
           {making ? (

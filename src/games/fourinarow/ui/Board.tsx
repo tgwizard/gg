@@ -1,6 +1,6 @@
 import { type CSSProperties, type KeyboardEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { reducedMotion } from "../../kit/ui/Flights";
-import { play, playerStyle } from "../../../ui";
+import { Button, play, playerStyle } from "../../../ui";
 import { colOf, count, landing, type Piece, rowOf, type Size } from "../rules";
 
 /** The wooden frame around the holes, and the gap over it where your disc waits, in cells. */
@@ -28,6 +28,8 @@ export function Board(props: {
   colors: { x: number; o: number };
   /** The piece you can drop now, or null. */
   movable: Piece | null;
+  /** Why you can't drop a disc now (when `movable` is null): "It's Bob's turn." */
+  why: string | null;
   onDrop(column: number): void;
   /** Overlays (a prompt to sit down). */
   children?: ReactNode;
@@ -172,14 +174,14 @@ export function Board(props: {
         {Array.from({ length: W }, (_, c) => {
           const open = landing(board, size, c) !== null;
           return (
-            <button
+            <Button
               key={c}
               type="button"
               tabIndex={-1}
               className={`fiar-column ${aim === c ? "aimed" : ""}`}
               style={{ left: colLeft(c), width: `${100 / across}%` }}
               aria-label={`Column ${c + 1}${open ? "" : ", full"}`}
-              disabled={!props.movable || !open}
+              why={!props.movable ? (props.why ?? "You can't drop a disc right now.") : open ? null : "That column is full."}
               data-testid={`fiar-col-${c + 1}`}
               onPointerEnter={(e) => e.pointerType === "mouse" && setHover(c)}
               onPointerLeave={() => setHover((h) => (h === c ? null : h))}

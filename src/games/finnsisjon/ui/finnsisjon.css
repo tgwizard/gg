@@ -93,8 +93,8 @@
   background: var(--gold);
 }
 .fish-card { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--radius-card); }
-.fish-card:disabled { cursor: default; }
-.fish-card:not(:disabled):hover .pcard:not(.picked) { translate: 0 -4px; }
+.fish-card:disabled, .fish-card.unavailable { cursor: default; }
+.fish-card:not(:disabled, .unavailable):hover .pcard:not(.picked) { translate: 0 -4px; }
 .fish-ask { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 42px; }
 .fish-hint { color: var(--on-brand-2); font-size: 14px; }
 /* The ring belongs on the card, which lifts when picked, not on the button that stays put. */

@@ -58,7 +58,7 @@
 .why {
   position: fixed;
   z-index: 1000;
-  translate: -50% calc(-100% - 10px);
+  translate: calc(-50% + var(--shift, 0px)) calc(-100% - 10px);
   max-width: min(280px, calc(100vw - 32px));
   padding: 8px 12px;
   border-radius: var(--radius-sm);
@@ -75,7 +75,7 @@
 .why::after {
   content: "";
   position: absolute;
-  left: 50%;
+  left: calc(50% - var(--shift, 0px));
   bottom: -5px;
   width: 10px;
   height: 10px;

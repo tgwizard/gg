@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import type { ChessConfig } from "../engine";
 import "./chess.css";
@@ -12,7 +13,7 @@ const PRESETS: { label: string; minutes: number; increment: number }[] = [
   { label: "No clock", minutes: 0, increment: 0 },
 ];
 
-export function ChessSetup({ busy, disabled, onStart }: GameSetupProps<ChessConfig>) {
+export function ChessSetup({ busy, connected, onStart }: GameSetupProps<ChessConfig>) {
   const [config, setConfig] = useState<ChessConfig>({ minutes: 10, increment: 5 });
   const number = (key: keyof ChessConfig, label: string, hint: string) => (
     <label className="field">
@@ -47,9 +48,9 @@ export function ChessSetup({ busy, disabled, onStart }: GameSetupProps<ChessConf
         {number("minutes", "Minutes each", "0 = no clock")}
         {number("increment", "Seconds per move", "added after each move")}
       </div>
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start chess"}
-      </button>
+      </Button>
     </form>
   );
 }

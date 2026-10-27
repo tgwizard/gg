@@ -15,7 +15,7 @@ import { GameStage } from "../components/GameStage";
 import { Members } from "../components/Members";
 import { ProfileForm, ProfileMenu } from "../components/Profile";
 import { ToastProvider, useToast } from "../components/Toasts";
-import { Avatar, Panel, PlayerName, PlayersProvider, Spinner, useMedia, usePlayerColors } from "../../ui";
+import { Avatar, Button, busyWhy, Panel, PlayerName, PlayersProvider, Spinner, useMedia, usePlayerColors } from "../../ui";
 import { forgetRoom, rememberRoom, type RoomMate } from "../recentRooms";
 import { storage } from "../storage";
 import { noAutofill } from "../noAutofill";
@@ -304,9 +304,9 @@ function RoomTitle({ name, client, connected }: { name: string | null; client: R
     );
   }
   return (
-    <button
+    <Button
       className={`room-title ${name ? "display" : "unnamed"}`}
-      disabled={!connected}
+      why={busyWhy({ connected })}
       onClick={() => {
         setValue(name ?? "");
         setEditing(true);
@@ -315,7 +315,7 @@ function RoomTitle({ name, client, connected }: { name: string | null; client: R
       data-testid="room-name"
     >
       {name ?? "Name this room"}
-    </button>
+    </Button>
   );
 }
 

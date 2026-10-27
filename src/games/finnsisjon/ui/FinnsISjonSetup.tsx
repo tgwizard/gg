@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import { TimerField } from "../../kit/ui/TimerField";
 import type { FishConfig } from "../engine";
 
-export function FinnsISjonSetup({ busy, disabled, onStart }: GameSetupProps<FishConfig>) {
+export function FinnsISjonSetup({ busy, connected, onStart }: GameSetupProps<FishConfig>) {
   const [turnSeconds, setTurnSeconds] = useState(45);
   return (
     <form
@@ -18,9 +19,9 @@ export function FinnsISjonSetup({ busy, disabled, onStart }: GameSetupProps<Fish
         books wins.
       </p>
       <TimerField value={turnSeconds} onChange={setTurnSeconds} hint="run out and your turns are played for you" />
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Opening it…" : busyWhy({ connected })}>
         {busy ? "Opening…" : "Open the table"}
-      </button>
+      </Button>
     </form>
   );
 }

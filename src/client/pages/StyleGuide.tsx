@@ -9,7 +9,7 @@ import { GameOver } from "../../games/kit/ui/GameOver";
 import { ActionTray, GameLog, Herald } from "../../games/kit/ui/GameParts";
 import { PlayerPlate } from "../../games/kit/ui/PlayerPlate";
 import { gameUIs } from "../../games/ui-registry";
-import { Meter, Panel, play, SFX, Spinner } from "../../ui";
+import { Button, Meter, Panel, play, SFX, Spinner } from "../../ui";
 import { GameCard } from "../components/GameCard";
 import { ModeToggle } from "../components/ModeToggle";
 import { SoundToggle } from "../components/SoundToggle";
@@ -62,9 +62,9 @@ export function StyleGuidePage() {
             <button className="btn">Default</button>
             <button className="btn danger">Danger</button>
             <button className="btn ghost">Ghost</button>
-            <button className="btn" disabled>
-              Disabled
-            </button>
+            <Button className="btn" why="Here's why it can't be pressed right now.">
+              Unavailable
+            </Button>
             <button className="btn primary big">Big</button>
             <button className="btn small">Small</button>
           </div>

@@ -6,7 +6,7 @@
  */
 import { type FormEvent, type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { PLAYER_COLORS } from "../../shared/colors";
-import { Avatar, MODE_SHORTCUT, Panel, playerStyle, setSoundOn, toggleMode, useMode, useSoundOn } from "../../ui";
+import { Avatar, Button, MODE_SHORTCUT, Panel, playerStyle, setSoundOn, toggleMode, useMode, useSoundOn } from "../../ui";
 import { deleteGuest, getGuests, type GuestRecord, leftRoom as leftGuestRoom, updateGuest, useMyGuests } from "../guests";
 import { leaveRooms } from "../leave";
 import { type BotRecord, type BotSetup, createBot, deleteBot, dropConnection, getBots, leftRoom, MAX_BOTS, suggestBot, updateBot, useMyBots } from "../bots/store";
@@ -315,14 +315,14 @@ function BotsSection() {
       )}
       <div className="bots-foot">
         {!making && !(confirmingAll && bots.length > 1) && (
-          <button
+          <Button
             type="button"
             className="btn settings-new-bot"
-            disabled={bots.length >= MAX_BOTS}
+            why={bots.length >= MAX_BOTS ? `You can have up to ${MAX_BOTS} bots. Delete one to make a new one.` : null}
             onClick={() => setMaking({ ...suggestBot({ names: [], colors: [] }), level: "builtin", strength: "easy" })}
           >
             + New bot
-          </button>
+          </Button>
         )}
         {bots.length > 1 && <DeleteAllBots bots={bots} confirming={confirmingAll} setConfirming={setConfirmingAll} />}
       </div>
@@ -495,9 +495,9 @@ function ApiKeyForm() {
         spellCheck={false}
         {...noAutofill}
       />
-      <button className="btn" disabled={!key.trim()}>
+      <Button className="btn" why={key.trim() ? null : "Paste a key first."}>
         Add key
-      </button>
+      </Button>
     </form>
   );
 }

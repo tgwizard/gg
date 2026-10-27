@@ -645,7 +645,7 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 }
 .room-title.display { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; }
 .room-title.unnamed { font-size: 13px; color: var(--on-brand-2); border-style: dashed; border-color: rgb(255 255 255 / 0.25); }
-.room-title:hover:not(:disabled) { border-color: rgb(255 255 255 / 0.3); }
+.room-title:hover:not(:disabled, .unavailable) { border-color: rgb(255 255 255 / 0.3); }
 .room-title-form input { width: min(320px, 50vw); padding: 6px 12px; }
 .subtle-banner { background: var(--surface-2); color: var(--text-2); border-color: var(--line); font-size: 13px; }
 

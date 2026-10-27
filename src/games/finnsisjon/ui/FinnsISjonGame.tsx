@@ -1,5 +1,5 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
-import { hash2, play } from "../../../ui";
+import { Button, busyWhy, hash2, play } from "../../../ui";
 import { type Card, rankLabel, rankName } from "../../kit/cards";
 import { CardTable, PondSurface, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
@@ -28,6 +28,13 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
   const rank = ask && picked.rank && ask.ranks.includes(picked.rank) ? picked.rank : null;
   const target = ask && (picked.target && ask.targets.includes(picked.target) ? picked.target : ask.targets.length === 1 ? ask.targets[0]! : null);
   const { busy, send: sendBusy } = useSend(sendOp);
+  // No disabled buttons: one that can't be used this moment says why when pressed.
+  const why = busyWhy({ busy, connected });
+  const current = view.players.find((p) => p.seat === view.turn && !p.left);
+  const turnName = members.get(current?.playerId ?? "")?.name ?? "Player";
+  // Why a player's plate can't be picked as the one to ask.
+  const plateWhy = (p: FishPlayerView) =>
+    view.phase !== "playing" ? "The game is over." : !ask ? `It's ${turnName}'s turn to ask.` : p.cardCount === 0 ? `${members.get(p.playerId)?.name ?? "Player"} has no cards to ask for.` : "You can't ask them right now.";
 
   const send = async (op: FishOp) => {
     if ((await sendBusy(op)) && op.type === "ask") setPicked({ rank: null, target: null });
@@ -50,6 +57,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
           name={members.get(p.playerId)?.name ?? "Player"}
           online={members.get(p.playerId)?.online ?? false}
           selectable={!!ask?.targets.includes(p.playerId)}
+          why={plateWhy(p)}
           selected={target === p.playerId}
           onSelect={() => setPicked({ rank, target: p.playerId })}
           serverNow={serverNow}
@@ -72,9 +80,9 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         // Once a game is on, open seats only matter to someone who could take one.
         <div className="seat-open">
           {view.you.seat === null ? (
-            <button className="btn small" disabled={!connected} onClick={() => send({ type: "sit", seat: i })}>
+            <Button className="btn small" why={busyWhy({ connected })} onClick={() => send({ type: "sit", seat: i })}>
               Sit here
-            </button>
+            </Button>
           ) : (
             <span className="label">Open seat</span>
           )}
@@ -105,7 +113,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
         me={me}
         name={(id) => members.get(id)?.name ?? "Player"}
         start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null}
-        disabled={busy || !connected}
+        why={why}
       />
 
       {!(view.phase === "over" && view.you.seat !== null) && (
@@ -118,10 +126,10 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
                 <div key={group[0]} className={`fish-group ${group.length === 3 ? "close" : ""}`}>
                   {group.length === 3 && <span className="fish-group-note">one more!</span>}
                   {group.map((c) => (
-                    <button
+                    <Button
                       key={c}
                       className="fish-card"
-                      disabled={!ask || busy}
+                      why={!ask ? `It's ${turnName}'s turn.` : busyWhy({ busy })}
                       onClick={() => setPicked({ rank: c[0]!, target })}
                       aria-label={`${rankName(c[0]!)} of ${c[1]}`}
                       aria-pressed={rank === c[0]}
@@ -129,7 +137,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
                       style={arrivalStyle(motion.cards.get(c))}
                     >
                       <PlayingCard card={c} picked={rank === c[0]} />
-                    </button>
+                    </Button>
                   ))}
                 </div>
               ))}
@@ -138,17 +146,17 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
             <div className="fish-ask" data-testid="fish-ask">
               {ask ? (
                 <>
-                  <button
+                  <Button
                     className="btn primary"
-                    disabled={!rank || !target || busy || !connected}
+                    why={!rank ? "Pick a card first: you'll ask for that rank." : !target ? "Pick who to ask first: press their seat." : why}
                     onClick={() => rank && target && send({ type: "ask", target, rank })}
                   >
                     {rank && target ? `Ask ${nameOf(target)} for ${rankName(rank, true)}` : "Ask"}
-                  </button>
+                  </Button>
                   {(!rank || !target) && <span className="fish-hint">{!rank ? "Pick a card: you'll ask for that rank." : "Now pick who to ask (click their seat)."}</span>}
                 </>
               ) : (
-                <span className="muted">Waiting for {nameOf(view.players.find((p) => p.seat === view.turn && !p.left)?.playerId ?? "")}…</span>
+                <span className="muted">Waiting for {nameOf(current?.playerId ?? "")}…</span>
               )}
             </div>
           </div>
@@ -187,6 +195,8 @@ function InGamePlate(props: {
   online: boolean;
   selectable: boolean;
   selected: boolean;
+  /** Why they can't be picked to ask, when they can't. */
+  why: string;
   onSelect(): void;
   serverNow: number;
   /** When a book that's on its way lands, in seconds. */
@@ -211,6 +221,7 @@ function InGamePlate(props: {
         winner={won}
         selectable={props.selectable}
         selected={props.selected}
+        why={props.why}
         onClick={props.isMe ? undefined : props.onSelect}
         className={props.isMe ? undefined : "fish-opp"}
         tags={away && <span className="tag">away</span>}
@@ -332,7 +343,7 @@ function Happenings({ view, me, nameOf, mine }: { view: FishView; me: string; na
 }
 
 /** The end: everyone's books, most first. */
-function Result({ view, me, name, start, disabled }: { view: FishView; me: string; name(id: string): string; start: (() => void) | null; disabled: boolean }) {
+function Result({ view, me, name, start, why }: { view: FishView; me: string; name(id: string): string; start: (() => void) | null; why: string | null }) {
   const result = view.result;
   const winners = result?.winners ?? [];
   const ranking = [...view.players].sort((a, b) => b.books.length - a.books.length);
@@ -359,9 +370,9 @@ function Result({ view, me, name, start, disabled }: { view: FishView; me: strin
       }))}
       actions={
         start && (
-          <button className="btn primary" disabled={disabled} onClick={start}>
+          <Button className="btn primary" why={why} onClick={start}>
             Play again
-          </button>
+          </Button>
         )
       }
     />
@@ -382,19 +393,19 @@ function Status({ view }: { view: FishView }) {
 function Controls({ view, connected, busy, send }: { view: FishView; connected: boolean; busy: boolean; send(op: FishOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   if (!s) return null;
   return (
     <>
       {view.canStart && (
-        <button className="btn primary" disabled={disabled} onClick={() => send({ type: "start" })}>
+        <Button className="btn primary" why={why} onClick={() => send({ type: "start" })}>
           {view.game === 0 ? "Deal" : "Play again"}
-        </button>
+        </Button>
       )}
       {s.sittingOut && (
-        <button className="btn" disabled={disabled} onClick={() => send({ type: "sitIn" })}>
+        <Button className="btn" why={why} onClick={() => send({ type: "sitIn" })}>
           I'm back
-        </button>
+        </Button>
       )}
     </>
   );
@@ -404,18 +415,18 @@ function Controls({ view, connected, busy, send }: { view: FishView; connected: 
 function SeatActions({ view, connected, busy, send }: { view: FishView; connected: boolean; busy: boolean; send(op: FishOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   if (!s) return null;
   return (
     <>
       {!s.sittingOut && view.phase === "playing" && view.you.inGame && (
-        <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
+        <Button className="btn ghost small" why={why} onClick={() => send({ type: "sitOut" })}>
           Step away
-        </button>
+        </Button>
       )}
-      <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "leave" })}>
+      <Button className="btn ghost small" why={why} onClick={() => send({ type: "leave" })}>
         {view.phase === "playing" && view.you.inGame ? "Leave game" : "Leave seat"}
-      </button>
+      </Button>
     </>
   );
 }

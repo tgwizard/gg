@@ -17,7 +17,7 @@ export interface GameUIProps<View = unknown, Op = unknown> {
 
 export interface GameSetupProps<Config = unknown> {
   busy: boolean;
-  disabled: boolean;
+  connected: boolean;
   onStart(config: Config): void;
 }
 

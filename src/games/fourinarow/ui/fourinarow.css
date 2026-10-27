@@ -95,8 +95,8 @@
 /* Each column is one button over the board; the one you point at is lit. */
 .fiar-columns { position: absolute; inset: 0; z-index: 4; }
 .fiar-column { position: absolute; top: 0; bottom: 0; padding: 0; border: 0; border-radius: calc(var(--u) * 0.2); background: none; cursor: default; }
-.fiar-stage.movable .fiar-column:not(:disabled) { cursor: pointer; }
-.fiar-stage.movable .fiar-column.aimed:not(:disabled) { background: var(--fiar-aim); }
+.fiar-stage.movable .fiar-column:not(:disabled, .unavailable) { cursor: pointer; }
+.fiar-stage.movable .fiar-column.aimed:not(:disabled, .unavailable) { background: var(--fiar-aim); }
 
 /* The prompt over the board follows its rounded corners. */
 .fiar .duel-prompt-backdrop { border-radius: 10px; }

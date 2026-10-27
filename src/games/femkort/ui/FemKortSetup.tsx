@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import { TimerField } from "../../kit/ui/TimerField";
 import type { FemConfig } from "../engine";
 import "./femkort.css";
 
-export function FemKortSetup({ busy, disabled, onStart }: GameSetupProps<FemConfig>) {
+export function FemKortSetup({ busy, connected, onStart }: GameSetupProps<FemConfig>) {
   const [config, setConfig] = useState<FemConfig>({ turnSeconds: 30, dealsToWin: 3, mustBeat: false, twoInARow: false, betterCards: false });
   const check = (key: "mustBeat" | "twoInARow" | "betterCards", label: string, hint: string) => (
     <label className="fem-check">
@@ -47,9 +48,9 @@ export function FemKortSetup({ busy, disabled, onStart }: GameSetupProps<FemConf
       {check("mustBeat", "Överstick", "You must beat the best card of the suit led if you can. Off: the older rule, just follow suit.")}
       {check("twoInARow", "Two in a row wins", "Winning two deals running also wins the game.")}
       {check("betterCards", "Bättre kort", "Once a deal, the player on lead may ask for new cards; if everyone agrees, they're dealt again.")}
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Opening it…" : busyWhy({ connected })}>
         {busy ? "Opening…" : "Open the table"}
-      </button>
+      </Button>
     </form>
   );
 }

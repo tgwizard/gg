@@ -6,7 +6,7 @@ import { RequestError } from "../net/RoomClient";
 import { useHeartbeat } from "../heartbeat";
 import { morph } from "../morph";
 import { useServerNow } from "../useNow";
-import { Avatar, PlayerName, play } from "../../ui";
+import { Avatar, Button, busyWhy, PlayerName, play } from "../../ui";
 import type { Member } from "../../shared/protocol";
 import { GameCard, GameFacts, morphStyle, WipBadge } from "./GameCard";
 import { Popover } from "./Popover";
@@ -77,11 +77,11 @@ function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot
           </div>
           <div className="picked-setup">
             {ui.Setup ? (
-              <ui.Setup busy={busy} disabled={!connected} onStart={start} />
+              <ui.Setup busy={busy} connected={connected} onStart={start} />
             ) : (
-              <button className="btn primary" disabled={busy || !connected} onClick={() => start({})}>
+              <Button className="btn primary" why={busyWhy({ busy, connected })} onClick={() => start({})}>
                 Start {ui.meta.name}
-              </button>
+              </Button>
             )}
           </div>
         </section>
@@ -171,9 +171,9 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
                 </button>
               </span>
             ) : (
-              <button className="btn small" disabled={!connected} onClick={() => setConfirmEnd(true)}>
+              <Button className="btn small" why={busyWhy({ connected })} onClick={() => setConfirmEnd(true)}>
                 End game
-              </button>
+              </Button>
             )}
           </div>
           {/* Last, so it never moves the buttons; on a phone it's a bar of its own under them. */}

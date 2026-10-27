@@ -101,8 +101,8 @@
 .fem-hint-last { font-family: var(--font-display); font-weight: 700; color: var(--gold); }
 .fem-hand { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 10px; min-height: 96px; align-items: flex-end; }
 .fem-card { background: none; border: none; padding: 0; cursor: pointer; border-radius: var(--radius-card); }
-.fem-card:disabled { cursor: default; }
-.fem-card:not(:disabled):hover .pcard { translate: 0 -8px; }
+.fem-card:disabled, .fem-card.unavailable { cursor: default; }
+.fem-card:not(:disabled, .unavailable):hover .pcard { translate: 0 -8px; }
 .fem-card:focus-visible { outline: none; }
 .fem-card:focus-visible .pcard-face { box-shadow: 0 0 0 3px var(--focus), var(--card-shadow); }
 .fem-vote { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: 14px; }

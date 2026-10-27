@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Member } from "../../../shared/protocol";
-import { play, useNarrow } from "../../../ui";
+import { Button, busyWhy, play, useNarrow } from "../../../ui";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
@@ -123,9 +123,9 @@ function SeatView(props: {
     return (
       <div className="seat-open">
         {view.you.seat === null ? (
-          <button className="btn small" disabled={!connected} onClick={props.onSit}>
+          <Button className="btn small" why={busyWhy({ connected })} onClick={props.onSit}>
             Sit here
-          </button>
+          </Button>
         ) : (
           <span className="label">Open seat</span>
         )}
@@ -235,7 +235,7 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     await sendOp(op);
     setBusy(false);
   };
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
 
   // Your cards so far, named: "Pair of Nines".
   const mine = hand?.players.find((p) => p.seat === mySeat && p.playerId === me?.playerId);
@@ -255,25 +255,25 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     const allIn = raiseTo >= actions.maxRaiseTo;
     main = (
       <div className="actions" data-testid="actions">
-        <button className="btn danger" disabled={disabled} onClick={() => run({ type: "fold" })}>
+        <Button className="btn danger" why={why} onClick={() => run({ type: "fold" })}>
           Fold
-        </button>
+        </Button>
         {actions.canCheck ? (
-          <button className="btn" disabled={disabled} onClick={() => run({ type: "check" })}>
+          <Button className="btn" why={why} onClick={() => run({ type: "check" })}>
             Check
-          </button>
+          </Button>
         ) : (
-          <button className="btn" disabled={disabled} onClick={() => run({ type: "call" })}>
+          <Button className="btn" why={why} onClick={() => run({ type: "call" })}>
             Call {actions.toCall}
-          </button>
+          </Button>
         )}
         {actions.canRaise && (
           <div className="raise">
             <div className="presets">
               {presets.map(([label, v]) => (
-                <button key={label} className={`btn small subtle ${raiseTo === v ? "on" : ""}`} disabled={disabled} onClick={() => setRaiseTo(v)}>
+                <Button key={label} className={`btn small subtle ${raiseTo === v ? "on" : ""}`} why={why} onClick={() => setRaiseTo(v)}>
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
             <div className="row">
@@ -295,9 +295,9 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
                 onBlur={() => setRaiseTo(clamp(raiseTo))}
                 aria-label="Raise to"
               />
-              <button className="btn primary" disabled={disabled} onClick={() => run({ type: "raise", to: clamp(raiseTo) })}>
+              <Button className="btn primary" why={why} onClick={() => run({ type: "raise", to: clamp(raiseTo) })}>
                 {allIn ? `All-in ${actions.maxRaiseTo}` : isBet ? `Bet ${clamp(raiseTo)}` : `Raise to ${clamp(raiseTo)}`}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -319,19 +319,19 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
       aside={
         <>
           {canDeal && (
-            <button className="btn primary" disabled={disabled} onClick={() => run({ type: "start" })}>
+            <Button className="btn primary" why={why} onClick={() => run({ type: "start" })}>
               Deal
-            </button>
+            </Button>
           )}
           {me && me.stack === 0 && !inHand && (
-            <button className="btn" disabled={disabled} onClick={() => run({ type: "rebuy" })}>
+            <Button className="btn" why={why} onClick={() => run({ type: "rebuy" })}>
               Rebuy {view.config.startingStack}
-            </button>
+            </Button>
           )}
           {me?.sittingOut && (
-            <button className="btn" disabled={disabled} onClick={() => run({ type: "sitIn" })}>
+            <Button className="btn" why={why} onClick={() => run({ type: "sitIn" })}>
               I'm back
-            </button>
+            </Button>
           )}
         </>
       }
@@ -359,17 +359,17 @@ function SeatActions({ view, connected, sendOp }: { view: PokerView; connected: 
     await sendOp(op);
     setBusy(false);
   };
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   return (
     <>
       {!me.sittingOut && (
-        <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "sitOut" })}>
+        <Button className="btn ghost small" why={why} onClick={() => run({ type: "sitOut" })}>
           Sit out next hand
-        </button>
+        </Button>
       )}
-      <button className="btn ghost small" disabled={disabled} onClick={() => run({ type: "leave" })}>
+      <Button className="btn ghost small" why={why} onClick={() => run({ type: "leave" })}>
         {inHand ? "Fold & leave seat" : "Leave seat"}
-      </button>
+      </Button>
     </>
   );
 }

@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import { TimerField } from "../../kit/ui/TimerField";
 import type { BsConfig } from "../engine";
 import "./battleship.css";
 
-export function BattleshipSetup({ busy, disabled, onStart }: GameSetupProps<BsConfig>) {
+export function BattleshipSetup({ busy, connected, onStart }: GameSetupProps<BsConfig>) {
   const [config, setConfig] = useState<BsConfig>({ turnSeconds: 30, placeSeconds: 120, shipsMayTouch: true, hitShootsAgain: false });
   const seconds = (key: "turnSeconds" | "placeSeconds", label: string, hint: string) => (
     <TimerField label={label} value={config[key]} onChange={(s) => setConfig({ ...config, [key]: s })} hint={hint} />
@@ -34,9 +35,9 @@ export function BattleshipSetup({ busy, disabled, onStart }: GameSetupProps<BsCo
       </div>
       {check("shipsMayTouch", "Ships may touch", "Side by side is fine; they never overlap.")}
       {check("hitShootsAgain", "A hit earns another shot", "Off: shots strictly alternate.")}
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start Battleship"}
-      </button>
+      </Button>
     </form>
   );
 }

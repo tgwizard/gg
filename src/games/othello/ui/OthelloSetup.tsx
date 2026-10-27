@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import type { OthelloConfig } from "../engine";
 import "./othello.css";
@@ -10,7 +11,7 @@ const PRESETS: { label: string; minutes: number; increment: number }[] = [
   { label: "No clock", minutes: 0, increment: 0 },
 ];
 
-export function OthelloSetup({ busy, disabled, onStart }: GameSetupProps<OthelloConfig>) {
+export function OthelloSetup({ busy, connected, onStart }: GameSetupProps<OthelloConfig>) {
   const [config, setConfig] = useState<OthelloConfig>({ minutes: 5, increment: 5 });
   const number = (key: keyof OthelloConfig, label: string, hint: string) => (
     <label className="field">
@@ -45,9 +46,9 @@ export function OthelloSetup({ busy, disabled, onStart }: GameSetupProps<Othello
         {number("minutes", "Minutes each", "0 = no clock")}
         {number("increment", "Seconds per move", "added after each move")}
       </div>
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start Othello"}
-      </button>
+      </Button>
     </form>
   );
 }

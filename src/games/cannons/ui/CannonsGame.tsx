@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { play } from "../../../ui";
+import { Button, busyWhy, play } from "../../../ui";
 import { reducedMotion } from "../../kit/ui/Flights";
 import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
@@ -35,6 +35,7 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
   const prompt: "pick" | "wait" | null = view.phase !== "waiting" ? null : mySeat === null ? "pick" : "wait";
   const over = view.phase === "over" && !replay;
   const shooter = view.turn;
+  const wait = busyWhy({ busy, connected });
 
   return (
     <div className="cannons" data-testid="cannons">
@@ -51,9 +52,9 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
                   {view.seats.length === 2 ? "Two cannons, one hilly field." : `${view.seats.length} cannons, last one standing wins.`}{" "}
                   {open.length > 1 ? "Take a seat; the game starts when every seat is taken." : "The game starts as soon as you sit down."}
                 </p>
-                <button className="btn primary big" disabled={!connected || busy || !open.length} onClick={() => send({ type: "sit", seat: open[0]! })} data-testid="cannons-sit">
+                <Button className="btn primary big" why={(!open.length ? "No seat is open." : null) ?? wait} onClick={() => send({ type: "sit", seat: open[0]! })} data-testid="cannons-sit">
                   Take a seat
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="cn-prompt box" role="status">
@@ -69,7 +70,7 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
       {view.phase !== "waiting" && !(over && mySeat !== null) && (
         <ActionTray testId="cannons-tray" aside={!replay && <TrayAside view={view} busy={busy} connected={connected} send={send} />}>
           {myTurn ? (
-            <Controls aim={aim.value} set={aim.set} nudge={aim.nudge} fire={fire} disabled={busy || !connected} last={view.shots.findLast((s) => s.by === me) ?? null} name={name} me={me} />
+            <Controls aim={aim.value} set={aim.set} nudge={aim.nudge} fire={fire} why={wait} last={view.shots.findLast((s) => s.by === me) ?? null} name={name} me={me} />
           ) : (
             <span className="cn-tray-text" data-testid="cannons-status">
               {trayText(view, me, name, !!replay, shooter)}
@@ -78,7 +79,7 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
         </ActionTray>
       )}
 
-      <CannonsResult view={view} open={over} me={me} name={name} seated={mySeat !== null} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={busy || !connected} />
+      <CannonsResult view={view} open={over} me={me} name={name} seated={mySeat !== null} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} why={wait} />
 
       <TableFooter
         log={
@@ -94,9 +95,9 @@ export function CannonsGame({ view, me, members, connected, sendOp, serverNow }:
         }
         actions={
           mySeat !== null && (
-            <button className="btn ghost small" disabled={!connected || busy} onClick={() => send({ type: "leave" })}>
+            <Button className="btn ghost small" why={wait} onClick={() => send({ type: "leave" })}>
               {view.phase === "aiming" || view.phase === "flying" ? (view.shots.length ? (mine?.alive ? "Give up & leave" : "Leave seat") : "Leave (calls the game off)") : "Leave seat"}
-            </button>
+            </Button>
           )
         }
       />
@@ -193,12 +194,14 @@ function Controls(props: {
   set(a: Aim): void;
   nudge(angle: number, power: number): void;
   fire(): void;
-  disabled: boolean;
+  /** Why the controls can't be used right now (busy, reconnecting), or null. */
+  why: string | null;
   last: ShotView | null;
   me: string;
   name(id: string): string;
 }) {
-  const { aim, set, nudge, disabled } = props;
+  const { aim, set, nudge, why } = props;
+  const disabled = why !== null;
   const up = elevation(aim.angle).up;
   return (
     <div className="cn-controls" data-testid="cannons-controls">
@@ -210,9 +213,9 @@ function Controls(props: {
           </output>
         </div>
         <div className="cn-dial-row">
-          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(1, 0)} aria-label="Turn left">
+          <Button type="button" className="btn subtle small cn-step" why={why} onClick={() => nudge(1, 0)} aria-label="Turn left">
             ◀
-          </button>
+          </Button>
           <input
             type="range"
             className="cn-range"
@@ -223,9 +226,9 @@ function Controls(props: {
             aria-label="Angle (left to right)"
             onChange={(e) => set({ ...aim, angle: 180 - Number(e.target.value) })}
           />
-          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(-1, 0)} aria-label="Turn right">
+          <Button type="button" className="btn subtle small cn-step" why={why} onClick={() => nudge(-1, 0)} aria-label="Turn right">
             ▶
-          </button>
+          </Button>
         </div>
       </div>
       <div className="cn-dial">
@@ -236,18 +239,18 @@ function Controls(props: {
           </output>
         </div>
         <div className="cn-dial-row">
-          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(0, -1)} aria-label="Less power">
+          <Button type="button" className="btn subtle small cn-step" why={why} onClick={() => nudge(0, -1)} aria-label="Less power">
             −
-          </button>
+          </Button>
           <input type="range" className="cn-range" min={MIN_POWER} max={MAX_POWER} value={aim.power} disabled={disabled} aria-label="Power" onChange={(e) => set({ ...aim, power: Number(e.target.value) })} />
-          <button type="button" className="btn subtle small cn-step" disabled={disabled} onClick={() => nudge(0, 1)} aria-label="More power">
+          <Button type="button" className="btn subtle small cn-step" why={why} onClick={() => nudge(0, 1)} aria-label="More power">
             +
-          </button>
+          </Button>
         </div>
       </div>
-      <button type="button" className="btn primary big cn-fire" disabled={disabled} onClick={props.fire} data-testid="cannons-fire">
+      <Button type="button" className="btn primary big cn-fire" why={why} onClick={props.fire} data-testid="cannons-fire">
         Fire!
-      </button>
+      </Button>
       <p className="cn-hint">
         {props.last ? (
           <>
@@ -372,18 +375,17 @@ function trayText(view: CannonsView, me: string, name: (id: string) => string, r
 
 function TrayAside(props: { view: CannonsView; busy: boolean; connected: boolean; send(op: CannonsOp): void }) {
   const { view } = props;
-  const disabled = props.busy || !props.connected;
   if (view.phase !== "over") return null;
   const open = view.seats.findIndex((s) => !s);
   return open < 0 ? null : (
-    <button className="btn subtle" disabled={disabled} onClick={() => props.send({ type: "sit", seat: open })}>
+    <Button className="btn subtle" why={busyWhy(props)} onClick={() => props.send({ type: "sit", seat: open })}>
       Take the open seat
-    </button>
+    </Button>
   );
 }
 
 /** The end: the last cannon standing, and how everyone shot. */
-function CannonsResult(props: { view: CannonsView; open: boolean; me: string; name(id: string): string; seated: boolean; rematch: (() => void) | null; disabled: boolean }) {
+function CannonsResult(props: { view: CannonsView; open: boolean; me: string; name(id: string): string; seated: boolean; rematch: (() => void) | null; why: string | null }) {
   const { view, me, name } = props;
   const r = view.result;
   const you = (id: string) => id === me;
@@ -416,9 +418,9 @@ function CannonsResult(props: { view: CannonsView; open: boolean; me: string; na
       })}
       actions={
         props.rematch ? (
-          <button className="btn primary" disabled={props.disabled} onClick={props.rematch}>
+          <Button className="btn primary" why={props.why} onClick={props.rematch}>
             Play again
-          </button>
+          </Button>
         ) : (
           props.seated && <span className="muted small">Waiting for every seat to fill.</span>
         )

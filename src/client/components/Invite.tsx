@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
-import { MAX_OWNED_PER_PLAYER } from "../../shared/protocol";
 import { Panel } from "../../ui";
 import type { BotRecord } from "../bots/store";
 import type { GuestRecord } from "../guests";
-import { ownedIn } from "../local";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { AddGuest, BotTag, GuestTag, InviteBot, MemberButton, RemoveMember } from "./Members";
+import { AddGuest, BotTag, bringWhy, GuestTag, InviteBot, MemberButton, RemoveMember } from "./Members";
 import { Popover, usePeek } from "./Popover";
 
 /** A people icon by the room's name: hover or click it for the room code and invite link. */
@@ -43,7 +41,7 @@ export function InviteButton({ roomId }: { roomId: string }) {
 export function InviteSection({ snapshot, roomId, bots, guests }: { snapshot: RoomSnapshot; roomId: string; bots: BotRecord[]; guests: GuestRecord[] }) {
   const here = snapshot.members.filter((m) => m.online);
   const alone = !here.some((m) => m.id !== snapshot.you?.id && m.kind !== "bot");
-  const full = snapshot.status !== "connected" || ownedIn(roomId) >= MAX_OWNED_PER_PLAYER;
+  const why = bringWhy(roomId, snapshot.status === "connected");
   return (
     <Panel className="invite" data-testid="invite-section">
       <div className="invite-head">
@@ -64,10 +62,10 @@ export function InviteSection({ snapshot, roomId, bots, guests }: { snapshot: Ro
             </li>
           ))}
           <li>
-            <InviteBot roomId={roomId} members={snapshot.members} disabled={full} className="btn small" />
+            <InviteBot roomId={roomId} members={snapshot.members} why={why} className="btn small" />
           </li>
           <li>
-            <AddGuest roomId={roomId} members={snapshot.members} disabled={full} className="btn small" />
+            <AddGuest roomId={roomId} members={snapshot.members} why={why} className="btn small" />
           </li>
         </ul>
       </div>

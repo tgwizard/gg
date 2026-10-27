@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
 import { usePending, useSend } from "../../kit/ui/useSend";
+import { Button, busyWhy } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type ChessView, type LastMove, resultText, SPEC } from "../engine";
 import type { ChessOp } from "../index";
@@ -85,7 +86,7 @@ export function ChessGame({ view, snapshot, me, members, connected, sendOp, serv
       board={
         <div className="chess-board-wrap">
           <Board fen={shown.fen} orientation={bottom} lastMove={shown.lastMove} movable={myTurn && connected && shown.fen === view.fen ? myColor : null} onMove={move}>
-            <SeatPrompt view={view} game="chess" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} disabled={!connected || busy} send={send} testId="chess-sit" />
+            <SeatPrompt view={view} game="chess" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} why={busyWhy({ busy, connected })} send={send} testId="chess-sit" />
           </Board>
         </div>
       }
@@ -109,25 +110,25 @@ export function ChessGame({ view, snapshot, me, members, connected, sendOp, serv
             <div className="duel-controls chess-offer" data-testid="chess-draw-offer">
               <span>{COLOR_NAME[other(myColor)]} offers a draw.</span>
               <span className="row">
-                <button className="btn primary small" disabled={busy || !connected} onClick={() => send({ type: "acceptDraw" })}>
+                <Button className="btn primary small" why={busyWhy({ busy, connected })} onClick={() => send({ type: "acceptDraw" })}>
                   Accept
-                </button>
-                <button className="btn small" disabled={busy || !connected} onClick={() => send({ type: "declineDraw" })}>
+                </Button>
+                <Button className="btn small" why={busyWhy({ busy, connected })} onClick={() => send({ type: "declineDraw" })}>
                   Decline
-                </button>
+                </Button>
               </span>
             </div>
           ) : (
             <DuelControls view={view} busy={busy} connected={connected} send={send} testId="chess" aside={flip}>
-              <button
+              <Button
                 className="btn small"
-                disabled={busy || !connected || !view.you.canOfferDraw}
+                why={(view.you.canOfferDraw ? null : view.drawOffer === myColor ? "Your offer stands until they move." : "You can offer a draw again after the next move.") ?? busyWhy({ busy, connected })}
                 onClick={() => send({ type: "offerDraw" })}
                 title={view.drawOffer === myColor ? "Your offer stands until they move" : undefined}
                 data-testid="chess-offer-draw"
               >
                 {view.drawOffer === myColor ? "Draw offered" : "½ Offer draw"}
-              </button>
+              </Button>
             </DuelControls>
           )}
         </>

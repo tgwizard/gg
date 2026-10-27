@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TimerField } from "../../kit/ui/TimerField";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import type { LuffaConfig } from "../engine";
 import { SIZES, type SizeName } from "../rules";
@@ -7,7 +8,7 @@ import "./luffarschack.css";
 
 const SIZE_LABELS: Record<SizeName, string> = { "15": "Small 15×15", "19": "Medium 19×19", "25": "Large 25×25" };
 
-export function LuffaSetup({ busy, disabled, onStart }: GameSetupProps<LuffaConfig>) {
+export function LuffaSetup({ busy, connected, onStart }: GameSetupProps<LuffaConfig>) {
   const [config, setConfig] = useState<LuffaConfig>({ size: "19", turnSeconds: 60 });
   const choices = <T extends string>(label: string, options: { value: T; label: string }[], value: T, set: (v: T) => void) => (
     <div className="lfs-choices" role="group" aria-label={label}>
@@ -36,9 +37,9 @@ export function LuffaSetup({ busy, disabled, onStart }: GameSetupProps<LuffaConf
         (size) => setConfig({ ...config, size }),
       )}
       <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="for each mark: run out and you lose" />
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start Luffarschack"}
-      </button>
+      </Button>
     </form>
   );
 }

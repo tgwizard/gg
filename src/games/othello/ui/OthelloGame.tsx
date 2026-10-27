@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
 import { usePending, useSend } from "../../kit/ui/useSend";
+import { busyWhy } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type LastMove, type OthelloView, resultText, SPEC } from "../engine";
 import type { OthelloOp } from "../index";
@@ -73,7 +74,7 @@ export function OthelloGame({ view, snapshot, me, members, connected, sendOp, se
             movable={myTurn && connected && shown.board === view.board ? myColor : null}
             onMove={move}
           >
-            <SeatPrompt view={view} game="Othello" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} disabled={!connected || busy} send={send} testId="othello-sit" />
+            <SeatPrompt view={view} game="Othello" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} why={busyWhy({ busy, connected })} send={send} testId="othello-sit" />
           </Board>
         </div>
       }

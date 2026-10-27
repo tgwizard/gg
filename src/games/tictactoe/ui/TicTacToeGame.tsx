@@ -1,5 +1,5 @@
 import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
-import { play, playerStyle, usePlayerColors } from "../../../ui";
+import { Button, busyWhy, play, playerStyle, usePlayerColors } from "../../../ui";
 import { useOnChange } from "../../kit/ui/Flights";
 import { Herald } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
@@ -32,6 +32,17 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
   const opponentOf = (m: Mark) => view.seats[(1 - m) as Mark];
   // Between rounds with a seat open, the board waits for players: grey it out and say what to do.
   const prompt: "pick" | "wait" | null = open.length === 0 || view.status === "playing" ? null : mySeat === null ? "pick" : "wait";
+  // Why you can't play an empty square now, if you can't.
+  const moveWhy =
+    view.status === "over"
+      ? "This round is over."
+      : view.status !== "playing"
+        ? "The round hasn't started yet."
+        : mySeat === null
+          ? "You're watching this game."
+          : !myTurn
+            ? `It's ${nameOf(view.seats[view.turn]!.playerId)}'s turn.`
+            : busyWhy({ connected });
 
   let status: string;
   if (view.status === "playing") {
@@ -88,17 +99,17 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
       <div className="ttt-board-wrap">
       <div className={`ttt-board box ${prompt ? "idle" : ""}`} role="grid" aria-label="Board">
         {view.board.map((cell, i) => (
-          <button
+          <Button
             key={i}
             className={`ttt-cell ${cell !== null ? `mark-${cell}` : ""} ${winLine.has(i) ? "win" : ""} ${i === fresh ? "fresh" : ""}`}
             style={cell !== null ? markStyle(cell) : undefined}
-            disabled={!myTurn || cell !== null || !connected}
+            why={cell !== null ? "That square's taken." : moveWhy}
             onClick={() => sendOp({ type: "place", cell: i })}
             aria-label={cell === null ? `Empty square ${i + 1}` : `${MARKS[cell]} in square ${i + 1}`}
             data-testid={`ttt-cell-${i}`}
           >
             {cell === null ? "" : <span className="ttt-glyph">{MARKS[cell]}</span>}
-          </button>
+          </Button>
         ))}
         {view.result?.line && view.result.winner !== null && (
           <WinLine line={view.result.line} live={fresh !== null && winLine.has(fresh)} className={`mark-${view.result.winner}`} style={markStyle(view.result.winner)} />
@@ -110,10 +121,10 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
           <p className="muted">{open.length === 2 ? "X moves first. Someone else takes the other side." : "The round starts as soon as you sit down."}</p>
           <div className="ttt-prompt-actions">
             {open.map((m) => (
-              <button key={m} className="btn primary big ttt-pick" style={playerStyle(colorOf(me))} disabled={!connected} onClick={() => sendOp({ type: "sit", seat: m })}>
+              <Button key={m} className="btn primary big ttt-pick" style={playerStyle(colorOf(me))} why={busyWhy({ connected })} onClick={() => sendOp({ type: "sit", seat: m })}>
                 <span className="ttt-pick-mark display">{MARKS[m]}</span>
                 Play as {MARKS[m]}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -133,9 +144,9 @@ export function TicTacToeGame({ view, me, members, connected, sendOp, serverNow 
           </span>
         )}
         {mySeat !== null && (
-          <button className="btn ghost small" disabled={!connected} onClick={() => sendOp({ type: "leave" })}>
+          <Button className="btn ghost small" why={busyWhy({ connected })} onClick={() => sendOp({ type: "leave" })}>
             {view.status === "playing" ? "Forfeit & leave" : "Leave seat"}
-          </button>
+          </Button>
         )}
       </div>
     </div>

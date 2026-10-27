@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { play } from "../../../ui";
+import { Button, busyWhy, play } from "../../../ui";
 import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
@@ -49,6 +49,7 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
 
   const placement = usePlacement(view, placing && !myBoard!.ready ? myBoard : null, send);
   const landing = useLanding(view, connected);
+  const wait = busyWhy({ busy, connected });
 
   return (
     <div className="bs" data-testid="bs">
@@ -86,7 +87,8 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
                   underFire={view.phase === "firing" && shooter}
                   placement={mine ? placement : null}
                   landing={board && landing?.target === board.playerId ? landing : null}
-                  disabled={!connected || busy}
+                  why={seaWhy(view, mine, mySeat, myTurn, !!(mine && placement), name)}
+                  wait={wait}
                   onFire={(cell) => send({ type: "fire", cell })}
                   caption={caption(view, board, mine, ownerId ? name(ownerId) : null)}
                   note={view.phase === "placing" && !mine && board ? (board.ready ? "Fleet hidden and ready" : "Placing their fleet…") : null}
@@ -99,9 +101,9 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
           <div className="bs-prompt box" role="dialog" aria-label="Take a seat">
             <h3 className="display">{open.length === 2 ? "Play Battleship" : `Take on ${name(view.seats[1 - open[0]!]!.playerId)}`}</h3>
             <p className="muted">{open.length === 2 ? "Two admirals, one sea each. Sit down and someone else takes the other side." : "Placing starts as soon as you sit down."}</p>
-            <button className="btn primary big" disabled={!connected || busy} onClick={() => send({ type: "sit", seat: open[0]! })}>
+            <Button className="btn primary big" why={wait} onClick={() => send({ type: "sit", seat: open[0]! })}>
               Take a seat
-            </button>
+            </Button>
           </div>
         )}
         {prompt === "wait" && (
@@ -121,7 +123,7 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
                 {view.boards.some((b) => b && !b.ready) ? `Waiting for ${name(view.boards.find((b) => b && !b.ready)!.playerId)} to finish placing…` : ""}
               </span>
             ) : (
-              <Dock placement={placement} disabled={!connected || busy} send={send} />
+              <Dock placement={placement} why={wait} send={send} />
             )
           ) : (
             <span className="bs-tray-text" data-testid="bs-status">
@@ -131,7 +133,7 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
         </ActionTray>
       )}
 
-      <BsResult view={view} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} disabled={!connected || busy} />
+      <BsResult view={view} me={me} name={name} rematch={view.canRematch && mySeat !== null ? () => send({ type: "rematch" }) : null} why={wait} />
 
       <TableFooter
         log={
@@ -145,9 +147,9 @@ export function BattleshipGame({ view, me, members, connected, sendOp, serverNow
         }
         actions={
           mySeat !== null && (
-            <button className="btn ghost small" disabled={!connected || busy} onClick={() => send({ type: "leave" })}>
+            <Button className="btn ghost small" why={wait} onClick={() => send({ type: "leave" })}>
               {view.phase === "firing" ? "Forfeit & leave" : view.phase === "placing" ? "Leave (calls the game off)" : "Leave seat"}
-            </button>
+            </Button>
           )
         }
       />
@@ -257,7 +259,7 @@ function usePlacement(view: BsView, board: BoardView | null, send: (op: BsOp) =>
   };
 }
 
-function Dock({ placement, disabled, send }: { placement: Placement | null; disabled: boolean; send: (op: BsOp) => Promise<boolean> }) {
+function Dock({ placement, why, send }: { placement: Placement | null; why: string | null; send: (op: BsOp) => Promise<boolean> }) {
   if (!placement) return null;
   const { ships, active } = placement;
   const done = ships.length === FLEET.length;
@@ -267,12 +269,12 @@ function Dock({ placement, disabled, send }: { placement: Placement | null; disa
         {FLEET.map((s) => {
           const placed = ships.some((p) => p.id === s.id);
           return (
-            <button
+            <Button
               key={s.id}
               type="button"
               className={`bs-dock-ship ${active === s.id ? "on" : ""} ${placed ? "placed" : ""}`}
               aria-pressed={active === s.id}
-              disabled={disabled}
+              why={why}
               onClick={() => placement.select(s.id)}
             >
               <span className="bs-dock-hull" aria-hidden>
@@ -284,7 +286,7 @@ function Dock({ placement, disabled, send }: { placement: Placement | null; disa
                 {s.name} <span className="bs-dock-size">{s.size}</span>
               </span>
               {placed && <span className="bs-dock-check" aria-label="placed">✓</span>}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -293,18 +295,18 @@ function Dock({ placement, disabled, send }: { placement: Placement | null; disa
           {done ? "All at sea. Click a ship to move it, or you're ready." : `Click your waters to place the ${shipName(active!)}.`} <kbd>R</kbd> turns it.
         </span>
         <span className="row wrap">
-          <button type="button" className="btn subtle small" disabled={disabled} onClick={placement.rotate}>
+          <Button type="button" className="btn subtle small" why={why} onClick={placement.rotate}>
             Rotate ({placement.vertical ? "down" : "across"})
-          </button>
-          <button type="button" className="btn subtle small" disabled={disabled} onClick={() => send({ type: "random" })}>
+          </Button>
+          <Button type="button" className="btn subtle small" why={why} onClick={() => send({ type: "random" })}>
             Random
-          </button>
-          <button type="button" className="btn subtle small" disabled={disabled || ships.length === 0} onClick={() => send({ type: "arrange", ships: [] })}>
+          </Button>
+          <Button type="button" className="btn subtle small" why={(ships.length === 0 ? "There are no ships out yet." : null) ?? why} onClick={() => send({ type: "arrange", ships: [] })}>
             Clear
-          </button>
-          <button type="button" className="btn primary" disabled={disabled || !done} onClick={() => send({ type: "ready" })}>
+          </Button>
+          <Button type="button" className="btn primary" why={(!done ? `Place all your ships first (${FLEET.length - ships.length} to go).` : null) ?? why} onClick={() => send({ type: "ready" })}>
             Ready
-          </button>
+          </Button>
         </span>
       </div>
     </div>
@@ -325,7 +327,10 @@ function Board(props: {
   placement: Placement | null;
   /** The shot landing on this sea right now, if any. */
   landing: Shot | null;
-  disabled: boolean;
+  /** Why no cell on this sea can be pressed now (null when you're aiming at it or placing on it). */
+  why: string | null;
+  /** Busy or reconnecting. */
+  wait: string | null;
   onFire(cell: number): void;
   caption: ReactNode;
   /** Shown over the sea while it's resting (the other side, while fleets are placed). */
@@ -389,13 +394,14 @@ function Board(props: {
             ]
               .filter(Boolean)
               .join(" ");
+            const why = canPlace || canFire ? props.wait : (props.why ?? (props.target && fired ? "You've already fired at that square." : "You can't fire there now."));
             return (
-              <button
+              <Button
                 key={cell}
                 type="button"
                 className={cls}
                 style={{ gridRow: rowOf(cell) + 2, gridColumn: colOf(cell) + 2 }}
-                disabled={props.disabled || !(canFire || canPlace)}
+                why={why}
                 onClick={() => (canPlace ? placement!.click(cell) : canFire && props.onFire(cell))}
                 onPointerEnter={() => placement?.setHover(cell)}
                 aria-label={`${coord(cell)}${fired ? (hit ? ", hit" : ", miss") : ""}`}
@@ -403,7 +409,7 @@ function Board(props: {
                 data-shot={fired ? (hit ? "hit" : "miss") : undefined}
               >
                 {fired && <span className="bs-peg" aria-hidden />}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -423,6 +429,19 @@ function caption(view: BsView, board: BoardView | null, mine: boolean, owner: st
       {whose} · {afloat} of {FLEET.length} ships afloat
     </span>
   );
+}
+
+/** Why you can't press a cell on this sea right now, or null when you can (aiming at it, or placing your fleet on it). */
+function seaWhy(view: BsView, mine: boolean, mySeat: Side | null, myTurn: boolean, placingHere: boolean, name: (id: string) => string): string | null {
+  if (placingHere || (myTurn && !mine)) return null;
+  const shooter = view.turn !== null ? view.boards[view.turn]?.playerId : undefined;
+  const target = view.turn !== null ? view.boards[1 - view.turn]?.playerId : undefined;
+  if (view.phase === "waiting") return mySeat === null ? "Take a seat to play." : "Waiting for an opponent.";
+  if (view.phase === "over") return "This game is over.";
+  if (mySeat === null) return "You're watching this game.";
+  if (view.phase === "placing") return mine ? "Your fleet is ready. Press Change fleet to move it." : "Place your ships in your own waters.";
+  if (myTurn) return `Fire at ${name(target!)}'s waters, not your own.`;
+  return shooter ? `It's ${name(shooter)}'s turn.` : "It's not your turn.";
 }
 
 function SidePlate(props: {
@@ -537,32 +556,32 @@ function trayStatus(view: BsView, me: string, name: (id: string) => string, myTu
 
 function TrayAside(props: { view: BsView; mySeat: Side | null; busy: boolean; connected: boolean; send(op: BsOp): void }) {
   const { view, mySeat } = props;
-  const disabled = props.busy || !props.connected;
+  const why = busyWhy(props);
   if (view.phase === "placing" && mySeat !== null && view.boards[mySeat]?.ready) {
     return (
-      <button className="btn subtle" disabled={disabled} onClick={() => props.send({ type: "unready" })}>
+      <Button className="btn subtle" why={why} onClick={() => props.send({ type: "unready" })}>
         Change fleet
-      </button>
+      </Button>
     );
   }
   if (view.phase !== "over") return null;
   if (mySeat === null) {
     const open = SIDES.find((s) => !view.seats[s]);
     return open === undefined ? null : (
-      <button className="btn subtle" disabled={disabled} onClick={() => props.send({ type: "sit", seat: open })}>
+      <Button className="btn subtle" why={why} onClick={() => props.send({ type: "sit", seat: open })}>
         Take the open seat
-      </button>
+      </Button>
     );
   }
   return view.canRematch ? (
-    <button className="btn primary" disabled={disabled} onClick={() => props.send({ type: "rematch" })}>
+    <Button className="btn primary" why={why} onClick={() => props.send({ type: "rematch" })}>
       Play again
-    </button>
+    </Button>
   ) : null;
 }
 
 /** The end: who sank whom, and how everyone shot. */
-function BsResult({ view, me, name, rematch, disabled }: { view: BsView; me: string; name(id: string): string; rematch: (() => void) | null; disabled: boolean }) {
+function BsResult({ view, me, name, rematch, why }: { view: BsView; me: string; name(id: string): string; rematch: (() => void) | null; why: string | null }) {
   const r = view.result;
   const you = (id: string) => id === me;
   let subtitle = "";
@@ -603,9 +622,9 @@ function BsResult({ view, me, name, rematch, disabled }: { view: BsView; me: str
       rows={rows}
       actions={
         rematch && (
-          <button className="btn primary" disabled={disabled} onClick={rematch}>
+          <Button className="btn primary" why={why} onClick={rematch}>
             Play again
-          </button>
+          </Button>
         )
       }
     />

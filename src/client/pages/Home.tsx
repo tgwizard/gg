@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { roomCodeFromInput } from "../../shared/roomCode";
 import { gameUIs } from "../../games/ui-registry";
 import { MAX_ROOM_NAME_LENGTH } from "../../shared/protocol";
-import { Avatar, Panel } from "../../ui";
+import { Avatar, Button, Panel } from "../../ui";
 import { ColorPicker, NameField, ProfileMenu } from "../components/Profile";
 import { SettingsMenu } from "../components/SettingsMenu";
 import { GameCard } from "../components/GameCard";
@@ -161,9 +161,9 @@ export function HomePage() {
                   maxLength={MAX_ROOM_NAME_LENGTH}
                   {...noAutofill}
                 />
-                <button className="btn primary" disabled={busy}>
+                <Button className="btn primary" why={busy ? "Hang on, it's being made." : null}>
                   {busy ? "Creating…" : "Create a room"}
-                </button>
+                </Button>
                 {error?.form === "create" && <Bubble text={error.text} />}
               </div>
             </form>

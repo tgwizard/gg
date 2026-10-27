@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import { TimerField } from "../../kit/ui/TimerField";
 import type { PokerConfig } from "../engine";
 
-export function PokerSetup({ busy, disabled, onStart }: GameSetupProps<PokerConfig>) {
+export function PokerSetup({ busy, connected, onStart }: GameSetupProps<PokerConfig>) {
   const [config, setConfig] = useState<PokerConfig>({ startingStack: 1000, smallBlind: 5, bigBlind: 10, turnSeconds: 60 });
   const field = (key: keyof PokerConfig, label: string, hint?: string) => (
     <label className="field">
@@ -32,9 +33,9 @@ export function PokerSetup({ busy, disabled, onStart }: GameSetupProps<PokerConf
         {field("bigBlind", "Big blind")}
       </div>
       <TimerField value={config.turnSeconds} onChange={(turnSeconds) => setConfig({ ...config, turnSeconds })} hint="run out and you check, or fold" />
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Opening it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Open the table"}
-      </button>
+      </Button>
     </form>
   );
 }

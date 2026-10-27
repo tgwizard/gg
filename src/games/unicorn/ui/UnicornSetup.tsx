@@ -9,7 +9,7 @@ const RAINBOWS: { label: string; at: number }[] = [
   { label: "Rarely", at: 30 },
 ];
 
-export function UnicornSetup({ busy, disabled, onStart }: GameSetupProps<UnicornConfig>) {
+export function UnicornSetup({ busy, connected, onStart }: GameSetupProps<UnicornConfig>) {
   const [rainbowAt, setRainbowAt] = useState(20);
   return (
     <form
@@ -35,7 +35,7 @@ export function UnicornSetup({ busy, disabled, onStart }: GameSetupProps<Unicorn
           ))}
         </div>
       </div>
-      <Button className="btn primary" why={busy ? "Opening it…" : busyWhy({ connected: !disabled })}>
+      <Button className="btn primary" why={busy ? "Opening it…" : busyWhy({ connected })}>
         {busy ? "Opening…" : "Open the meadow"}
       </Button>
     </form>

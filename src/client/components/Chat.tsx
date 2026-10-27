@@ -3,7 +3,7 @@ import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { formatDateTimeZone, formatTime } from "../format";
 import { noAutofill } from "../noAutofill";
-import { Panel, playerStyle, usePlayerColors } from "../../ui";
+import { Button, Panel, playerStyle, usePlayerColors } from "../../ui";
 import { useToast } from "./Toasts";
 
 export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): Promise<void> }) {
@@ -83,9 +83,9 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
           maxLength={MAX_CHAT_LENGTH}
           {...noAutofill}
         />
-        <button className="btn primary" disabled={!text.trim()}>
+        <Button className="btn primary" why={text.trim() ? null : "Type a message first."}>
           Send
-        </button>
+        </Button>
       </form>
     </Panel>
   );

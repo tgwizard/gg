@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import type { FourConfig } from "../engine";
 import { SIZES, type SizeName } from "../rules";
@@ -18,7 +19,7 @@ const OPENERS: { value: FourConfig["opener"]; label: string }[] = [
   { value: "loser", label: "Loser starts" },
 ];
 
-export function FourSetup({ busy, disabled, onStart }: GameSetupProps<FourConfig>) {
+export function FourSetup({ busy, connected, onStart }: GameSetupProps<FourConfig>) {
   const [config, setConfig] = useState<FourConfig>({ board: "7x6", opener: "alternate", minutes: 3, increment: 3 });
   const number = (key: "minutes" | "increment", label: string, hint: string) => (
     <label className="field">
@@ -69,9 +70,9 @@ export function FourSetup({ busy, disabled, onStart }: GameSetupProps<FourConfig
         {number("minutes", "Minutes each", "0 = no clock")}
         {number("increment", "Seconds per move", "added after each move")}
       </div>
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start Four in a Row"}
-      </button>
+      </Button>
     </form>
   );
 }

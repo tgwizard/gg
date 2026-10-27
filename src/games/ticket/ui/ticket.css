@@ -241,9 +241,9 @@
 .ttr-market { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .ttr-faceup { display: flex; gap: 8px; }
 .ttr-take { padding: 0; border: none; background: none; cursor: pointer; border-radius: var(--radius-card); color: inherit; font: inherit; }
-.ttr-take:disabled { cursor: default; }
-.ttr-take:not(:disabled):hover .ttr-card, .ttr-take:not(:disabled):hover .ttr-ticket-back { translate: 0 -4px; }
-.ttr-take:disabled .ttr-card:not(.empty), .ttr-take:disabled .ttr-ticket-back { filter: saturate(0.6) brightness(0.85); }
+.ttr-take:disabled, .ttr-take.unavailable { cursor: default; }
+.ttr-take:not(:disabled, .unavailable):hover .ttr-card, .ttr-take:not(:disabled, .unavailable):hover .ttr-ticket-back { translate: 0 -4px; }
+.ttr-take:is(:disabled, .unavailable) .ttr-card:not(.empty), .ttr-take:is(:disabled, .unavailable) .ttr-ticket-back { filter: saturate(0.6) brightness(0.85); }
 .ttr-take:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .ttr-pile { display: inline-flex; align-items: center; gap: 8px; }
 .ttr-tickets-pile { display: inline-flex; align-items: center; gap: 8px; }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ActivityBubble, Avatar, PlayerName, useActivity, useIsBot, usePlayerColors } from "../../../ui";
+import { ActivityBubble, Avatar, Button, PlayerName, useActivity, useIsBot, usePlayerColors } from "../../../ui";
 import "./kit.css";
 
 /**
@@ -19,6 +19,8 @@ export function PlayerPlate(props: {
   /** Choosable (e.g. who to ask), and chosen. */
   selectable?: boolean;
   selected?: boolean;
+  /** Why they can't be chosen this moment, said when pressed anyway. */
+  why?: string | null;
   onClick?(): void;
   tags?: ReactNode;
   className?: string;
@@ -53,9 +55,9 @@ export function PlayerPlate(props: {
     </>
   );
   return props.onClick ? (
-    <button type="button" className={classes} onClick={props.onClick} disabled={!props.selectable} aria-pressed={props.selected} data-testid={props.testId}>
+    <Button type="button" className={classes} onClick={props.onClick} why={props.selectable ? null : (props.why ?? "You can't pick them right now.")} aria-pressed={props.selected} data-testid={props.testId}>
       {body}
-    </button>
+    </Button>
   ) : (
     <div className={classes} data-testid={props.testId}>
       {body}

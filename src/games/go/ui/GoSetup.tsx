@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button, busyWhy } from "../../../ui";
 import type { GameSetupProps } from "../../ui";
 import type { GoConfig } from "../engine";
 import { SIZES, type Size } from "../rules";
@@ -27,7 +28,7 @@ const PRESETS: Record<Size, { label: string; clock: Clock }[]> = {
 const NO_CLOCK: Clock = { minutes: 0, periods: 0, seconds: 0 };
 const same = (a: Clock, b: Clock) => a.minutes === b.minutes && a.periods === b.periods && a.seconds === b.seconds;
 
-export function GoSetup({ busy, disabled, onStart }: GameSetupProps<GoConfig>) {
+export function GoSetup({ busy, connected, onStart }: GameSetupProps<GoConfig>) {
   const [config, setConfig] = useState<GoConfig>({ size: 9, ...PRESETS[9][1]!.clock });
   const number = (key: keyof Clock, label: string, hint: string) => (
     <label className="field">
@@ -76,9 +77,9 @@ export function GoSetup({ busy, disabled, onStart }: GameSetupProps<GoConfig>) {
         {number("periods", "Periods", "after main time")}
         {number("seconds", "Seconds", "per period")}
       </div>
-      <button className="btn primary" disabled={busy || disabled}>
+      <Button className="btn primary" why={busy ? "Starting it…" : busyWhy({ connected })}>
         {busy ? "Starting…" : "Start Go"}
-      </button>
+      </Button>
     </form>
   );
 }

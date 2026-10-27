@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DuelControls, DuelFooter, DuelResult, DuelSide, DuelStatus, DuelTable, nextStarter, playerOf, SeatPrompt, useResultDelay, winsText } from "../../kit/ui/Duel";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import { usePending, useSend } from "../../kit/ui/useSend";
-import { playerStyle, useMedia, usePlayerColors } from "../../../ui";
+import { busyWhy, playerStyle, useMedia, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type LuffaView, resultText, SPEC } from "../engine";
 import type { LuffaOp } from "../index";
@@ -102,7 +102,7 @@ export function LuffaGame({ view, snapshot, me, members, connected, sendOp, serv
             game="Luffarschack"
             blurb="Sit down and someone else takes the other side. Your marks are inked in your color."
             name={name}
-            disabled={!connected || busy}
+            why={busyWhy({ busy, connected })}
             send={send}
             testId="lfs-sit"
           />

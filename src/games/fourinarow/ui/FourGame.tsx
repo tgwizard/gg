@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, nextStarter, playerOf, SeatPrompt, useResultDelay, winsText } from "../../kit/ui/Duel";
 import { usePending, useSend } from "../../kit/ui/useSend";
-import { playerStyle, usePlayerColors } from "../../../ui";
+import { busyWhy, playerStyle, usePlayerColors } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type FourView, resultText, SPEC } from "../engine";
 import type { FourOp } from "../index";
@@ -35,6 +35,17 @@ export function FourGame({ view, snapshot, me, members, connected, sendOp, serve
   const move = (column: number) => play(column, () => sendOp({ type: "drop", column }));
 
   const myTurn = view.phase === "playing" && myPiece === view.turn;
+  // Why you can't drop a disc now (only shown when you can't).
+  const moveWhy =
+    view.phase === "waiting"
+      ? "The game hasn't started yet."
+      : view.phase !== "playing"
+        ? "This game is over."
+        : !myPiece
+          ? "You're watching this game."
+          : !myTurn
+            ? `It's ${view.sides ? name(view.sides[view.turn]) : "the other player"}'s turn.`
+            : busyWhy({ busy: busy || shown.board !== view.board, connected });
   const bottom: Piece = myPiece ?? "x";
   const colorOf = usePlayerColors();
   const colorFor = (p: Piece) => {
@@ -87,6 +98,7 @@ export function FourGame({ view, snapshot, me, members, connected, sendOp, serve
           line={shown.line}
           colors={colors}
           movable={myTurn && connected && shown.board === view.board ? myPiece : null}
+          why={moveWhy}
           onDrop={move}
         >
           <SeatPrompt
@@ -94,7 +106,7 @@ export function FourGame({ view, snapshot, me, members, connected, sendOp, serve
             game="Four in a Row"
             blurb="Sit down and someone else takes the other side. Your discs are your color."
             name={name}
-            disabled={!connected || busy}
+            why={busyWhy({ busy, connected })}
             send={send}
             testId="fiar-sit"
           />

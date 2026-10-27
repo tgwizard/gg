@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { play, useNarrow } from "../../../ui";
+import { Button, busyWhy, play, useNarrow } from "../../../ui";
 import { type Card, rankValue } from "../../kit/cards";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardFan, PlayingCard } from "../../kit/ui/Cards";
@@ -88,9 +88,9 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
       ) : (
         <div className="seat-open">
           {view.you.seat === null ? (
-            <button className="btn small" disabled={!connected} onClick={() => send({ type: "sit", seat: i })}>
+            <Button className="btn small" why={busyWhy({ connected })} onClick={() => send({ type: "sit", seat: i })}>
               Sit here
-            </button>
+            </Button>
           ) : (
             <span className="label">Open seat</span>
           )}
@@ -127,7 +127,7 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
         me={me}
         name={name}
         start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null}
-        disabled={busy || !connected}
+        why={busyWhy({ busy, connected })}
       />
 
       {!(view.phase === "over" && view.you.seat !== null) && (
@@ -140,10 +140,10 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
                   const ok = !!view.you.playable?.includes(c);
                   const restricted = !!view.you.playable && view.you.playable.length < (mine.hand?.length ?? 0);
                   return (
-                    <button
+                    <Button
                       key={c}
                       className="fem-card"
-                      disabled={!ok || busy || !connected}
+                      why={cardWhy(view, me, c, name) ?? busyWhy({ busy, connected })}
                       onClick={(e) => playCard(c, e.currentTarget)}
                       aria-label={`Play ${cardText(c)}`}
                       data-card={c}
@@ -151,12 +151,12 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
                       style={arrivalStyle(motion.arrivals.get(c))}
                     >
                       <PlayingCard card={c} size={narrow ? "md" : "lg"} dim={!!view.you.playable && !ok} highlight={restricted && ok} />
-                    </button>
+                    </Button>
                   );
                 })}
                 {hand.length === 0 && !view.dealOver && <span className="muted">No cards in hand.</span>}
               </div>
-              <VoteBar view={view} who={who} me={me} busy={busy || !connected} send={send} serverNow={serverNow} />
+              <VoteBar view={view} who={who} me={me} why={busyWhy({ busy, connected })} send={send} serverNow={serverNow} />
             </div>
           ) : (
             <Status view={view} />
@@ -403,8 +403,23 @@ function Hint({ view, me, who, hand, serverNow }: { view: FemView; me: string; w
 
 const canBeat = (hand: Card[], led: string, best: Card) => hand.some((c) => c[1] === led && rankValue(c) > rankValue(best));
 
+/** Why you can't play `card` from your hand now, or null if you can. */
+function cardWhy(view: FemView, me: string, card: Card, name: (id: string) => string): string | null {
+  const playable = view.you.playable;
+  if (!playable) {
+    if (view.dealOver) return "This deal is over. The next one is coming.";
+    if (view.vote) return view.vote.by === me ? "Wait for the others to answer about new cards." : view.you.canVote ? "Answer first: new cards, or play on?" : "Wait for everyone to answer about new cards.";
+    const turn = view.players.find((p) => p.seat === view.turn && !p.left);
+    return turn && turn.playerId !== me ? `It's ${name(turn.playerId)}'s turn.` : "It's not your turn yet.";
+  }
+  if (playable.includes(card) || !view.led) return null;
+  const best = winningPlay(view.trick);
+  if (card[1] !== view.led) return `You have to follow suit: play a ${suitSymbol(view.led)}.`;
+  return best ? `You have to beat the ${cardText(best.card)} if you can.` : `You have to follow suit: play a ${suitSymbol(view.led)}.`;
+}
+
 /** Bättre kort: ask on your lead, or answer someone who asked. */
-function VoteBar({ view, who, me, busy, send, serverNow }: { view: FemView; who(id: string): string; me: string; busy: boolean; send(op: FemOp): void; serverNow: number }) {
+function VoteBar({ view, who, me, why, send, serverNow }: { view: FemView; who(id: string): string; me: string; why: string | null; send(op: FemOp): void; serverNow: number }) {
   if (view.you.canVote && view.vote) {
     const secs = view.vote.deadline ? Math.max(0, Math.ceil((view.vote.deadline - serverNow) / 1000)) : null;
     return (
@@ -412,12 +427,12 @@ function VoteBar({ view, who, me, busy, send, serverNow }: { view: FemView; who(
         <span>
           <strong>{who(view.vote.by)}</strong> asks for better cards. Deal again?{secs !== null && <span className="muted"> ({secs}s)</span>}
         </span>
-        <button className="btn primary small" disabled={busy} onClick={() => send({ type: "vote", yes: true })}>
+        <Button className="btn primary small" why={why} onClick={() => send({ type: "vote", yes: true })}>
           Yes, new cards
-        </button>
-        <button className="btn small" disabled={busy} onClick={() => send({ type: "vote", yes: false })}>
+        </Button>
+        <Button className="btn small" why={why} onClick={() => send({ type: "vote", yes: false })}>
           No, play on
-        </button>
+        </Button>
       </div>
     );
   }
@@ -425,9 +440,9 @@ function VoteBar({ view, who, me, busy, send, serverNow }: { view: FemView; who(
   if (!view.you.canAsk) return null;
   return (
     <div className="fem-vote">
-      <button className="btn subtle small" disabled={busy} onClick={() => send({ type: "betterCards" })} data-testid="fem-ask">
+      <Button className="btn subtle small" why={why} onClick={() => send({ type: "betterCards" })} data-testid="fem-ask">
         Ask for better cards
-      </button>
+      </Button>
       <span className="muted">If everyone agrees, the cards are dealt again. Once a deal.</span>
     </div>
   );
@@ -435,7 +450,7 @@ function VoteBar({ view, who, me, busy, send, serverNow }: { view: FemView; who(
 
 // --- the end --------------------------------------------------------------------
 
-function Result({ view, me, name, start, disabled }: { view: FemView; me: string; name(id: string): string; start: (() => void) | null; disabled: boolean }) {
+function Result({ view, me, name, start, why }: { view: FemView; me: string; name(id: string): string; start: (() => void) | null; why: string | null }) {
   const result = view.result;
   const winners = result?.winners ?? [];
   const ranking = [...view.players].sort((a, b) => Number(b.left === false) - Number(a.left === false) || b.deals - a.deals);
@@ -473,9 +488,9 @@ function Result({ view, me, name, start, disabled }: { view: FemView; me: string
       }))}
       actions={
         start && (
-          <button className="btn primary" disabled={disabled} onClick={start}>
+          <Button className="btn primary" why={why} onClick={start}>
             Play again
-          </button>
+          </Button>
         )
       }
     />
@@ -496,19 +511,19 @@ function Status({ view }: { view: FemView }) {
 function Controls({ view, connected, busy, send }: { view: FemView; connected: boolean; busy: boolean; send(op: FemOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   if (!s) return null;
   return (
     <>
       {view.canStart && (
-        <button className="btn primary" disabled={disabled} onClick={() => send({ type: "start" })}>
+        <Button className="btn primary" why={why} onClick={() => send({ type: "start" })}>
           {view.game === 0 ? "Deal" : "Play again"}
-        </button>
+        </Button>
       )}
       {s.sittingOut && (
-        <button className="btn" disabled={disabled} onClick={() => send({ type: "sitIn" })}>
+        <Button className="btn" why={why} onClick={() => send({ type: "sitIn" })}>
           I'm back
-        </button>
+        </Button>
       )}
     </>
   );
@@ -518,18 +533,18 @@ function Controls({ view, connected, busy, send }: { view: FemView; connected: b
 function SeatActions({ view, connected, busy, send }: { view: FemView; connected: boolean; busy: boolean; send(op: FemOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   if (!s) return null;
   return (
     <>
       {!s.sittingOut && view.phase === "playing" && view.you.inGame && (
-        <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
+        <Button className="btn ghost small" why={why} onClick={() => send({ type: "sitOut" })}>
           Step away
-        </button>
+        </Button>
       )}
-      <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "leave" })}>
+      <Button className="btn ghost small" why={why} onClick={() => send({ type: "leave" })}>
         {view.phase === "playing" && view.you.inGame ? "Leave game" : "Leave seat"}
-      </button>
+      </Button>
     </>
   );
 }

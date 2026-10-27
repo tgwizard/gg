@@ -35,8 +35,8 @@
   cursor: pointer;
   transition: background-color 120ms ease;
 }
-.ttt-cell:disabled { cursor: default; }
-.ttt-cell:not(:disabled):hover { background: #fff3df; }
+.ttt-cell:disabled, .ttt-cell.unavailable { cursor: default; }
+.ttt-cell:not(:disabled, .unavailable):hover { background: #fff3df; }
 .ttt-cell.mark-0 { color: color-mix(in oklab, var(--pc, var(--card-red)), black 8%); }
 .ttt-cell.mark-1 { color: color-mix(in oklab, var(--pc, #346a88), black 8%); }
 /* Just a hint: the line drawn across says it. */
@@ -92,5 +92,5 @@
 .ttt-prompt-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
 /* The pick buttons are in your color: that's how your mark will look. */
 .btn.ttt-pick { --btn-bg: var(--pc); --btn-fg: var(--pc-ink); }
-.btn.ttt-pick:hover:not(:disabled) { --btn-bg: color-mix(in oklab, var(--pc), white 12%); }
+.btn.ttt-pick:hover:not(:disabled, .unavailable) { --btn-bg: color-mix(in oklab, var(--pc), white 12%); }
 .ttt-pick-mark { font-size: 1.3rem; line-height: 0.8; }

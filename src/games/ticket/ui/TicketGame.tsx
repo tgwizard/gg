@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { play, playerStyle, usePlayerColors } from "../../../ui";
+import { Button, busyWhy, play, playerStyle, usePlayerColors } from "../../../ui";
 import { Flights, useFlights, useOnChange } from "../../kit/ui/Flights";
 import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
@@ -49,6 +49,9 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   const current = view.players.find((p) => p.seat === view.turn && !p.left);
   const myTurn = !!mine && current === mine && view.phase === "playing";
   const hand = view.you.hand;
+  // No disabled buttons: one that can't be used this moment says why when pressed.
+  const why = busyWhy({ busy, connected });
+  const turnWhy = myTurn ? null : current ? `It's ${plainName(current.playerId)}'s turn.` : "It's not your turn.";
 
   const claimable = useMemo(() => {
     const out = new Set<string>();
@@ -112,7 +115,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
               <ClaimPopover
                 route={route}
                 hand={hand}
-                disabled={busy || !connected}
+                why={why}
                 onPay={(p) => send({ type: "claim", route: route.id, color: p.color, locos: p.locos })}
                 onCancel={() => setPicked(null)}
               />
@@ -120,7 +123,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
           </TicketMap>
         </div>
 
-        <Result view={view} me={me} name={plainName} start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null} disabled={busy || !connected} />
+        <Result view={view} me={me} name={plainName} start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null} why={why} />
 
         {/* Your side of the table: beside the map when there's room, under it otherwise. */}
         <div className="ttr-side">
@@ -144,12 +147,12 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
                 deadline={view.phase === "choosing" ? view.setupDeadline : view.turnDeadline}
                 totalMs={view.phase === "choosing" ? view.config.turnSeconds * 2000 : view.config.turnSeconds * 1000}
                 serverNow={serverNow}
-                disabled={busy || !connected}
+                why={why}
                 onKeep={() => send({ type: "keep", tickets: keeping })}
               />
             ) : mine && hand && view.phase === "playing" ? (
               <div className="ttr-me">
-                <Market view={view} myTurn={myTurn} disabled={busy || !connected} send={send} onTake={flights.takeFrom} />
+                <Market view={view} turnWhy={turnWhy} why={why} send={send} onTake={flights.takeFrom} />
                 {
                   <div className="ttr-hint" data-testid="ttr-hint">
                     {route
@@ -284,9 +287,9 @@ function Players({
         return (
           <div key={i} className="seat-open ttr-seat-open" data-testid={`ttr-seat-${i}`}>
             {view.you.seat === null ? (
-              <button className="btn small" disabled={!connected || busy} onClick={() => send({ type: "sit", seat: i })}>
+              <Button className="btn small" why={busyWhy({ busy, connected })} onClick={() => send({ type: "sit", seat: i })}>
                 Sit here
-              </button>
+              </Button>
             ) : (
               <span className="label">Open seat</span>
             )}
@@ -380,29 +383,31 @@ function TrainSwatch({ color }: { color: number }) {
 
 function Market({
   view,
-  myTurn,
-  disabled,
+  turnWhy,
+  why,
   send,
   onTake,
 }: {
   view: TtrView;
-  myTurn: boolean;
-  disabled: boolean;
+  /** Whose turn it is, when it isn't yours (null on your turn). */
+  turnWhy: string | null;
+  why: string | null;
   send(op: TtrOp): void;
   /** Where a card is being taken from, for its flight to your hand. */
   onTake(from: Element): void;
 }) {
-  const drawing = myTurn && view.stage !== "tickets";
   const second = view.stage === "second";
   const deckLeft = view.deckCount + view.discardCount;
+  const stageWhy = view.stage === "tickets" ? "Choose your tickets first." : null;
+  const ticketsWhy = view.stage === "second" ? "Take your second card first." : stageWhy;
   return (
     <div className="ttr-market" data-testid="ttr-market">
       <div className="ttr-faceup">
         {view.faceUp.map((c, i) => (
-          <button
+          <Button
             key={i}
             className="ttr-take"
-            disabled={disabled || !drawing || !c || (second && c === "loco")}
+            why={!c ? "There's no card here." : (turnWhy ?? stageWhy ?? (second && c === "loco" ? "A face-up locomotive counts as two cards: take a different one." : why))}
             onClick={(e) => {
               onTake(e.currentTarget);
               send({ type: "draw", from: i });
@@ -411,12 +416,12 @@ function Market({
             data-testid={`ttr-faceup-${i}`}
           >
             <TrainCard color={c} />
-          </button>
+          </Button>
         ))}
       </div>
-      <button
+      <Button
         className="ttr-take"
-        disabled={disabled || !drawing || deckLeft === 0}
+        why={turnWhy ?? stageWhy ?? (deckLeft === 0 ? "The deck is empty." : why)}
         onClick={(e) => {
           onTake(e.currentTarget);
           send({ type: "draw", from: "deck" });
@@ -424,10 +429,10 @@ function Market({
         data-testid="ttr-deck"
       >
         <DeckPile count={view.deckCount} label="Deck" />
-      </button>
-      <button
+      </Button>
+      <Button
         className="ttr-take ttr-tickets-pile"
-        disabled={disabled || !myTurn || view.stage !== "start" || view.ticketCount === 0}
+        why={turnWhy ?? ticketsWhy ?? (view.ticketCount === 0 ? "There are no tickets left." : why)}
         onClick={() => send({ type: "tickets" })}
         data-testid="ttr-draw-tickets"
       >
@@ -435,7 +440,7 @@ function Market({
         <span className="ttr-pile-label">
           Tickets<span className="num">{view.ticketCount}</span>
         </span>
-      </button>
+      </Button>
     </div>
   );
 }
@@ -457,7 +462,7 @@ function HandView({ hand, drawn }: { hand: Hand; drawn: CardColor[] }) {
  * Choosing how to pay for a route: a bubble on the map by the route, with the rest of
  * the board dimmed. Escape, Cancel or a click elsewhere on the map backs out.
  */
-function ClaimPopover({ route, hand, disabled, onPay, onCancel }: { route: Route; hand: Hand; disabled: boolean; onPay(p: Payment): void; onCancel(): void }) {
+function ClaimPopover({ route, hand, why, onPay, onCancel }: { route: Route; hand: Hand; why: string | null; onPay(p: Payment): void; onCancel(): void }) {
   const options = payments(hand, route);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
@@ -492,12 +497,12 @@ function ClaimPopover({ route, hand, disabled, onPay, onCancel }: { route: Route
           {options.map((p) => {
             const colored = route.length - p.locos;
             return (
-              <button key={`${p.color}-${p.locos}`} className="btn ttr-pay-btn" disabled={disabled} onClick={() => onPay(p)} data-testid="ttr-pay">
+              <Button key={`${p.color}-${p.locos}`} className="btn ttr-pay-btn" why={why} onClick={() => onPay(p)} data-testid="ttr-pay">
                 <span className="ttr-pay-cards">
                   {p.color !== "loco" && <TrainCard color={p.color} count={colored} size="sm" />}
                   {p.locos > 0 && <TrainCard color="loco" count={p.locos} size="sm" />}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -518,10 +523,12 @@ function TicketChoice(props: {
   deadline: number | null;
   totalMs: number;
   serverNow: number;
-  disabled: boolean;
+  why: string | null;
   onKeep(): void;
 }) {
   const n = props.selected.length;
+  const short = props.keepAtLeast - n;
+  const keepWhy = short > 0 ? (n === 0 ? `Pick at least ${props.keepAtLeast} ${props.keepAtLeast === 1 ? "ticket" : "tickets"} to keep first.` : `Pick ${short} more ${short === 1 ? "ticket" : "tickets"} to keep first.`) : null;
   return (
     <div className="ttr-choose" data-testid="ttr-choose">
       <div className="ttr-choose-head">
@@ -546,13 +553,13 @@ function TicketChoice(props: {
         ))}
       </div>
       <div className="ttr-choose-foot">
-        <button className="btn primary" disabled={props.disabled || n < props.keepAtLeast} onClick={props.onKeep} data-testid="ttr-keep">
+        <Button className="btn primary" why={keepWhy ?? props.why} onClick={props.onKeep} data-testid="ttr-keep">
           {n === 0
             ? `Pick at least ${props.keepAtLeast}`
             : n < props.keepAtLeast
               ? `Pick ${props.keepAtLeast - n} more`
               : `Keep ${n} ${n === 1 ? "ticket" : "tickets"}`}
-        </button>
+        </Button>
         <div className="ttr-choose-timer">
           <TurnTimer deadline={props.deadline} totalMs={props.totalMs} serverNow={props.serverNow} />
         </div>
@@ -703,7 +710,7 @@ function ClaimStory({ e, nameOf }: { e: Extract<Line, { type: "claim" }>; nameOf
 }
 
 /** The end: everyone's score (routes, tickets, the longest railway), over the map. */
-function Result({ view, me, name, start, disabled }: { view: TtrView; me: string; name(id: string): string; start: (() => void) | null; disabled: boolean }) {
+function Result({ view, me, name, start, why }: { view: TtrView; me: string; name(id: string): string; start: (() => void) | null; why: string | null }) {
   const result = view.result;
   const ranked = result ? [...result.scores].sort((a, b) => b.total - a.total) : [];
   const winners = result?.winners ?? [];
@@ -748,9 +755,9 @@ function Result({ view, me, name, start, disabled }: { view: TtrView; me: string
       }))}
       actions={
         start && (
-          <button className="btn primary" disabled={disabled} onClick={start}>
+          <Button className="btn primary" why={why} onClick={start}>
             Play again
-          </button>
+          </Button>
         )
       }
     />
@@ -773,19 +780,19 @@ function Status({ view }: { view: TtrView }) {
 function Controls({ view, connected, busy, send }: { view: TtrView; connected: boolean; busy: boolean; send(op: TtrOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   if (!s) return null;
   return (
     <>
       {view.canStart && view.phase !== "over" && (
-        <button className="btn primary" disabled={disabled} onClick={() => send({ type: "start" })} data-testid="ttr-start">
+        <Button className="btn primary" why={why} onClick={() => send({ type: "start" })} data-testid="ttr-start">
           {view.game === 0 ? "Start" : "Play again"}
-        </button>
+        </Button>
       )}
       {s.sittingOut && (
-        <button className="btn" disabled={disabled} onClick={() => send({ type: "sitIn" })}>
+        <Button className="btn" why={why} onClick={() => send({ type: "sitIn" })}>
           I'm back
-        </button>
+        </Button>
       )}
     </>
   );
@@ -795,19 +802,19 @@ function Controls({ view, connected, busy, send }: { view: TtrView; connected: b
 function SeatActions({ view, connected, busy, send }: { view: TtrView; connected: boolean; busy: boolean; send(op: TtrOp): void }) {
   const seat = view.you.seat;
   const s = seat === null ? null : view.seats[seat];
-  const disabled = busy || !connected;
+  const why = busyWhy({ busy, connected });
   const running = view.phase === "playing" || view.phase === "choosing";
   if (!s) return null;
   return (
     <>
       {!s.sittingOut && running && view.you.inGame && (
-        <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "sitOut" })}>
+        <Button className="btn ghost small" why={why} onClick={() => send({ type: "sitOut" })}>
           Step away
-        </button>
+        </Button>
       )}
-      <button className="btn ghost small" disabled={disabled} onClick={() => send({ type: "leave" })}>
+      <Button className="btn ghost small" why={why} onClick={() => send({ type: "leave" })}>
         {running && view.you.inGame ? "Leave game" : "Leave seat"}
-      </button>
+      </Button>
     </>
   );
 }
