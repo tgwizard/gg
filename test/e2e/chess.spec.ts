@@ -29,13 +29,28 @@ test("Chess: sit, move by clicking and dragging, mate, then swap colors and resi
   expect(await top(a)).toBe(true);
   expect(await top(b)).toBe(false);
 
-  // Picking up a piece marks where it can go; Bob can't touch Alice's pieces or move out of turn.
+  // Picking up a piece marks where it can go.
   await a.getByTestId("chess-sq-g1").click();
   await expect(a.locator(".chess-sq.target")).toHaveCount(2);
   await a.getByTestId("chess-sq-g1").click();
   await expect(a.locator(".chess-sq.target")).toHaveCount(0);
+  // Out of turn, Bob can't touch Alice's pieces, but can queue up a premove of his own.
+  await b.getByTestId("chess-sq-e2").click();
+  await expect(b.locator(".chess-sq.target")).toHaveCount(0);
+  await b.getByTestId("chess-sq-d7").click();
+  await b.getByTestId("chess-sq-d5").click();
+  await expect(b.getByTestId("chess-premove")).toContainText("pawn d7 → d5");
+  await b.getByTestId("chess-sq-d4").click(); // an empty square calls it off
+  await expect(b.getByTestId("chess-premove")).toHaveCount(0);
+  await b.getByTestId("chess-sq-c7").click();
+  await b.getByTestId("chess-sq-c5").click();
+  await expect(b.getByTestId("chess-premove")).toContainText("pawn c7 → c5");
+  await b.keyboard.press("Escape"); // so does Escape
+  await expect(b.getByTestId("chess-premove")).toHaveCount(0);
   await b.getByTestId("chess-sq-e7").click();
   await b.getByTestId("chess-sq-e5").click();
+  await expect(b.locator(".chess-sq.premove")).toHaveCount(2);
+  await expect(b.getByTestId("chess-premove-piece")).toHaveCount(1);
   await expect(b.getByTestId("chess-piece-e7")).toBeVisible();
 
   // Drag a pawn two squares.
@@ -47,9 +62,11 @@ test("Chess: sit, move by clicking and dragging, mate, then swap colors and resi
   await a.mouse.up();
   await expect(b.getByTestId("chess-piece-e4")).toBeVisible();
   await expect(b.getByTestId("chess-moves")).toContainText("e4");
+  // Bob's premove is played the moment Alice has moved.
+  await expect(a.getByTestId("chess-piece-e5")).toBeVisible();
+  await expect(b.getByTestId("chess-premove")).toHaveCount(0);
 
   // Scholar's mate.
-  await move(b, "e7", "e5");
   await move(a, "f1", "c4");
   await move(b, "b8", "c6");
   await move(a, "d1", "h5");
@@ -77,7 +94,15 @@ test("Chess: sit, move by clicking and dragging, mate, then swap colors and resi
   await move(a, "a6", "a5");
   await move(b, "f1", "e2");
   await move(a, "a5", "a4");
-  await move(b, "e1", "h1");
+  // Picking up the king says how to castle (or why not), and marks the rook.
+  await b.getByTestId("chess-sq-e1").click();
+  await expect(b.getByTestId("chess-castling")).toContainText("Kingside: put your king on g1, or on the rook on h1.");
+  await expect(b.getByTestId("chess-castling")).toContainText("Queenside: Clear b1, c1 and d1 first");
+  await expect(b.getByTestId("chess-sq-h1").locator(".chess-castle-tag")).toBeVisible();
+  // Pointing at the rook shows where the two end up.
+  await b.getByTestId("chess-sq-h1").hover();
+  await expect(b.getByTestId("chess-castle-preview")).toHaveCount(2);
+  await b.getByTestId("chess-sq-h1").click();
   await expect(a.getByTestId("chess-last")).toHaveText("Bob castled kingside.");
   await expect(a.getByTestId("chess-moves")).toContainText("O-O");
   await expect(a.getByTestId("chess-piece-g1")).toBeVisible();

@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Clock } from "../../kit/ui/Clock";
 import { DuelControls, DuelFooter, DuelMoves, DuelResult, DuelSide, DuelStatus, DuelTable, playerOf, SeatPrompt, winsText } from "../../kit/ui/Duel";
 import { usePending, useSend } from "../../kit/ui/useSend";
@@ -6,7 +6,28 @@ import { Button, busyWhy } from "../../../ui";
 import type { GameUIProps } from "../../ui";
 import { type ChessView, type LastMove, resultText, SPEC } from "../engine";
 import type { ChessOp } from "../index";
-import { type Color, colorOf, legalMoves, makeMove, moveFacts, other, parseFen, parseUci, type Piece, type PieceType, pieceOf, sameMove, squareName, toFen, toSan, typeOf, VALUE } from "../rules";
+import {
+  castlingOptions,
+  type Color,
+  colorOf,
+  legalMoves,
+  makeMove,
+  moveFacts,
+  other,
+  parseFen,
+  parseSquare,
+  parseUci,
+  type Piece,
+  type PieceType,
+  pieceOf,
+  type Position,
+  sameMove,
+  squareName,
+  toFen,
+  toSan,
+  typeOf,
+  VALUE,
+} from "../rules";
 import { Board, pieceSrc } from "./Board";
 import "./chess.css";
 
@@ -39,7 +60,38 @@ export function ChessGame({ view, snapshot, me, members, connected, sendOp, serv
   const [flipped, setFlipped] = useState(false);
   const bottom: Color = flipped ? other(myColor ?? "w") : (myColor ?? "w");
   const myTurn = view.phase === "playing" && myColor === view.turn;
-  const board = useMemo(() => parseFen(shown.fen).board, [shown.fen]);
+  const shownPos = useMemo(() => parseFen(shown.fen), [shown.fen]);
+  const board = shownPos.board;
+  const [picked, setPicked] = useState<string | null>(null);
+
+  // A premove: made while the other side is to move (or your own move is on its way), and
+  // played the moment it's your turn if it can be. It belongs to the position it was made
+  // in, in this game, by you (on a shared device the board is passed between players).
+  const [queued, setQueued] = useState<{ uci: string; by: string; game: string; fen: string } | null>(null);
+  const premove = queued?.by === me && queued.game === snapshot.instanceId ? queued.uci : null;
+  /** A premove that couldn't be played when the time came. */
+  const [missed, setMissed] = useState<{ uci: string; pos: Position } | null>(null);
+  const premovable = view.phase === "playing" && myColor && shownPos.turn !== myColor ? myColor : null;
+  useEffect(() => {
+    if (!queued) return;
+    if (!premove || view.phase !== "playing") return setQueued(null);
+    if (!myTurn || pending || !connected) return;
+    setQueued(null);
+    // Still the position it was made in: your own move didn't go through.
+    if (view.fen === queued.fen) return;
+    const pos = parseFen(view.fen);
+    const m = parseUci(premove);
+    if (m && legalMoves(pos).some((l) => sameMove(l, m))) move(premove);
+    else setMissed({ uci: premove, pos: parseFen(queued.fen) });
+  }, [queued, premove, view.fen, view.phase, myTurn, pending, connected]);
+  const queue = (uci: string | null) => {
+    setMissed(null);
+    setQueued(uci ? { uci, by: me, game: snapshot.instanceId, fen: view.fen } : null);
+  };
+  const onMove = (uci: string) => {
+    setMissed(null);
+    move(uci);
+  };
 
   const side = (c: Color, where: "top" | "bottom") => {
     const taken = takenBy(board, c);
@@ -85,7 +137,17 @@ export function ChessGame({ view, snapshot, me, members, connected, sendOp, serv
       bottom={side(bottom, "bottom")}
       board={
         <div className="chess-board-wrap">
-          <Board fen={shown.fen} orientation={bottom} lastMove={shown.lastMove} movable={myTurn && connected && shown.fen === view.fen ? myColor : null} onMove={move}>
+          <Board
+            fen={shown.fen}
+            orientation={bottom}
+            lastMove={shown.lastMove}
+            movable={myTurn && connected && shown.fen === view.fen ? myColor : null}
+            onMove={onMove}
+            premovable={premovable}
+            premove={premove}
+            onPremove={queue}
+            onSelect={setPicked}
+          >
             <SeatPrompt view={view} game="chess" blurb="Sit down and someone else takes the other side. Colors swap every game." name={name} why={busyWhy({ busy, connected })} send={send} testId="chess-sit" />
           </Board>
         </div>
@@ -106,6 +168,24 @@ export function ChessGame({ view, snapshot, me, members, connected, sendOp, serv
             {...(view.phase === "playing" && view.check ? (myTurn ? { tone: "check" } : { text: `${COLOR_NAME[view.turn]} to move${view.sides ? ` (${name(view.sides[view.turn])})` : ""}, in check…` }) : {})}
             testId="chess-status"
           />
+          {premove && queued ? (
+            <div className="chess-premove" data-testid="chess-premove">
+              <span>
+                Premove: <MoveWords uci={premove} pos={parseFen(queued.fen)} />. It's played as soon as they've moved, if it still can be.
+              </span>
+              <Button className="btn ghost small" onClick={() => queue(null)} data-testid="chess-premove-cancel">
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            missed &&
+            view.phase === "playing" && (
+              <div className="chess-premove missed" data-testid="chess-premove">
+                Your premove (<MoveWords uci={missed.uci} pos={missed.pos} />) couldn't be played.
+              </div>
+            )
+          )}
+          {myColor && picked && <CastlingHint pos={shownPos} color={myColor} picked={picked} premove={!!premovable} />}
           {myColor && view.phase === "playing" && view.drawOffer === other(myColor) ? (
             <div className="duel-controls chess-offer" data-testid="chess-draw-offer">
               <span>{COLOR_NAME[other(myColor)]} offers a draw.</span>
@@ -167,6 +247,62 @@ function materialOf(board: (Piece | null)[], c: Color) {
 }
 
 // --- the panel ----------------------------------------------------------------
+
+/** A move in words, from where it was made: "knight g1 → f3", "castling kingside". */
+function MoveWords({ uci, pos }: { uci: string; pos: Position }) {
+  const m = parseUci(uci);
+  const p = m && pos.board[m.from];
+  if (!m || !p) return <>{uci}</>;
+  const c = colorOf(p);
+  if (typeOf(p) === "k" && Math.abs(m.to - m.from) === 2) return <>castling {m.to > m.from ? "kingside" : "queenside"}</>;
+  return (
+    <>
+      <img className="chess-inline-piece" src={pieceSrc(p)} alt="" />
+      {PIECE_NAME[typeOf(p)]} {squareName(m.from)} → {squareName(m.to)}
+      {m.promotion && (
+        <>
+          {" "}
+          becoming a <img className="chess-inline-piece" src={pieceSrc(pieceOf(c, m.promotion))} alt="" />
+          {PIECE_NAME[m.promotion]}
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * With your king picked up: how to castle, or why it can't now. Only while castling is
+ * still possible some time (the king and a rook haven't moved).
+ */
+function CastlingHint({ pos, color, picked, premove }: { pos: Position; color: Color; picked: string; premove: boolean }) {
+  const options = castlingOptions(pos, color);
+  if (parseSquare(picked) !== options[0]?.king) return null;
+  const rook = (sq: number) => (
+    <>
+      <img className="chess-inline-piece" src={pieceSrc(pieceOf(color, "r"))} alt="" />
+      rook on {squareName(sq)}
+    </>
+  );
+  return (
+    <div className="chess-castling" data-testid="chess-castling">
+      <strong>Castling</strong>
+      <ul>
+        {options.map((o) => (
+          <li key={o.side}>
+            {o.side === "kingside" ? "Kingside" : "Queenside"}:{" "}
+            {(premove ? o.premove : !o.why) ? (
+              <>
+                put your king on {squareName(o.to)}, or on the {rook(o.rook)}. The rook jumps over to {squareName(o.rookTo)}.
+              </>
+            ) : (
+              o.why
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 function Moves({ moves }: { moves: ChessView["moves"] }) {
   const one = (i: number) => {

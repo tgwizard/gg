@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { insufficientMaterial, moveFacts, legalMoves, makeMove, parseFen, parseUci, perft, positionKey, START_FEN, toFen, toSan, toUci } from "./rules";
+import { castlingOptions, insufficientMaterial, isCapture, moveFacts, legalMoves, makeMove, parseFen, parseUci, perft, positionKey, premoves, START_FEN, toFen, toSan, toUci } from "./rules";
 
 /** Play UCI moves from a FEN, returning the SAN of each and the final position. */
 function play(fen: string, ...ucis: string[]) {
@@ -74,6 +74,55 @@ describe("chess rules", () => {
     expect(insufficientMaterial(parseFen("8/2b5/4k3/8/8/2KB4/8/8 w - - 0 1").board)).toBe(false);
     expect(insufficientMaterial(parseFen("8/8/4k3/8/8/2KNN3/8/8 w - - 0 1").board)).toBe(false);
     expect(insufficientMaterial(parseFen("8/8/4k3/8/8/2K5/7P/8 w - - 0 1").board)).toBe(false);
+  });
+
+  it("says why a king can't castle now", () => {
+    const why = (fen: string) => Object.fromEntries(castlingOptions(parseFen(fen), "w").map((o) => [o.side, o.why]));
+    expect(why("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")).toEqual({ kingside: null, queenside: null });
+    expect(why("4k3/8/8/8/8/8/8/R2QK1NR w KQ - 0 1")).toEqual({ kingside: expect.stringContaining("Clear g1 first"), queenside: expect.stringContaining("Clear d1 first") });
+    expect(why("4k3/8/8/8/8/8/8/R3K2R w K - 0 1")).toEqual({ kingside: null }); // the a1 rook has moved
+    expect(why("4k3/8/8/8/8/8/8/R3K2R w - - 0 1")).toEqual({}); // the king has moved
+    expect(why("4k3/8/8/8/8/8/8/R4K1R w KQ - 0 1")).toEqual({});
+    expect(why("4r1k1/8/8/8/8/8/8/R3K2R w KQ - 0 1")).toEqual({ kingside: "Not while your king is in check.", queenside: "Not while your king is in check." });
+    expect(why("2r1k3/8/8/8/8/8/8/R3K2R w KQ - 0 1").queenside).toContain("(c1)");
+    expect(why(START_FEN).queenside).toContain("Clear b1, c1 and d1 first");
+    // b1 isn't crossed by the king: attacked, it doesn't matter.
+    expect(why("1r2k3/8/8/8/8/8/8/R3K2R w KQ - 0 1").queenside).toBeNull();
+    expect(why("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1").kingside).toBe("Not your move yet.");
+  });
+
+  it("premoves: what a piece could do whatever the other side does first", () => {
+    const dests = (fen: string, from: string) => premoves(parseFen(fen), "w").filter((m) => toUci(m).startsWith(from)).map((m) => toUci(m).slice(2));
+    // A pawn can aim diagonally at an empty square (something may land there), not forward into its own piece.
+    expect(dests("4k3/8/8/8/8/4N3/4P3/4K3 b - - 0 1", "e2").sort()).toEqual(["d3", "f3"]);
+    // A rook stops at its own piece (it may be taken, to take back), and sees past one of theirs.
+    expect(dests("4k3/8/8/8/R2p1p1P/8/8/4K3 b - - 0 1", "a4").sort()).toEqual(["a1", "a2", "a3", "a5", "a6", "a7", "a8", "b4", "c4", "d4", "e4", "f4"]);
+    // Never onto its own king; castling while the other side moves, when only theirs could be in the way.
+    expect(dests("4k3/8/8/8/8/8/8/R3K2R b KQ - 0 1", "h1")).not.toContain("e1");
+    expect(dests("4k3/8/8/8/8/8/8/R3K1nR b KQ - 0 1", "e1")).toContain("g1");
+    expect(dests("4k3/8/8/8/8/8/8/R3K1NR b KQ - 0 1", "e1")).not.toContain("g1");
+  });
+
+  it("premoves cover every move the other side's reply could allow", () => {
+    let seed = 7;
+    const rand = (n: number) => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) % n);
+    const missed: string[] = [];
+    for (let game = 0; game < 20; game++) {
+      let pos = parseFen(START_FEN);
+      for (let ply = 0; ply < 80; ply++) {
+        const replies = legalMoves(pos);
+        if (!replies.length) break;
+        const waiting = new Set(premoves(pos, pos.turn === "w" ? "b" : "w").map(toUci));
+        for (const r of replies) {
+          // Castling and en passant take two pieces off a line at once: not covered.
+          const two = (pos.board[r.from] === "K" || pos.board[r.from] === "k") && Math.abs(r.to - r.from) === 2;
+          if (two || (isCapture(pos, r) && !pos.board[r.to])) continue;
+          for (const m of legalMoves(makeMove(pos, r))) if (!waiting.has(toUci(m))) missed.push(`${toUci(m)} after ${toUci(r)} in ${toFen(pos)}`);
+        }
+        pos = makeMove(pos, replies[rand(replies.length)]!);
+      }
+    }
+    expect(missed).toEqual([]);
   });
 
   it("counts an en passant square in a repeated position only when it can be used", () => {

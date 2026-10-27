@@ -70,7 +70,17 @@ await move(a, "g1", "f3");
 await move(b, "b8", "c6");
 await move(a, "f1", "c4");
 await move(b, "g8", "f6");
-await move(a, "e1", "h1"); // castles, king onto rook
+// Bob queues up a premove while Alice thinks, then calls it off.
+await move(b, "f8", "c5");
+await snap(b, "chess-2-premove-mobile");
+await b.getByTestId("chess-premove-cancel").click();
+// Alice picks up her king: how to castle, and pointing at the rook shows where the two end up.
+await a.getByTestId("chess-sq-e1").click();
+await a.getByTestId("chess-sq-h1").hover();
+await a.waitForTimeout(150);
+await snap(a, "chess-2-castling");
+await a.getByTestId("chess-sq-h1").click(); // castles, king onto rook
+await a.waitForTimeout(400);
 await move(b, "f8", "c5");
 await b.getByTestId("chess-offer-draw").click();
 await a.getByTestId("chess-draw-offer").waitFor();

@@ -229,6 +229,108 @@ export function legalMoves(pos: Position): Move[] {
   });
 }
 
+/**
+ * Moves `c` can queue up while the other side is to move (premoves): what its pieces
+ * could do whatever the other side does first. Its own pieces block a line (they can't
+ * move first) but can be aimed at (one may be taken, to take back); one of the other
+ * side's pieces in a line may step out of the way. A pawn can always aim diagonally.
+ * Whether it can really be played is only known once it's `c`'s turn.
+ */
+export function premoves(pos: Position, c: Color): Move[] {
+  const { board } = pos;
+  const moves: Move[] = [];
+  const mine = (s: number) => !!board[s] && colorOf(board[s]!) === c;
+  const add = (from: number, to: number) => {
+    if (to < 0 || board[to] === pieceOf(c, "k")) return;
+    if (typeOf(board[from]!) === "p" && rankOf(to) === (c === "w" ? 7 : 0)) for (const promotion of PROMOTIONS) moves.push({ from, to, promotion });
+    else moves.push({ from, to });
+  };
+  for (let sq = 0; sq < 64; sq++) {
+    const p = board[sq];
+    if (!p || colorOf(p) !== c) continue;
+    const f = fileOf(sq);
+    const r = rankOf(sq);
+    const t = typeOf(p);
+    if (t === "p") {
+      const dir = c === "w" ? 1 : -1;
+      const one = at(f, r + dir);
+      if (one >= 0 && !mine(one)) {
+        add(sq, one);
+        const two = at(f, r + 2 * dir);
+        if (r === (c === "w" ? 1 : 6) && !mine(two)) add(sq, two);
+      }
+      add(sq, at(f - 1, r + dir));
+      add(sq, at(f + 1, r + dir));
+    } else if (t === "n" || t === "k") {
+      for (const [df, dr] of t === "n" ? KNIGHT : KING) add(sq, at(f + df, r + dr));
+    } else {
+      const dirs = t === "r" ? ORTHOGONAL : t === "b" ? DIAGONAL : [...ORTHOGONAL, ...DIAGONAL];
+      for (const [df, dr] of dirs) {
+        let theirs = 0;
+        for (let i = 1; ; i++) {
+          const to = at(f + df * i, r + dr * i);
+          if (to < 0) break;
+          add(sq, to);
+          if (mine(to) || (board[to] && ++theirs > 1)) break;
+        }
+      }
+    }
+  }
+  for (const o of castlingOptions(pos, c)) if (o.premove) moves.push({ from: o.king, to: o.to });
+  return moves;
+}
+
+export interface CastlingOption {
+  side: "kingside" | "queenside";
+  king: number;
+  /** Where the king goes. */
+  to: number;
+  rook: number;
+  /** Where the rook goes. */
+  rookTo: number;
+  /** Why `c` can't castle this way now, in words, or null when it can. */
+  why: string | null;
+  /** Whether it can be queued up as a premove: the rights are there and none of `c`'s own pieces is in the way. */
+  premove: boolean;
+}
+
+/**
+ * Castling for `c` on each side it still has the right to, with why not when it can't
+ * now. Nothing when the king has lost both rights.
+ */
+export function castlingOptions(pos: Position, c: Color): CastlingOption[] {
+  const { board } = pos;
+  const home = c === "w" ? 4 : 60;
+  if (board[home] !== pieceOf(c, "k")) return [];
+  const sides = [
+    { side: "kingside", right: c === "w" ? "K" : "k", rook: home + 3, between: [home + 1, home + 2], path: [home + 1, home + 2], dir: 1 },
+    { side: "queenside", right: c === "w" ? "Q" : "q", rook: home - 4, between: [home - 1, home - 2, home - 3], path: [home - 1, home - 2], dir: -1 },
+  ] as const;
+  const them = other(c);
+  const out: CastlingOption[] = [];
+  for (const s of sides) {
+    if (!pos.castling.includes(s.right) || board[s.rook] !== pieceOf(c, "r")) continue;
+    const blocked = s.between.filter((sq) => board[sq]);
+    const attackedOn = s.path.filter((sq) => attacked(board, sq, them));
+    const names = (sqs: readonly number[]) => [...sqs].sort((a, b) => a - b).map(squareName).join(", ").replace(/, (?=[^,]*$)/, " and ");
+    let why: string | null = null;
+    if (blocked.length) why = `Clear ${names(blocked)} first: the king and rook need nothing between them.`;
+    else if (attacked(board, home, them)) why = "Not while your king is in check.";
+    else if (attackedOn.length) why = `Your king can't cross or land on a square under attack (${names(attackedOn)}).`;
+    else if (pos.turn !== c) why = "Not your move yet.";
+    out.push({
+      side: s.side,
+      king: home,
+      to: home + 2 * s.dir,
+      rook: s.rook,
+      rookTo: home + s.dir,
+      why,
+      premove: !blocked.some((sq) => colorOf(board[sq]!) === c),
+    });
+  }
+  return out;
+}
+
 const CASTLING_SQUARES: Record<number, string> = { 0: "Q", 7: "K", 56: "q", 63: "k" };
 
 /** The position after `m`, which must be at least pseudo-legal. */

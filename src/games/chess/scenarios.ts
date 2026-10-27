@@ -33,6 +33,14 @@ export const scenarios: Scenario<ChessState>[] = [
     build: (players, ctx) => played(players, ctx, [...SCHOLARS, "h5f7"]),
   },
   {
+    id: "castling",
+    name: "Castling",
+    description: "Your move as White, and your king can castle either way: pick it up.",
+    bots: 1,
+    // 1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 d6 5. Be3 Be6 6. Nc3 Nf6 7. Qd2 Qd7
+    build: (players, ctx) => played(players, ctx, ["e2e4", "e7e5", "g1f3", "b8c6", "f1c4", "f8c5", "d2d3", "d7d6", "c1e3", "c8e6", "b1c3", "g8f6", "d1d2", "d8d7"]),
+  },
+  {
     id: "promotion",
     name: "Promotion",
     description: "Your pawn on b7 can promote on a8, b8 or c8: pick the piece.",

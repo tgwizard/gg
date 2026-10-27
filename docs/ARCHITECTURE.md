@@ -490,10 +490,23 @@ Standard chess for two, with chess clocks.
   rings, last move and check highlights, a promotion picker on the file, and moves
   slide into place (not the ones you dragged, nor with reduced motion) while a taken
   piece is knocked off its square. The king can castle by moving two squares or onto
-  its rook. Each move records the piece and what it took (`moveFacts`), so the panel
+  its rook: with the king picked up, both squares are marked (the rook tagged
+  *castle*), pointing at one shows the king and rook where they'd end up, and the panel
+  says how, or why not now (`castlingOptions`: pieces between, in check, crossing an
+  attacked square). Each move records the piece and what it took (`moveFacts`), so the panel
   says the last move in words ("Rivet's queen took your bishop on d5. Check!") and the
   move list marks captures and checks. Your move
-  shows at once and is taken back if the server refuses it. Pieces are Cburnett's
+  shows at once and is taken back if the server refuses it.
+- **Premoves** are the browser's alone: the server only ever sees an ordinary move.
+  While the other side is to move (or your own move is on its way), picking up a piece
+  queues one up, from `premoves` (how the pieces move whatever the other side does
+  first: your own pieces block a line but can be aimed at, to take back; one of theirs
+  may step aside; castling if only their pieces are in the way). One at a time, shown
+  in blue squares with its piece faint where it's going, and in the panel, called off by clicking an empty square, a right-click, Escape
+  or *Cancel*. It's sent the moment the view says it's your turn, if it's legal then
+  (otherwise the panel says it couldn't be). It belongs to the position, game and
+  player it was made by, so a failed move of yours, a new game or a hot-seat hand-over
+  drops it. Pieces are Cburnett's
   SVGs (BSD) in `public/pieces`; square colors are tokens (`--board-*`).
 
 ### Othello (`src/games/othello`)

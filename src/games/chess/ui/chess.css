@@ -40,6 +40,29 @@
 .chess-sq.target::after { inset: 37%; border-radius: 50%; background: var(--board-hint); }
 .chess-sq.target.castle::after,
 .chess-sq.target.capture::after { inset: 2%; background: radial-gradient(circle, transparent 0 64%, var(--board-hint) 66%); }
+/* A premove: its squares in blue, and blue dots while you're making one. */
+.chess-sq.premove::before { inset: 0; background: var(--board-premove); }
+.chess-board.premoving .chess-sq.target::after { background: var(--board-premove-hint); }
+.chess-board.premoving .chess-sq.target.castle::after,
+.chess-board.premoving .chess-sq.target.capture::after { background: radial-gradient(circle, transparent 0 64%, var(--board-premove-hint) 66%); }
+/* Where the king can castle to, and the rook it castles with. */
+.chess-board:not(.premoving) .chess-sq.target.castle::after { background: radial-gradient(circle, transparent 0 60%, var(--board-castle) 63% 80%, transparent 83%); }
+.chess-castle-tag {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 4%;
+  translate: -50% 0;
+  padding: 0 0.5em;
+  border-radius: var(--pill);
+  font-size: max(8px, 1.6cqi);
+  font-weight: 800;
+  line-height: 1.5;
+  color: var(--board-castle-ink);
+  background: var(--board-castle);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  pointer-events: none;
+}
 .chess-coord {
   position: absolute;
   font-size: max(9px, 2cqi);
@@ -68,6 +91,11 @@
   100% { opacity: 0; scale: 0.45; rotate: 25deg; translate: 0 18%; }
 }
 @media (prefers-reduced-motion: reduce) { .chess-sq.check::before { animation: none; } }
+/* Pointing at a castling: where the king and rook end up, faint where they stand. */
+.chess-piece.leaving { opacity: 0.35; }
+.chess-preview { z-index: 3; opacity: 0.75; }
+/* A premove's piece, faint where it's going (over whatever it means to take). */
+.chess-preview.premoved { opacity: 0.55; }
 .chess-piece.lifted { z-index: 5; scale: 1.15; filter: drop-shadow(0 8px 6px rgb(0 0 0 / 0.35)); }
 
 /* Which piece a pawn becomes. */
@@ -116,6 +144,11 @@
 /* The last move in words, with little pieces. */
 .chess-inline-piece { width: 18px; height: 18px; margin: -4px 2px 0 0; vertical-align: middle; }
 .chess-check-tag { display: inline-block; padding: 0 7px; border-radius: var(--pill); font-size: 12px; font-weight: 800; color: #fffaf2; background: var(--danger); }
+.chess-premove { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; padding: 8px 12px 8px 14px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.6; color: var(--text-2); }
+.chess-premove.missed { color: var(--accent-text); }
+.chess-castling { padding: 8px 14px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.6; color: var(--text-2); }
+.chess-castling strong { color: var(--text); }
+.chess-castling ul { margin: 2px 0 0; padding-left: 18px; }
 .chess-offer { background: rgb(243 199 122 / 0.16); font-weight: 700; }
 .chess-flip { font-size: 15px; padding: 5px 10px; }
 

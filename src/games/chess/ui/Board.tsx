@@ -1,7 +1,7 @@
 import { type PointerEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { play } from "../../../ui";
 import type { LastMove } from "../engine";
-import { type Color, colorOf, FILES, fileOf, inCheck, kingSquare, legalMoves, type Move, type Piece, parseFen, parseSquare, parseUci, pieceOf, type Promotion, rankOf, squareName, toUci, typeOf } from "../rules";
+import { castlingOptions, type Color, colorOf, FILES, fileOf, inCheck, kingSquare, legalMoves, type Move, type Piece, parseFen, parseSquare, parseUci, pieceOf, premoves, type Promotion, rankOf, squareName, toUci, typeOf } from "../rules";
 
 export const pieceSrc = (p: Piece) => `/pieces/${colorOf(p)}${p.toUpperCase()}.svg`;
 const PIECE_NAMES: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
@@ -10,8 +10,12 @@ const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce
 
 /**
  * The board. Click a piece then a square, or drag it there; the squares it can reach
- * are marked. To castle, move the king two squares or onto the rook. Pieces slide for
- * moves you didn't drag yourself, and a piece that's taken fades away.
+ * are marked. To castle, move the king two squares or onto the rook (both are marked,
+ * and pointing at one shows where the two end up). While the other side is to move,
+ * the same queues up a premove instead, shown until it's played or called off (by
+ * clicking an empty square, a right-click or Escape), its piece drawn faintly where
+ * it's going. Pieces slide for moves you didn't drag
+ * yourself, and a piece that's taken fades away.
  */
 export function Board(props: {
   fen: string;
@@ -22,12 +26,30 @@ export function Board(props: {
   /** The color whose pieces you can move now, or null. */
   movable: Color | null;
   onMove(uci: string): void;
+  /** The color that can queue up a premove now (while the other side is to move), or null. */
+  premovable?: Color | null;
+  /** The premove queued up, in UCI. */
+  premove?: string | null;
+  /** A premove queued up (UCI), or called off (null). */
+  onPremove?(uci: string | null): void;
+  /** The piece picked up (a square name), or null. */
+  onSelect?(square: string | null): void;
   /** Overlays (a prompt to sit down). */
   children?: ReactNode;
 }) {
   const pos = useMemo(() => parseFen(props.fen), [props.fen]);
-  const legal = useMemo(() => (props.movable && pos.turn === props.movable ? legalMoves(pos) : []), [pos, props.movable]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const now = !!props.movable && pos.turn === props.movable;
+  /** Whose pieces you can pick up: to move now, or to premove. */
+  const mover = now ? props.movable! : props.premovable && pos.turn !== props.premovable ? props.premovable : null;
+  const legal = useMemo(() => (now ? legalMoves(pos) : mover ? premoves(pos, mover) : []), [pos, now, mover]);
+  const castles = useMemo(() => (mover ? castlingOptions(pos, mover).filter((o) => (now ? !o.why : o.premove)) : []), [pos, now, mover]);
+  const [selected, setSelectedState] = useState<number | null>(null);
+  const setSelected = (sq: number | null) => {
+    setSelectedState(sq);
+    props.onSelect?.(sq === null ? null : squareName(sq));
+  };
+  /** The square under the pointer, while a king is picked up (to preview castling). */
+  const [hover, setHover] = useState<number | null>(null);
   const [drag, setDrag] = useState<{ from: number; x: number; y: number; moved: boolean; over: number | null } | null>(null);
   const [promoting, setPromoting] = useState<{ from: number; to: number } | null>(null);
   /** A piece that was just taken, fading out where it stood. */
@@ -37,12 +59,26 @@ export function Board(props: {
   const dropped = useRef<string | null>(null);
   const flip = props.orientation === "b";
 
-  // Whatever you had picked up goes back when the position changes.
+  // What you had picked up goes back when the position changes, unless it's still yours
+  // to move: a piece picked up for a premove can be played once it's your turn.
   useEffect(() => {
-    setSelected(null);
-    setDrag(null);
+    const keep = (sq: number) => !!mover && !!pos.board[sq] && colorOf(pos.board[sq]!) === mover;
+    if (selected !== null && !keep(selected)) setSelected(null);
+    setDrag((d) => (d && keep(d.from) ? d : null));
     setPromoting(null);
-  }, [props.fen, props.movable]);
+  }, [props.fen, mover]);
+
+  // Escape puts down what you'd picked up and calls off a premove (the promotion picker has its own).
+  useEffect(() => {
+    if (promoting || (!props.premove && selected === null)) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSelected(null);
+      if (props.premove) props.onPremove?.(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [promoting, props.premove, selected]);
 
   useEffect(() => {
     if (!promoting) return;
@@ -62,15 +98,27 @@ export function Board(props: {
   };
   const own = (sq: number) => {
     const p = pos.board[sq];
-    return !!p && colorOf(p) === props.movable && pos.turn === props.movable;
+    return !!p && !!mover && colorOf(p) === mover;
   };
   const targets = new Map<number, Move>(selected === null ? [] : legal.filter((m) => m.from === selected).map((m) => [m.to, m]));
+  /** The castling a square stands for when the king at `from` is put there (its two-square move, or its rook), or undefined. */
+  const castleAt = (from: number | null, sq: number | null) => (from === null || sq === null ? undefined : castles.find((o) => o.king === from && (o.to === sq || o.rook === sq)));
   /** Where the king goes when it's put on its own rook to castle, or null. */
   const castleTo = (from: number, sq: number): number | null => {
-    if (pos.board[from] !== pieceOf(pos.turn, "k") || pos.board[sq] !== pieceOf(pos.turn, "r") || rankOf(sq) !== rankOf(from)) return null;
-    const to = sq > from ? from + 2 : from - 2;
-    return legal.some((m) => m.from === from && m.to === to) ? to : null;
+    const o = castleAt(from, sq);
+    return o && o.rook === sq ? o.to : null;
   };
+  const premove = props.premove ? parseUci(props.premove) : null;
+  /** Where a premove puts its piece (and the rook, castling), drawn faintly there until it's played. */
+  const premoved: { sq: number; piece: Piece }[] = [];
+  const premover = premove && pos.board[premove.from];
+  if (premove && premover) {
+    premoved.push({ sq: premove.to, piece: premove.promotion ? pieceOf(colorOf(premover), premove.promotion) : premover });
+    if (typeOf(premover) === "k" && Math.abs(premove.to - premove.from) === 2) {
+      const [rook, rookTo] = premove.to > premove.from ? [premove.from + 3, premove.from + 1] : [premove.from - 4, premove.from - 1];
+      if (pos.board[rook]) premoved.push({ sq: rookTo, piece: pos.board[rook]! });
+    }
+  }
 
   // Slide the piece that just moved (and the rook, when castling) from where it was.
   const prevFen = useRef(props.fen);
@@ -93,21 +141,31 @@ export function Board(props: {
     if (typeOf(pos.board[m.to] ?? "p") === "k" && Math.abs(m.to - m.from) === 2) slide(m.to > m.from ? m.from + 3 : m.from - 4, m.to > m.from ? m.from + 1 : m.from - 1);
   }, [props.fen, props.lastMove]);
 
+  const done = (uci: string, viaDrag: boolean) => {
+    setSelected(null);
+    setHover(null);
+    if (now) {
+      dropped.current = viaDrag ? uci : null;
+      props.onMove(uci);
+    } else props.onPremove?.(uci);
+  };
   const tryMove = (from: number, to: number, viaDrag: boolean) => {
     const options = legal.filter((m) => m.from === from && m.to === to);
     if (!options.length) return false;
     if (options.some((m) => m.promotion)) setPromoting({ from, to });
-    else {
-      const uci = toUci(options[0]!);
-      dropped.current = viaDrag ? uci : null;
-      setSelected(null);
-      props.onMove(uci);
-    }
+    else done(toUci(options[0]!), viaDrag);
     return true;
   };
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || promoting) return;
+    if (promoting) return;
+    // A right-click puts down what you'd picked up and calls off a premove.
+    if (e.button === 2) {
+      setSelected(null);
+      if (props.premove) props.onPremove?.(null);
+      return;
+    }
+    if (e.button !== 0) return;
     const sq = squareAt(e.clientX, e.clientY);
     if (sq === null) return;
     if (selected !== null && targets.has(sq)) {
@@ -121,6 +179,7 @@ export function Board(props: {
     }
     if (!own(sq)) {
       setSelected(null);
+      if (props.premove) props.onPremove?.(null);
       return;
     }
     e.preventDefault();
@@ -131,6 +190,9 @@ export function Board(props: {
     boardRef.current!.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const from = drag?.from ?? selected;
+    const sq = from !== null && castles.some((o) => o.king === from) ? squareAt(e.clientX, e.clientY) : null;
+    if (sq !== hover) setHover(sq);
     if (!drag) return;
     const r = boardRef.current!.getBoundingClientRect();
     const [x, y] = [e.clientX - r.left, e.clientY - r.top];
@@ -147,6 +209,8 @@ export function Board(props: {
 
   const last = props.lastMove ? parseUci(props.lastMove.uci) : null;
   const checked = inCheck(pos) ? kingSquare(pos.board, pos.turn) : -1;
+  /** The castling being pointed at, to show where the king and rook end up. */
+  const preview = castleAt(drag?.from ?? selected, hover);
 
   const squares = [];
   for (let row = 0; row < 8; row++) {
@@ -159,16 +223,19 @@ export function Board(props: {
         last && (sq === last.from || sq === last.to) && "last",
         sq === selected && "selected",
         target && (pos.board[sq] || (typeOf(pos.board[target.from]!) === "p" && fileOf(sq) !== fileOf(target.from)) ? "target capture" : "target"),
-        selected !== null && castleTo(selected, sq) !== null && "target castle",
+        castleAt(selected, sq) && "target castle",
         drag?.moved && drag.over === sq && (targets.has(sq) || castleTo(drag.from, sq) !== null) && "over",
+        premove && (sq === premove.from || sq === premove.to) && "premove",
         sq === checked && "check",
       ]
         .filter(Boolean)
         .join(" ");
+      const castle = castleAt(selected, sq);
       squares.push(
         <div key={sq} className={cls} style={{ gridRow: row + 1, gridColumn: col + 1 }} data-testid={`chess-sq-${squareName(sq)}`} data-square={squareName(sq)}>
           {col === 0 && <span className="chess-coord rank">{rankOf(sq) + 1}</span>}
           {row === 7 && <span className="chess-coord file">{FILES[fileOf(sq)]}</span>}
+          {castle?.rook === sq && <span className="chess-castle-tag">castle</span>}
         </div>,
       );
     }
@@ -177,11 +244,13 @@ export function Board(props: {
   return (
     <div
       ref={boardRef}
-      className={`chess-board ${props.movable && pos.turn === props.movable ? "movable" : ""} ${drag?.moved ? "dragging" : ""}`}
+      className={`chess-board ${mover ? "movable" : ""} ${now ? "" : "premoving"} ${drag?.moved ? "dragging" : ""}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => setDrag(null)}
+      onPointerLeave={() => setHover(null)}
+      onContextMenu={(e) => e.preventDefault()}
       role="grid"
       aria-label="Chess board"
       data-testid="chess-board"
@@ -191,13 +260,15 @@ export function Board(props: {
         if (!p) return null;
         const { col, row } = cell(sq);
         const lifted = drag?.moved && drag.from === sq;
+        // Pointing at a castling: the king and rook fade where they stand.
+        const leaving = preview && !lifted && (sq === preview.king || sq === preview.rook);
         const style = lifted
           ? { left: `calc(${drag.x}px - 6.25%)`, top: `calc(${drag.y}px - 6.25%)` }
           : { left: `${col * 12.5}%`, top: `${row * 12.5}%` };
         return (
           <img
             key={sq}
-            className={`chess-piece ${lifted ? "lifted" : ""} ${own(sq) ? "own" : ""}`}
+            className={`chess-piece ${lifted ? "lifted" : ""} ${leaving ? "leaving" : ""} ${own(sq) ? "own" : ""}`}
             src={pieceSrc(p)}
             alt={`${colorOf(p) === "w" ? "White" : "Black"} ${PIECE_NAMES[typeOf(p)]} on ${squareName(sq)}`}
             draggable={false}
@@ -207,6 +278,32 @@ export function Board(props: {
           />
         );
       })}
+      {preview &&
+        [
+          { sq: preview.to, from: preview.king },
+          { sq: preview.rookTo, from: preview.rook },
+        ].map(({ sq, from }) => (
+          <img
+            key={`preview-${sq}`}
+            className="chess-piece chess-preview"
+            src={pieceSrc(pos.board[from]!)}
+            alt=""
+            draggable={false}
+            style={{ left: `${cell(sq).col * 12.5}%`, top: `${cell(sq).row * 12.5}%` }}
+            data-testid="chess-castle-preview"
+          />
+        ))}
+      {premoved.map(({ sq, piece }) => (
+        <img
+          key={`premove-${sq}`}
+          className="chess-piece chess-preview premoved"
+          src={pieceSrc(piece)}
+          alt=""
+          draggable={false}
+          style={{ left: `${cell(sq).col * 12.5}%`, top: `${cell(sq).row * 12.5}%` }}
+          data-testid="chess-premove-piece"
+        />
+      ))}
       {ghost && (
         <img
           key={ghost.key}
@@ -220,14 +317,12 @@ export function Board(props: {
       )}
       {promoting && (
         <Promotion
-          color={pos.turn}
+          color={mover ?? pos.turn}
           col={cell(promoting.to).col}
           fromTop={cell(promoting.to).row === 0}
           onPick={(promotion) => {
             setPromoting(null);
-            setSelected(null);
-            dropped.current = null;
-            props.onMove(toUci({ ...promoting, promotion }));
+            done(toUci({ ...promoting, promotion }), false);
           }}
           onCancel={() => setPromoting(null)}
         />

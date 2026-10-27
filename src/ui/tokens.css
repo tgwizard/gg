@@ -91,6 +91,11 @@
   --board-selected: rgb(91 138 74 / 0.55);
   --board-hint: rgb(47 74 58 / 0.42);
   --board-check: radial-gradient(circle, rgb(214 60 40 / 0.95) 0, rgb(214 60 40 / 0.55) 35%, transparent 72%);
+  /* a premove waiting to be played, and the dots for one; the tag on a rook you can castle with */
+  --board-premove: rgb(52 124 196 / 0.6);
+  --board-premove-hint: rgb(30 80 140 / 0.55);
+  --board-castle: #f3c77a;
+  --board-castle-ink: #3a2e24;
   /* an Othello board: green baize ruled in dark lines, and black and cream discs */
   --othello-felt: #3a7a52;
   --othello-line: #1f4a31;
@@ -268,6 +273,7 @@
   --board-light: #d9c29a;
   --board-dark: #93673f;
   --board-last: rgb(236 190 92 / 0.42);
+  --board-premove: rgb(70 140 210 / 0.55);
   --othello-felt: #2f6545;
   --othello-line: #173826;
   --othello-coord: rgb(255 244 228 / 0.55);
