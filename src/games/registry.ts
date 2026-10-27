@@ -12,6 +12,7 @@ import { poker } from "./poker";
 import { ticketToRide } from "./ticket";
 import { ticTacToe } from "./tictactoe";
 import type { AnyGameDefinition } from "./types";
+import { unicorn } from "./unicorn";
 
 export const games: Record<string, AnyGameDefinition> = {
   [ticketToRide.meta.id]: ticketToRide,
@@ -26,4 +27,5 @@ export const games: Record<string, AnyGameDefinition> = {
   [finnsISjon.meta.id]: finnsISjon,
   [femKort.meta.id]: femKort,
   [ticTacToe.meta.id]: ticTacToe,
+  [unicorn.meta.id]: unicorn,
 };

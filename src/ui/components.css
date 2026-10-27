@@ -51,20 +51,50 @@
   user-select: none;
   transition: translate 80ms ease, box-shadow 80ms ease, background-color 120ms ease;
 }
-.btn:hover:not(:disabled) { --btn-bg: var(--surface-hover); }
-.btn:active:not(:disabled) { translate: 0 2px; box-shadow: 0 1px 0 rgb(0 0 0 / 0.2), inset 0 0 0 1px var(--btn-line); }
-.btn:disabled { cursor: not-allowed; opacity: 0.5; box-shadow: inset 0 0 0 1px var(--btn-line); }
+.btn:hover:not(:disabled, .unavailable) { --btn-bg: var(--surface-hover); }
+.btn:active:not(:disabled, .unavailable) { translate: 0 2px; box-shadow: 0 1px 0 rgb(0 0 0 / 0.2), inset 0 0 0 1px var(--btn-line); }
+.btn:disabled, .btn.unavailable { cursor: not-allowed; opacity: 0.5; box-shadow: inset 0 0 0 1px var(--btn-line); }
+/* Why a button can't be used right now: a bubble over it, for a moment (see Button). */
+.why {
+  position: fixed;
+  z-index: 1000;
+  translate: -50% calc(-100% - 10px);
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  animation: why-in 160ms ease-out;
+}
+.why::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  translate: -50% 0;
+  rotate: 45deg;
+  background: inherit;
+}
+@keyframes why-in { from { opacity: 0; transform: translateY(4px); } }
 .btn.primary { --btn-bg: var(--accent); --btn-fg: var(--on-accent); --btn-line: transparent; }
-.btn.primary:hover:not(:disabled) { --btn-bg: var(--accent-hover); }
+.btn.primary:hover:not(:disabled, .unavailable) { --btn-bg: var(--accent-hover); }
 .btn.danger { --btn-bg: var(--danger); --btn-fg: #fffaf2; --btn-line: transparent; }
-.btn.danger:hover:not(:disabled) { --btn-bg: color-mix(in oklab, var(--danger), white 12%); }
+.btn.danger:hover:not(:disabled, .unavailable) { --btn-bg: color-mix(in oklab, var(--danger), white 12%); }
 /* For dark surfaces: see-through, with a light outline. */
 .btn.subtle { --btn-bg: rgb(255 255 255 / 0.06); --btn-fg: var(--on-brand); --btn-line: rgb(255 255 255 / 0.22); box-shadow: inset 0 0 0 1px var(--btn-line); }
-.btn.subtle:hover:not(:disabled) { --btn-bg: rgb(255 255 255 / 0.14); }
+.btn.subtle:hover:not(:disabled, .unavailable) { --btn-bg: rgb(255 255 255 / 0.14); }
 .btn.subtle.on { --btn-bg: var(--gold); --btn-fg: #3a2e24; --btn-line: var(--gold); }
 .btn.ghost { --btn-bg: transparent; --btn-fg: var(--text-2); --btn-line: transparent; box-shadow: none; padding-inline: 10px; }
-.btn.ghost:hover:not(:disabled) { --btn-bg: transparent; --btn-fg: var(--text); text-decoration: underline; text-underline-offset: 4px; }
-.btn.ghost:active:not(:disabled) { translate: none; box-shadow: none; }
+.btn.ghost:hover:not(:disabled, .unavailable) { --btn-bg: transparent; --btn-fg: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+.btn.ghost:active:not(:disabled, .unavailable) { translate: none; box-shadow: none; }
 .btn.small { font-size: 12.5px; padding: 8px 13px; }
 .btn.big { font-size: 15px; padding: 14px 22px; }
 

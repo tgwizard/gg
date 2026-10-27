@@ -12,5 +12,6 @@ import { pokerMeta } from "./poker/meta";
 import { ticketMeta } from "./ticket/meta";
 import { ticTacToeMeta } from "./tictactoe/meta";
 import type { GameMeta } from "./types";
+import { unicornMeta } from "./unicorn/meta";
 
-export const gameMetas: GameMeta[] = [ticketMeta, pokerMeta, chessMeta, othelloMeta, goMeta, fourInARowMeta, luffarschackMeta, battleshipMeta, cannonsMeta, finnsISjonMeta, femKortMeta, ticTacToeMeta];
+export const gameMetas: GameMeta[] = [ticketMeta, pokerMeta, chessMeta, othelloMeta, goMeta, fourInARowMeta, luffarschackMeta, battleshipMeta, cannonsMeta, finnsISjonMeta, femKortMeta, ticTacToeMeta, unicornMeta];

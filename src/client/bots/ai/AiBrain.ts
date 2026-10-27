@@ -18,7 +18,7 @@
  * new conversation and cancels the call in flight, and an answer that arrives after the
  * game moved on is never played into it.
  */
-import { BOT_MIN_MOVE_MS } from "../../../games/kit/bot";
+import { BOT_MIN_MOVE_MS, botPace } from "../../../games/kit/bot";
 import type { AnyGameDefinition } from "../../../games/types";
 import { clientFor, getConnection } from "../../llm/connections";
 import { type Effort, type LLMClient, LLMError, type LLMMessage, type LLMPart, type LLMUsage } from "../../llm/types";
@@ -346,7 +346,7 @@ export class AiBrain {
       else {
         try {
           // A quick model still leaves people a moment to see the last move.
-          const wait = this.seenVersionAt + BOT_MIN_MOVE_MS - Date.now();
+          const wait = this.seenVersionAt + botPace(this.def) - Date.now();
           if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
           if (this.stopped || generation !== this.generation) return;
           await this.host.sendOp(act.op, at!);

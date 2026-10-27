@@ -12,6 +12,7 @@ import { pokerUI } from "./poker/ui";
 import { ticketUI } from "./ticket/ui";
 import { ticTacToeUI } from "./tictactoe/ui";
 import type { GameUI } from "./ui";
+import { unicornUI } from "./unicorn/ui";
 
 export const gameUIs: Record<string, GameUI> = {
   [ticketUI.meta.id]: ticketUI,
@@ -26,4 +27,5 @@ export const gameUIs: Record<string, GameUI> = {
   [finnsISjonUI.meta.id]: finnsISjonUI,
   [femKortUI.meta.id]: femKortUI,
   [ticTacToeUI.meta.id]: ticTacToeUI,
+  [unicornUI.meta.id]: unicornUI,
 };

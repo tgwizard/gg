@@ -63,6 +63,11 @@ export interface GameMeta {
   botNotes?: string;
   /** Still being tuned: marked "WIP" wherever the game is named. */
   wip?: boolean;
+  /**
+   * Bots wait at least this long after the game changes before moving (default
+   * BOT_MIN_MOVE_MS), for games whose moves take a while to play out on screen.
+   */
+  botPaceMs?: number;
   /** What kind of game it is, shown where games are listed (see GAME_TAGS). */
   tags?: GameTag[];
 }

@@ -46,12 +46,18 @@ export type Sfx =
   | "boom"
   /** A heartbeat: your time is nearly up. */
   | "heartbeat"
+  /** A die rattled and rolled across the table. */
+  | "dice"
+  /** A light hop from one stepping stone to the next. */
+  | "hop"
+  /** A shimmer of rising chimes (the rainbow filling up). */
+  | "sparkle"
   /** Something done well (a book, a ticket). */
   | "good"
   | "win"
   | "lose";
 
-export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "pen", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "heartbeat", "good", "win", "lose"];
+export const SFX: Sfx[] = ["turn", "card", "flip", "chip", "place", "stone", "drop", "pen", "capture", "check", "splash", "hit", "sink", "knock", "claim", "cannon", "boom", "heartbeat", "dice", "hop", "sparkle", "good", "win", "lose"];
 
 const KEY = "gg.sound";
 const VOLUME = 0.18;
@@ -237,6 +243,17 @@ const SOUNDS: Record<Sfx, (a: AudioContext, t: number) => void> = {
     tone(a, t, 190, 0.1, { to: 120, gain: 0.1, attack: 0.008 });
     tone(a, t + 0.22, 82, 0.12, { to: 54, gain: 0.36, attack: 0.008 });
     tone(a, t + 0.22, 164, 0.08, { to: 110, gain: 0.07, attack: 0.008 });
+  },
+  dice(a, t) {
+    // A few quick wooden clacks, slowing as the die settles.
+    for (const [i, at] of [0, 0.07, 0.15, 0.26, 0.4].entries()) tone(a, t + at, vary(900 - i * 90, 0.1), 0.035, { to: 500, gain: 0.12 - i * 0.015, attack: 0.002 });
+  },
+  hop(a, t) {
+    // A soft, springy boop.
+    tone(a, t, vary(420, 0.05), 0.12, { to: 640, gain: 0.12, attack: 0.008 });
+  },
+  sparkle(a, t) {
+    for (const [i, f] of [1046.5, 1318.5, 1568, 2093].entries()) tone(a, t + i * 0.07, f, 0.5, { gain: 0.06, attack: 0.01 });
   },
   good(a, t) {
     tone(a, t, 659.25, 0.45, { gain: 0.12, attack: 0.015 });

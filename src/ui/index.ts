@@ -11,6 +11,7 @@ import { applyMode } from "./mode";
 
 applyMode();
 
+export { busyWhy, Button } from "./Button";
 export { hash2 } from "./hash";
 export { Meter } from "./Meter";
 export { applyMode, type Mode, MODE_SHORTCUT, toggleMode, useMode } from "./mode";

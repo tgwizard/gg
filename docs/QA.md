@@ -232,6 +232,18 @@ these through the browser and reports back.
 - [ ] On a laptop screen (1440×900) the players, the map, the market, your cards and your tickets all fit without scrolling; narrower windows stack them under the map.
 - [ ] Phone: the map scrolls sideways; the market, your cards and tickets stay usable.
 
+### Unicorn race
+- [ ] *Open the meadow*: empty seats offer two big buttons, 🧸 *Kid* (rainbow rim, wiggles on hover) and ☕ *Grown-up*; your plate has a switch whose thumb slides between them (rainbow for a kid) before the race.
+- [ ] No disabled buttons: offline (or mid-send), pressing *Roll the die* or a seat button shows a bubble over it saying why. *Start the race* works with one racer; a kid goes first.
+- [ ] Tap the die on your turn (it bobs; "Your turn! Tap the die"): it's thrown up and tumbles in 3D onto the number (real faces), then your unicorn hops stop by stop (a soft boop each) and everyone sees it. Tapping it when it isn't yours says whose turn it is.
+- [ ] Where there's a friend you lack, a bubble pops out of the stop: *The Fox wants a ride!* (or *Who wants a ride?* at a station, offering only friends you lack); tap them and they hop onto the ring round your unicorn, and their segment fills on your card's ring. Others see who's being picked from. Meadow: "Oh no, there's nothing here!" (or similar) for a few seconds.
+- [ ] All six: chat says the rainbow bridge is open, it lights up, your plate shows → 🏰. At the start you turn onto the bridge (others go round as usual); reaching or passing the castle wins. Two or three unicorns on one stop stand apart, their friend rings visible.
+- [ ] The rainbow fills with every roll (*Often* / *Now and then* / *Rarely* in the set-up). Full: it flashes with a sparkle and rainbow ribbons flow into every kid's unicorn; they're powered up (a turning rainbow round the unicorn, a rainbow rim and "Rainbow power!" on their card) until they've rolled their rainbow roll, which comes after their next move. Grown-ups never get one.
+- [ ] At the castle: the results (friends per player, everyone's six slots), *Race again* starts with the next racer.
+- [ ] Bots wait for a roll to finish galloping before their move. Leaving mid-race passes the turn on.
+- [ ] Phone: the meadow turns upright; the die, rainbow and buttons fit in its middle. Dark mode: a night meadow. Hot seat: a kid and a grown-up on one device take turns.
+- [ ] `/try/unicorn/…`: one friend to go, rainbow nearly full, over the rainbow bridge, you won.
+
 ### Turns, sound and the end of a game
 - [ ] In every game the header shows "Your turn" (gold, with a pulsing dot) or "Bob's turn"; becoming your turn chimes and the tab title starts with "● Your turn". The player to move has a breathing gold ring.
 - [ ] Sounds: cards, chips, checks (knocks), moves and captures, splashes, hits and sinkings, a claimed route, wins. A heartbeat in your last 10 s on a timed turn (not on others' turns). The speaker in the top bar (and /settings) turns them off and it sticks after a reload. /ui plays each one.
@@ -254,9 +266,9 @@ these through the browser and reports back.
 - [ ] Hot seat with Play again: make the first move, resign as the other, *Play again*: the new opener can move straight away (no ghost of the old move).
 
 ### Hot seat
-- [ ] Game cards for chess, Othello, Go, Four in a Row, Luffarschack, tic-tac-toe and Cannons show a *Hot seat* tag (hover: why); the others don't.
+- [ ] Game cards for chess, Othello, Go, Four in a Row, Luffarschack, tic-tac-toe, Cannons and Unicorn race show a *Hot seat* tag (hover: why); the others don't.
 - [ ] *+ Player on this device* (members panel or *Here now*): with nobody saved yet, a name-and-color form; *Add* joins them (chat: "Sam joined on Alice's device."), tagged *with you* (others see *with Alice*). Next time it lists who's played here before, plus *+ Someone new*.
-- [ ] Start a hot-seat game: *On this device* shows you and Sam, you selected. Sit down, click Sam, sit him down. Each move turns the game to whoever's next (board flipped to their side, "Your move."), the turn pill says *Sam's turn*, and there's no chime between you two. Against a remote player or a bot, it stays on whichever of you last moved.
+- [ ] Start a hot-seat game: *On this device* shows you and Sam, you selected. Sit down: the game turns to Sam (still standing), so sit him down too (with more of you, each in turn); clicking a name switches by hand. Each move turns the game to whoever's next (board flipped to their side, "Your move."), the turn pill says *Sam's turn*, and there's no chime between you two. Against a remote player or a bot, it stays on whichever of you last moved.
 - [ ] Click Sam's name to rename or recolor him; × takes him out (he gives up his seat); *Settings → Profile → Players on this device* lists him, with *Edit* and *Forget*.
 - [ ] Up to 4 bots and players on your device together in a room.
 - [ ] In a game that isn't hot seat (poker), guests are just members: the game shows only you.

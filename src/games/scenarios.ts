@@ -24,6 +24,8 @@ import { ticketToRide } from "./ticket";
 import { scenarios as ticketScenarios } from "./ticket/scenarios";
 import { ticTacToe } from "./tictactoe";
 import { scenarios as ticTacToeScenarios } from "./tictactoe/scenarios";
+import { unicorn } from "./unicorn";
+import { scenarios as unicornScenarios } from "./unicorn/scenarios";
 
 export const scenarios: Record<string, Scenario[]> = {
   [ticketToRide.meta.id]: ticketScenarios,
@@ -38,4 +40,5 @@ export const scenarios: Record<string, Scenario[]> = {
   [finnsISjon.meta.id]: finnsISjonScenarios,
   [femKort.meta.id]: femKortScenarios,
   [ticTacToe.meta.id]: ticTacToeScenarios,
+  [unicorn.meta.id]: unicornScenarios,
 };

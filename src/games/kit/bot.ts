@@ -19,6 +19,9 @@ export type BotIntent = "play" | "leave";
  */
 export const BOT_MIN_MOVE_MS = 1_000;
 
+/** How long a bot waits at least after `def` last changed (see `GameMeta.botPaceMs`). */
+export const botPace = (def: AnyGameDefinition | null | undefined) => Math.max(BOT_MIN_MOVE_MS, def?.meta.botPaceMs ?? 0);
+
 /** The op to send next, or null to wait for something to change. */
 export function botMove(
   def: AnyGameDefinition,

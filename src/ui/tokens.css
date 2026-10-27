@@ -172,6 +172,32 @@
   --cannons-spray: rgb(196 226 238 / 0.95);
 
   /* type & shape */
+  /* Unicorn race: a meadow with a sandy path of stepping stones, the six friends in rainbow colors */
+  --uni-meadow: radial-gradient(ellipse at 50% 45%, #c3e19a, #a5cf7c 55%, #8cbd66);
+  --uni-meadow-edge: #6f9f4e;
+  --uni-path: #ecd9ad;
+  --uni-path-edge: #c7a874;
+  --uni-stone: #fffaf0;
+  --uni-stone-edge: #b89b6a;
+  --uni-meadow-stone: #e9e2c8;
+  --uni-start: #f3c77a;
+  --uni-start-edge: #b88a35;
+  --uni-flower: #fff7f0;
+  --uni-flower-2: #f2a7c3;
+  --uni-flower-3: #f6d76b;
+  --uni-tuft: rgb(70 120 50 / 0.35);
+  --uni-ink: #3a2e24;
+  --uni-glow: rgb(255 248 220 / 0.9);
+  --uni-band-empty: rgb(255 255 255 / 0.45);
+  --uni-red: #e2574c;
+  --uni-orange: #f08a36;
+  --uni-yellow: #f2c53d;
+  --uni-green: #5aa64a;
+  --uni-blue: #3f8fd0;
+  --uni-purple: #9a62c4;
+  --uni-die: #fffaf2;
+  --uni-pip: #3a2e24;
+
   --font-body: "Nunito Variable", system-ui, sans-serif;
   --font-display: "Fraunces Variable", Georgia, serif;
   --radius: 12px;
@@ -309,6 +335,31 @@
   --cannons-smoke-dark: rgb(18 16 14 / 0.82);
   --cannons-dirt: #5a3d22;
   --cannons-spray: rgb(200 220 232 / 0.85);
+
+  --uni-meadow: radial-gradient(ellipse at 50% 45%, #3d5c3c, #304c31 55%, #263f28);
+  --uni-meadow-edge: #1c301e;
+  --uni-path: #6e5d42;
+  --uni-path-edge: #4a3c28;
+  --uni-stone: #e9dfcc;
+  --uni-stone-edge: #8a7556;
+  --uni-meadow-stone: #8f8670;
+  --uni-start: #d9ad5f;
+  --uni-start-edge: #8a6424;
+  --uni-flower: #e8ddd0;
+  --uni-flower-2: #c47d99;
+  --uni-flower-3: #cfae4c;
+  --uni-tuft: rgb(160 210 140 / 0.18);
+  --uni-ink: #2a221b;
+  --uni-glow: rgb(255 240 200 / 0.55);
+  --uni-band-empty: rgb(255 255 255 / 0.12);
+  --uni-red: #d65448;
+  --uni-orange: #e08236;
+  --uni-yellow: #ddb53a;
+  --uni-green: #5b9c4b;
+  --uni-blue: #4b8cc4;
+  --uni-purple: #9668bb;
+  --uni-die: #f1e8d6;
+  --uni-pip: #2a221b;
 
   color-scheme: dark;
 }

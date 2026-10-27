@@ -148,6 +148,12 @@ display type and Nunito for everything else.
 - `components.css` + `Panel`, `Meter`, `Spinner`: boxes, panels with titles set
   into the border, buttons (`primary`, `subtle`, `ghost`, `danger`), fields, tags,
   status lights, banners, toasts.
+- **No disabled buttons.** A button that can't be used right now is a `Button` with `why`
+  (`src/ui/Button.tsx`): it looks unavailable (`aria-disabled`, greyed), and pressing it
+  says why in a bubble over it for a few seconds ("Reconnecting…", "It's Sam's turn")
+  instead of doing nothing. `busyWhy({busy, connected})` has the usual reasons. Unicorn
+  race follows this; the older games and the room UI still have plain `disabled`
+  buttons to convert.
 - `mode.ts`: light/dark. Follows the system until you choose (the settings cog, /settings, or
   Ctrl+Shift+L); the choice is remembered per browser. `index.html` applies it before first paint.
 - Artwork lives in `public/icons/` (generated illustrations for gg and each game;
@@ -655,6 +661,53 @@ locomotives showing and all five are replaced), 30 destination tickets, 100 rout
   curved where the printed board curves them, with label offsets per city. Train
   colors and the board's land and water are tokens (`--train-*`, `--map-*`).
 
+### Unicorn race (`src/games/unicorn`)
+
+A children's race for 1–4 unicorns (WIP, an original design; expect it to change). Each
+seat is a kid or a grown-up, chosen when sitting down (`sit` takes an optional `kid`) and
+changeable between races (`{type: "kid"}`).
+- **The track** (`TRACK` in `engine.ts`) is a loop of 30 stops from the start: stops with one
+  kind of friend, stations with two or three to choose from, and meadow. There are six
+  friends, one per rainbow color (Ladybug, Fox, Chick, Frog, Whale, Octopus); each has two
+  stops of its own and three stations (a unit test keeps it so). After it comes the rainbow
+  bridge: positions `LOOP`… (`BRIDGE` stops, the castle, `FINISH`, last).
+- **A turn:** `roll` moves you forward by the die, stop by stop (`nextStop`). Where you stop,
+  whoever's there that you lack wants a ride, and you pick them up yourself (`stage:
+  "pick"`, `pick`), even when there's only one: it's a kids' game, the tap is the fun. With
+  all six, the bridge opens for you: at the start you turn onto it instead of going round
+  again, nobody's on it to pick up, and the first to reach the castle wins (galloping past
+  it counts). The next race opens with the next racer (the first race, a kid).
+- **Rainbow power:** every roll adds its pips to a shared meter; at `config.rainbowAt` (12,
+  20 or 30 from the set-up; 20 by default) it empties and every kid racing gets a rainbow
+  roll (at most 3 saved), used right after their next move, so the kid whose roll filled
+  it rolls again at once.
+- **The bot** only decides at stations: the friend with the fewest stops in the 12 ahead
+  (easy: anyone). `meta.botPaceMs` (3 s) makes bots wait for a roll to play out.
+- **The board** (`ui/`): an SVG meadow (`geometry.ts`: a superellipse loop with a wobble,
+  stops spaced evenly along it; turned upright on phones). The bridge curves from the start
+  into the middle to the castle (left on a wide board, up on a tall one), faded until
+  someone has all six; the rainbow meter, the die and what to do go in the rest of the
+  middle (`controls`). Each unicorn carries its friends in a ring round it, each friend in
+  its own place (faint dashed places for those still to find), so all six make a rainbow;
+  a new one hops on from the stop. `useGallop` plays a live roll out a little behind the
+  server: the die tumbles (900 ms), then the unicorn hops stop by stop (320 ms each); the
+  choice, the bubbles and the results wait for that.
+- **The die** (`ui/Die.tsx`) is a CSS 3D cube with real faces (opposites adding to 7), and
+  it's the roll button: tap it. A roll spins it whole turns onto the number while it's
+  thrown up and bounces; when it isn't yours to roll, pressing it says why.
+- **Bubbles at the stop** (`StopBubble`): when a unicorn stops, a bubble pops out of that
+  stop: who wants a ride (buttons for the one picking, the friends for everyone else),
+  or for a few seconds what the roll came to ("Oh no, there's nothing here!", "The Fox
+  hops on!", "Over the rainbow bridge!").
+- **Rainbow power:** when the meter fills it flashes, and rainbow ribbons flow from it into
+  every kid's unicorn; each is then powered up (a turning rainbow ring and twinkles on the
+  board, a rainbow rim on their card) until they've rolled their rainbow roll.
+- **Cards:** each racer's card has a ring of six segments in the friends' colors, filled
+  as they come aboard, with how many in the middle (the castle once all six are aboard),
+  and how many are still to find.
+- Sounds: `dice`, `hop`, `sparkle`. Colors are tokens (`--uni-*`); friends and unicorns are
+  emoji on discs of their colors.
+
 ### Texas Hold'em (`src/games/poker`)
 
 No-limit hold'em for 2–9 seats: blinds (heads-up rules included), min-raise
@@ -719,7 +772,8 @@ A bot is just another member of the room, played from its owner's browser:
 - **Playing** (`BotPlayer`). The bot gets only its own redacted view, like
   anyone, plus `legalOps` (the server adds them to bots' snapshots). After every
   change it waits a moment, like a person (never under `BOT_MIN_MOVE_MS`, 1 s, for
-  built-in and AI bots alike, so people see each move before the next lands), then
+  built-in and AI bots alike, so people see each move before the next lands; longer in a
+  game whose moves take a while to play out, `GameMeta.botPaceMs`), then
   makes one move through the same
   path as a click (with `ifVersion`, so a move against an old situation is refused
   and it looks again). It plays on the same turn clocks as everyone. Seats are left
@@ -827,7 +881,7 @@ errors. Production builds drop it; e2e runs turn it off (`GG_DEV_LOGS=0`).
 
 People can take turns on one device, in games tagged `hot-seat` (`GameMeta.tags`: nothing
 in them is hidden, so one screen can show it to everyone; chess, Othello, Go, Four in a
-Row, Luffarschack, tic-tac-toe, Cannons). Tags show on the game cards ("Hot seat"), with
+Row, Luffarschack, tic-tac-toe, Cannons, Unicorn race). Tags show on the game cards ("Hot seat"), with
 room for more kinds later (`GAME_TAGS` in `games/types.ts`).
 
 - **Who.** Someone playing on your device is a player kept in this browser, like a bot
@@ -845,9 +899,10 @@ room for more kinds later (`GAME_TAGS` in `games/types.ts`).
 - **The game.** In a hot-seat game with guests here, `GameStage` shows the game as
   whichever of you on the device it's waiting on (`useActing`: the view, `me` and moves
   all come from that player's connection), following each turn, so the board turns to
-  them (chess, Othello and Go put your side at the bottom). A bar over the game (*On
-  this device*) shows who it's shown as and switches to someone else until the game
-  next changes, which is how a guest takes a seat. The turn pill says "Sam's turn", as
+  them (chess, Othello and Go put your side at the bottom). When one of you has just sat
+  down and nobody's move is due, it turns to the next of you still standing, so they can
+  sit down too. A bar over the game (*On this device*) shows who it's shown as and
+  switches to someone else until the game next changes. The turn pill says "Sam's turn", as
   yours, and doesn't chime as the turn passes between you. In other games guests are
   just members.
 - **State that belongs to one of you.** The game's page isn't remounted on a switch (the

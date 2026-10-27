@@ -4,6 +4,7 @@
 - Client/server contract: `src/shared/protocol.ts`. Bump `PROTOCOL_VERSION` on breaking changes.
 - Game state never goes to clients directly; only `view(state, viewer)`. Keep views built field by field.
 - The room server must stay game-agnostic (it only uses the `GameDefinition` contract). Shared game building blocks go in `src/games/kit`; every game must pass `src/games/conformance.test.ts`.
+- No disabled buttons: one that can't be used now is a `Button` from `src/ui` with `why` (greyed; pressing it shows why). Use it for anything new or touched.
 - UI: design tokens and shared components in `src/ui` (light + dark via `data-mode`), card-game parts in `src/games/kit/ui`. Use the token names, never raw colors in components; check both modes and `/ui`.
 - Ports 5173 and 5199 are often taken by other projects on this machine; use `--port 5311` for dev. E2E uses 5312.
 - Before calling a big change done: `pnpm test:all`, then the relevant parts of `docs/QA.md` (screenshots via `node test/e2e/screens.ts`).

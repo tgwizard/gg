@@ -14,7 +14,7 @@
  * out of the game and the room together. Until the room confirms, the bot keeps the room
  * (marked `removing`), so a removal made while the room wasn't open happens when it is.
  */
-import { BOT_MIN_MOVE_MS, tableMove } from "../../games/kit/bot";
+import { BOT_MIN_MOVE_MS, botPace, tableMove } from "../../games/kit/bot";
 import { isLobbyOp } from "../../games/kit/lobby";
 import type { AnyGameDefinition } from "../../games/types";
 import type { BotInfo } from "../../shared/protocol";
@@ -184,7 +184,9 @@ export class BotPlayer {
 
   private think() {
     const [min, max] = THINK_MS;
-    this.timer = setTimeout(() => this.move(), min + random(max - min));
+    // A game that takes longer to play out (a die rolling, a unicorn galloping) gets the extra time.
+    const extra = botPace(this.games?.[this.client?.getSnapshot().game?.gameId ?? ""]) - min;
+    this.timer = setTimeout(() => this.move(), min + extra + random(max - min));
   }
 
   private async move() {

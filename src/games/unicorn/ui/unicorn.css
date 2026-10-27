@@ -1,0 +1,405 @@
+/* ---------- the meadow ---------- */
+.uni { display: flex; flex-direction: column; gap: 14px; }
+.uni-stage {
+  position: relative;
+  width: min(100%, calc((100dvh - 250px) * 1000 / 640));
+  min-width: min(100%, 520px);
+  margin: 0 auto;
+  border-radius: 28px;
+  background: var(--uni-meadow);
+  border: 3px solid var(--uni-meadow-edge);
+  box-shadow: var(--table-shadow);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.uni.tall .uni-stage { width: 100%; min-width: 0; border-radius: 22px; }
+.uni-board { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.uni-path-edge, .uni-path { fill: none; stroke-linejoin: round; }
+.uni-path-edge { stroke: var(--uni-path-edge); stroke-width: 44; }
+.uni-path { stroke: var(--uni-path); stroke-width: 36; }
+.uni-tuft { fill: none; stroke: var(--uni-tuft); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.uni-flower circle { fill: var(--uni-flower); }
+.uni-flower.b circle { fill: var(--uni-flower-2); }
+.uni-flower.c circle { fill: var(--uni-flower-3); }
+.uni-flower .uni-flower-heart { fill: var(--uni-flower-3); }
+.uni-flower.c .uni-flower-heart { fill: var(--uni-flower); }
+
+/* ---------- stops ---------- */
+.uni-stone { fill: var(--uni-stone); stroke: var(--rc); stroke-width: 7; }
+.uni-station { fill: var(--uni-stone); stroke: var(--uni-stone-edge); stroke-width: 3; }
+.uni-mini { fill: color-mix(in oklab, var(--rc) 30%, var(--uni-stone)); stroke: var(--rc); stroke-width: 3.5; }
+.uni-meadow-stone { fill: var(--uni-meadow-stone); stroke: var(--uni-stone-edge); stroke-width: 2; }
+.uni-start { fill: var(--uni-start); stroke: var(--uni-start-edge); stroke-width: 3; }
+.uni-arch path { fill: none; stroke-width: 3.4; stroke-linecap: round; }
+.uni-start-text { font: 800 11px var(--font-body); fill: var(--uni-ink); text-transform: uppercase; letter-spacing: 0.1em; }
+.uni-stop-face { font-size: 34px; }
+.uni-mini-face { font-size: 17px; }
+.uni-stop-glow { fill: var(--uni-glow); animation: uni-glow 1.4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+@keyframes uni-glow { from { opacity: 0.45; scale: 0.9; } to { opacity: 1; scale: 1.05; } }
+
+/* ---------- the rainbow bridge and the castle ---------- */
+/* Faded until someone has all six friends; then it lights up. */
+.uni-bridge { opacity: 0.32; filter: saturate(0.35); transition: opacity 900ms ease, filter 900ms ease; }
+.uni-bridge.open { opacity: 1; filter: none; }
+.uni-bridge-band { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.uni-cloud { fill: var(--uni-stone); stroke: var(--uni-stone-edge); stroke-width: 2; }
+.uni-castle { fill: var(--uni-start); stroke: var(--uni-start-edge); stroke-width: 3; }
+.uni-bridge.open .uni-castle { animation: uni-castle 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes uni-castle { 50% { filter: drop-shadow(0 0 10px var(--gold)); } }
+.uni-castle-face { font-size: 52px; }
+
+/* ---------- unicorns ---------- */
+.uni-token { transition: transform 210ms cubic-bezier(0.3, 0.7, 0.4, 1); }
+.uni-token-base { fill: var(--pc); stroke: var(--uni-stone); stroke-width: 4; }
+.uni-token.active .uni-token-base { stroke: var(--gold); stroke-width: 5; }
+.uni-token.active > g { filter: drop-shadow(0 0 6px var(--gold)); }
+.uni-token-shadow { fill: color-mix(in oklab, var(--uni-ink) 28%, transparent); }
+.uni-token-face { font-size: 28px; }
+/* The same hop under two names: alternating restarts it on every stop. */
+.uni-hop-a { animation: uni-hop-a 300ms ease-out; }
+.uni-hop-b { animation: uni-hop-b 300ms ease-out; }
+@keyframes uni-hop-a { 45% { transform: translateY(-20px); } }
+@keyframes uni-hop-b { 45% { transform: translateY(-20px); } }
+
+/* Friends riding along, in a ring round their unicorn; a new one hops on from the stop. */
+.uni-friend circle { fill: color-mix(in oklab, var(--rc) 30%, var(--uni-stone)); stroke: var(--rc); stroke-width: 2.5; }
+.uni-friend text { font-size: 13px; }
+.uni-friend { animation: uni-join 700ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+@keyframes uni-join {
+  0% { transform: translate(var(--jx), var(--jy)) scale(1.8); }
+  40% { transform: translate(calc(var(--jx) * 0.5), calc(var(--jy) * 0.5 - 26px)) scale(1.4); }
+  100% { transform: none; }
+}
+
+/* Rainbow power: flowing from the meter into the kids' unicorns, then a turning rainbow round each until their rainbow roll. */
+.uni-flow path { fill: none; stroke-linecap: round; stroke-dasharray: 0.3 1.4; stroke-dashoffset: 0.3; animation: uni-flow 1.5s ease-in-out forwards; }
+@keyframes uni-flow {
+  0% { stroke-dashoffset: 0.3; opacity: 1; }
+  75% { opacity: 1; }
+  100% { stroke-dashoffset: -1; opacity: 0; }
+}
+.uni-aura { animation: uni-aura-in 700ms ease-out both; }
+@keyframes uni-aura-in { from { opacity: 0; transform: scale(0.4); } }
+.uni-aura-ring { animation: uni-spin 3s linear infinite; filter: drop-shadow(0 0 4px var(--gold)); }
+.uni-aura-ring path { fill: none; stroke-width: 5; stroke-linecap: round; }
+@keyframes uni-spin { to { transform: rotate(360deg); } }
+.uni-twinkle { font-size: 14px; animation: uni-twinkle 1.8s ease-in-out infinite; }
+.uni-twinkle.t0 { transform: translate(-40px, -30px); }
+.uni-twinkle.t1 { transform: translate(42px, -12px); animation-delay: 0.6s; }
+.uni-twinkle.t2 { transform: translate(-8px, 44px); animation-delay: 1.2s; }
+@keyframes uni-twinkle { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+.plate.uni-powered {
+  border-color: transparent;
+  background: linear-gradient(var(--brand), var(--brand)) padding-box,
+    conic-gradient(var(--uni-red), var(--uni-orange), var(--uni-yellow), var(--uni-green), var(--uni-blue), var(--uni-purple), var(--uni-red)) border-box;
+  border: 3px solid transparent;
+}
+
+/* ---------- the middle: rainbow, die, what to do ---------- */
+.uni-middle {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  pointer-events: none;
+}
+.uni-middle > * { pointer-events: auto; }
+.uni-rainbow { position: relative; width: min(250px, 92%); }
+.uni-rainbow svg { display: block; width: 100%; }
+.uni-band { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dasharray 600ms ease-out; }
+.uni-band.empty { stroke: var(--uni-band-empty); }
+.uni-rainbow-label { display: block; margin-top: 2px; font-size: 10px; color: var(--text-2); }
+.uni-rainbow.burst svg { animation: uni-burst 1.2s ease-out; }
+@keyframes uni-burst {
+  0% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(1.12); filter: brightness(1.35) drop-shadow(0 0 12px var(--gold)); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+/* The die: a cube with six real faces, and the button that rolls it. */
+.uni-die {
+  --size: 70px;
+  --half: 35px;
+  position: relative;
+  display: block;
+  width: var(--size);
+  height: var(--size);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.uni-die-scene { display: block; width: 100%; height: 100%; perspective: 420px; }
+.uni-cube { position: relative; display: block; width: 100%; height: 100%; transform-style: preserve-3d; transition-property: transform; transition-timing-function: cubic-bezier(0.22, 0.85, 0.3, 1.02); }
+.uni-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 11px;
+  border-radius: 14px;
+  background: radial-gradient(circle at 35% 30%, var(--uni-die), color-mix(in oklab, var(--uni-die) 88%, var(--uni-stone-edge)));
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--uni-stone-edge) 55%, transparent), inset 0 -3px 6px color-mix(in oklab, var(--uni-stone-edge) 30%, transparent);
+  backface-visibility: hidden;
+}
+.uni-face > span { place-self: center; width: 12px; height: 12px; border-radius: 50%; }
+.uni-face > .pip { background: radial-gradient(circle at 40% 35%, color-mix(in oklab, var(--uni-pip) 70%, white), var(--uni-pip) 70%); }
+/* A shadow under it on the meadow. */
+.uni-die::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: -10px;
+  height: 10px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--uni-ink) 22%, transparent);
+  filter: blur(2px);
+  z-index: -1;
+}
+/* Yours to roll: it bobs, asking to be tapped. */
+.uni-die.ready .uni-die-scene { animation: uni-die-bob 1.6s ease-in-out infinite; }
+.uni-die.ready:hover .uni-die-scene { animation-duration: 0.8s; }
+@keyframes uni-die-bob { 50% { transform: translateY(-6px) rotate(-3deg); } }
+/* A rainbow roll: every face a colour of the rainbow, white pips, and a glow that cycles through them. */
+.uni-die.rainbow .uni-face {
+  --face: var(--uni-red);
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--face) 70%, white), var(--face) 75%);
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, white 55%, transparent), inset 0 -4px 8px color-mix(in oklab, var(--uni-ink) 25%, transparent);
+}
+.uni-die.rainbow .uni-face:nth-child(2) { --face: var(--uni-orange); }
+.uni-die.rainbow .uni-face:nth-child(3) { --face: var(--uni-yellow); }
+.uni-die.rainbow .uni-face:nth-child(4) { --face: var(--uni-green); }
+.uni-die.rainbow .uni-face:nth-child(5) { --face: var(--uni-blue); }
+.uni-die.rainbow .uni-face:nth-child(6) { --face: var(--uni-purple); }
+.uni-die.rainbow .uni-face > .pip { background: radial-gradient(circle at 40% 35%, white, #f4efe8 70%); box-shadow: 0 1px 2px color-mix(in oklab, var(--uni-ink) 45%, transparent); }
+.uni-die.rainbow { animation: uni-die-glow 2.4s linear infinite; }
+@keyframes uni-die-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px var(--uni-red)); }
+  17% { filter: drop-shadow(0 0 8px var(--uni-orange)); }
+  33% { filter: drop-shadow(0 0 8px var(--uni-yellow)); }
+  50% { filter: drop-shadow(0 0 8px var(--uni-green)); }
+  67% { filter: drop-shadow(0 0 8px var(--uni-blue)); }
+  83% { filter: drop-shadow(0 0 8px var(--uni-purple)); }
+}
+.uni-die.shaking .uni-die-scene { animation: uni-die-shake 260ms ease-in-out infinite; }
+@keyframes uni-die-shake { 25% { transform: rotate(-9deg) translateY(-3px); } 75% { transform: rotate(9deg) translateY(-3px); } }
+/* Rolling: it's thrown up and lands with a bounce while the cube spins. */
+.uni-die.tumbling .uni-die-scene { animation: uni-die-throw 900ms ease-out; }
+@keyframes uni-die-throw {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(-42px) scale(1.12); }
+  70% { transform: translateY(0) scale(0.96); }
+  85% { transform: translateY(-8px); }
+  100% { transform: none; }
+}
+.uni-die.unavailable { cursor: not-allowed; }
+.uni-die.unavailable:not(.tumbling) .uni-face { filter: saturate(0.6); }
+
+.uni-turn { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 34px; margin-top: 6px; }
+.uni-whose {
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: var(--pill);
+  background: color-mix(in oklab, var(--surface) 85%, transparent);
+  font-weight: 700;
+  font-size: 14px;
+}
+.uni-turn.yours .uni-whose { background: var(--accent); color: var(--on-accent); font-size: 15px; }
+
+/* ---------- a bubble out of the stop ---------- */
+.uni-bubble {
+  position: absolute;
+  z-index: 4;
+  /* As wide as what it says, up to a point; longer lines wrap. */
+  width: max-content;
+  max-width: min(300px, 70%);
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md), 0 0 0 2px var(--uni-stone-edge);
+  text-align: center;
+  font-weight: 800;
+  font-size: 15px;
+  --tx: -50%;
+  --tail: 50%;
+  translate: var(--tx) -100%;
+  animation: uni-bubble-in 320ms cubic-bezier(0.3, 1.5, 0.5, 1);
+  transform-origin: var(--tail) 100%;
+}
+.uni-bubble.below { translate: var(--tx) 0; transform-origin: var(--tail) 0; }
+.uni-bubble.start { --tx: -10%; --tail: 10%; }
+.uni-bubble.end { --tx: -90%; --tail: 90%; }
+.uni-bubble::after {
+  content: "";
+  position: absolute;
+  left: var(--tail);
+  bottom: -8px;
+  width: 16px;
+  height: 16px;
+  translate: -50% 0;
+  rotate: 45deg;
+  background: var(--surface);
+  box-shadow: 2px 2px 0 0 var(--uni-stone-edge);
+}
+.uni-bubble.below::after { bottom: auto; top: -8px; box-shadow: -2px -2px 0 0 var(--uni-stone-edge); }
+@keyframes uni-bubble-in { from { transform: scale(0.3); opacity: 0; } }
+.uni-bubble.say { display: flex; align-items: center; gap: 8px; text-align: left; }
+.uni-bubble-text { text-wrap: balance; }
+.uni-bubble-emoji { font-size: 26px; line-height: 1; }
+.uni-bubble-title { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.05rem; text-wrap: balance; }
+.uni-choice-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.uni-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 62px;
+  padding: 6px 8px 5px;
+  border-radius: 16px;
+  border: 3px solid var(--rc);
+  background: color-mix(in oklab, var(--rc) 22%, var(--surface));
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: transform 120ms ease-out;
+  animation: uni-wiggle 700ms ease-in-out 400ms;
+}
+.uni-choice-btn:hover:not(.unavailable) { transform: translateY(-2px) scale(1.06); }
+.uni-choice-btn:active:not(.unavailable) { transform: translateY(1px); }
+.uni-choice-name { font-size: 12px; font-weight: 800; color: var(--text); }
+
+.uni-between { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.uni-between p { margin: 0; }
+.uni-title { font-size: clamp(1.6rem, 4vw, 2.3rem); }
+.uni-between .muted { padding: 3px 12px; border-radius: var(--pill); background: color-mix(in oklab, var(--surface) 85%, transparent); color: var(--text-2); }
+
+/* ---------- racers ---------- */
+.uni-racers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px; }
+.uni-seat .plate { width: 100%; height: 100%; }
+.uni-seat.open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 74px;
+  padding: 10px;
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--radius);
+}
+.uni-friends { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.uni-plate-body { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 4px; }
+.uni-plate-status { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 13px; text-align: left; }
+.uni-ring { flex: none; overflow: visible; }
+.uni-ring-seg { fill: none; stroke-width: 11; stroke-linecap: round; }
+.uni-ring .off .uni-ring-seg { stroke: var(--rc); opacity: 0.22; }
+.uni-ring .on .uni-ring-seg { stroke: var(--rc); animation: uni-seg-in 500ms ease-out; }
+@keyframes uni-seg-in { from { stroke-width: 2; opacity: 0; } }
+.uni-ring-face { font-size: 10px; }
+.uni-ring-count { font: 800 17px var(--font-display); fill: var(--text); }
+.uni-ring.all { animation: uni-ring-glow 2.4s ease-in-out infinite; }
+@keyframes uni-ring-glow { 50% { filter: drop-shadow(0 0 6px var(--gold)); } }
+.uni-friend-gap { fill: none; stroke: var(--rc); stroke-width: 2; stroke-dasharray: 3 3; opacity: 0.55; }
+.uni-rider {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--rc);
+  background: color-mix(in oklab, var(--rc) 28%, var(--uni-stone));
+  font-size: 20px;
+  line-height: 1;
+}
+.uni-rider.sm { width: 25px; height: 25px; font-size: 14px; }
+.uni-rider.lg { width: 48px; height: 48px; font-size: 28px; }
+.uni-rider.missing { background: transparent; border-style: dashed; opacity: 0.6; }
+.uni-rider:not(.missing) { animation: uni-aboard 400ms ease-out; }
+@keyframes uni-aboard { from { transform: scale(0.4); } 60% { transform: scale(1.2); } to { transform: none; } }
+.uni-rainbow-rolls, .uni-homeward { font-size: 13px; font-weight: 800; margin-left: 2px; }
+.uni-choice-btn.unavailable { opacity: 0.55; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .uni-flow path, .uni-aura, .uni-aura-ring, .uni-twinkle, .uni-die.ready .uni-die-scene, .uni-die.shaking .uni-die-scene, .uni-die.tumbling .uni-die-scene, .uni-die.rainbow, .uni-bubble, .uni-choice-btn, .uni-ring .on .uni-ring-seg, .uni-ring.all { animation: none; }
+}
+
+/* ---------- kid or grown-up ---------- */
+.tag.uni-age-tag.kid { background: var(--uni-purple); color: var(--on-accent); }
+.uni-join { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+/* Joining: two chunky buttons, the kid's with a rainbow rim and a wiggle. */
+.uni-age-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 82px;
+  padding: 8px 10px 9px;
+  border-radius: 18px;
+  border: 3px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: 800 14px var(--font-body);
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  transition: transform 140ms ease-out;
+}
+.uni-age-pick.kid {
+  border-color: transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box,
+    conic-gradient(var(--uni-red), var(--uni-orange), var(--uni-yellow), var(--uni-green), var(--uni-blue), var(--uni-purple), var(--uni-red)) border-box;
+}
+.uni-age-emoji { font-size: 34px; line-height: 1.1; }
+.uni-age-pick:hover:not(.unavailable) { transform: translateY(-3px) scale(1.04); }
+.uni-age-pick.kid:hover:not(.unavailable) .uni-age-emoji { animation: uni-wiggle 500ms ease-in-out; }
+.uni-age-pick:active:not(.unavailable) { transform: translateY(1px); }
+.uni-age-pick.unavailable { opacity: 0.55; cursor: not-allowed; }
+@keyframes uni-wiggle { 25% { rotate: -12deg; } 50% { rotate: 10deg; } 75% { rotate: -6deg; } }
+
+/* Your own seat: a switch, its thumb sliding to the side you are (rainbow for a kid). */
+.uni-age-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 6px;
+  padding: 3px;
+  border-radius: var(--pill);
+  background: var(--surface-2);
+  isolation: isolate;
+}
+.uni-age-switch::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 3px auto 3px 3px;
+  width: calc(50% - 3px);
+  border-radius: var(--pill);
+  background: linear-gradient(110deg, var(--uni-red), var(--uni-orange), var(--uni-yellow), var(--uni-green), var(--uni-blue), var(--uni-purple));
+  box-shadow: var(--shadow-sm);
+  transition: translate 260ms cubic-bezier(0.3, 1.4, 0.5, 1), background 260ms;
+}
+.uni-age-switch.grown::before { translate: 100% 0; background: var(--surface-hover); }
+.uni-age-side {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--pill);
+  background: none;
+  color: var(--text-2);
+  font: 800 12px var(--font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.uni-age-side[aria-pressed="true"] { color: var(--text); cursor: default; }
+.uni-age-switch.kid .uni-age-side[aria-pressed="true"] { color: var(--uni-ink); }
+.uni-age-side.unavailable { opacity: 0.55; cursor: not-allowed; }
+
+@media (prefers-reduced-motion: reduce) {
+  .uni-token { transition: none; }
+  .uni-hop-a, .uni-hop-b, .uni-friend, .uni-bridge.open .uni-castle, .uni-rider:not(.missing), .uni-rainbow.burst svg, .uni-stop-glow { animation: none; }
+}

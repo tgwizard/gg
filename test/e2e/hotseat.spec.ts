@@ -24,11 +24,11 @@ test("hot seat: two people take turns on one device, the game shown as whoever's
   await card.click();
   await a.getByRole("button", { name: "Start Four in a Row" }).click();
 
-  // Alice sits down, then switches to Sam to sit him down too.
+  // Alice sits down, and the game turns to Sam so he can sit down too.
   const bar = a.getByTestId("hot-seat");
   await expect(bar.getByRole("button", { name: /Alice/ })).toHaveAttribute("aria-pressed", "true");
   await a.getByTestId("fiar-sit").click();
-  await bar.getByRole("button", { name: /Sam/ }).click();
+  await expect(bar.getByRole("button", { name: /Sam/ })).toHaveAttribute("aria-pressed", "true");
   await expect(a.getByText("Take on Alice")).toBeVisible();
   await a.getByTestId("fiar-sit").click();
 
@@ -63,4 +63,31 @@ test("hot seat: two people take turns on one device, the game shown as whoever's
   await sam.getByRole("button", { name: "Remove Sam" }).click();
   await expect(sam).toHaveCount(0);
   await expect(a.getByTestId("hot-seat")).toHaveCount(0);
+});
+
+test("hot seat in a game for more: each of you on the device sits down in turn, then the race starts", async ({ browser }) => {
+  const { page: a } = await newPlayer(browser);
+  await createRoom(a, "Alice");
+  for (const name of ["Sam", "Kim"]) {
+    await a.getByTestId("invite-section").getByRole("button", { name: "+ Player on this device" }).click();
+    const dialog = a.getByRole("dialog");
+    if (await dialog.getByRole("button", { name: "+ Someone new" }).isVisible()) await dialog.getByRole("button", { name: "+ Someone new" }).click();
+    await a.getByLabel("Player's name").fill(name);
+    await a.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(a.getByRole("complementary").getByTestId("member").filter({ hasText: name })).toContainText("with you");
+  }
+  await a.getByRole("button", { name: /^Unicorn race/ }).click();
+  await a.getByRole("button", { name: "Open the meadow" }).click();
+
+  const bar = a.getByTestId("hot-seat");
+  for (const [i, name] of ["Alice", "Sam", "Kim"].entries()) {
+    // Each one sitting down hands the screen to the next of them still standing.
+    await expect(bar.getByRole("button", { name: new RegExp(name) })).toHaveAttribute("aria-pressed", "true");
+    await a.getByTestId(`uni-seat-${i}`).getByRole("button", { name: i === 0 ? "As a grown-up" : "As a kid" }).click();
+    await expect(a.getByTestId(`uni-seat-${i}`)).toContainText(name);
+  }
+  await a.getByRole("button", { name: "Start the race" }).click();
+  // A kid goes first: the game turns to them.
+  await expect(bar.getByRole("button", { name: /Sam|Kim/, pressed: true })).toBeVisible();
+  await expect(a.getByRole("button", { name: "Roll the die" })).not.toHaveAttribute("aria-disabled");
 });

@@ -210,17 +210,23 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
 /**
  * Which of you on this device (`local`, you first) the game is shown as: whoever it's
  * waiting on, following each turn, unless you pick someone else in the meantime (to
- * take a seat for them, say), which holds until the game next changes.
+ * take a seat for them, say), which holds until the game next changes. When one of you
+ * has just sat down and nobody's move is due, it's the next of you without a seat, so
+ * they can sit down too.
  */
-function useActing(local: string[], game: { instanceId: string; version: number; waitingOn: string[] }) {
+function useActing(local: string[], game: { instanceId: string; version: number; waitingOn: string[]; players: string[] }) {
   const at = `${game.instanceId}:${game.version}`;
   const [picked, setPicked] = useState<{ id: string; at: string } | null>(null);
   const last = useRef(local[0]!);
+  const before = useRef(game.players);
   const due = local.find((id) => game.waitingOn.includes(id));
-  let id = picked && picked.at === at ? picked.id : (due ?? last.current);
+  const justSat = !before.current.includes(last.current) && game.players.includes(last.current);
+  const next = justSat && !game.waitingOn.length ? local.find((id) => !game.players.includes(id)) : undefined;
+  let id = picked && picked.at === at ? picked.id : (due ?? next ?? last.current);
   if (!local.includes(id)) id = local[0]!;
   useEffect(() => {
     last.current = id;
+    before.current = game.players;
   });
   return { id, pick: (to: string) => setPicked({ id: to, at }) };
 }
