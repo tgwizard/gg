@@ -12,7 +12,7 @@ import { Board, pointAt, type Token } from "./Board";
 import { Die } from "./Die";
 import { type BoardShape, boardShape } from "./geometry";
 import { TUMBLE_MS, useGallop } from "./motion";
-import { FriendRing, RIDER_LOOK, RiderToken, riderStyle } from "./riders";
+import { FigureImg, FriendRing, RIDER_LOOK, RiderToken, riderStyle, type Who } from "./riders";
 import "./unicorn.css";
 
 type Props = GameUIProps<UnicornView, UnicornOp>;
@@ -185,7 +185,9 @@ const MEADOW = ["Oh no, there's nothing here!", "Just grass and daisies here.", 
 interface Saying {
   key: string;
   at: number;
-  emoji: string;
+  /** A figurine, or else an emoji. */
+  who?: Who;
+  emoji?: string;
   text: string;
 }
 
@@ -198,11 +200,11 @@ function saying(view: UnicornView, name: (id: string) => string, me: string): Sa
   if (!racer || roll.to === FINISH) return null;
   const key = `${view.game}:${view.rolls}`;
   const picked = view.log.slice(i + 1).find((e): e is Extract<UnicornEvent, { type: "pickup" }> => e.type === "pickup" && e.who === roll.who);
-  if (picked) return { key: `${key}:${picked.rider}`, at: roll.to, emoji: RIDER_LOOK[picked.rider].emoji, text: `The ${RIDER_NAMES[picked.rider]} hops on!` };
+  if (picked) return { key: `${key}:${picked.rider}`, at: roll.to, who: picked.rider, text: `The ${RIDER_NAMES[picked.rider]} hops on!` };
   if (view.stage === "pick" && view.turn === racer.seat) return null;
   if (roll.to >= LOOP) return { key, at: roll.to, emoji: "🌈", text: "Over the rainbow bridge!" };
   if (racer.riders.length === RIDERS.length) return { key, at: roll.to, emoji: "🏰", text: roll.to === 0 ? "The bridge is next!" : "Off to the castle!" };
-  if (roll.to === 0) return { key, at: 0, emoji: "🦄", text: "Back at the start!" };
+  if (roll.to === 0) return { key, at: 0, who: "unicorn", text: "Back at the start!" };
   const stop = view.track[roll.to]!;
   if (!stop.riders.length) return { key, at: roll.to, emoji: "🌼", text: MEADOW[view.rolls % MEADOW.length]! };
   return { key, at: roll.to, emoji: "💞", text: `Everyone here is already riding with ${roll.who === me ? "you" : name(roll.who)}!` };
@@ -238,7 +240,8 @@ function StopBubble(props: { view: UnicornView; me: string; name(id: string): st
   const fx = p.x / shape.width;
   const below = p.y / shape.height < 0.3;
   const align = fx < 0.25 ? "start" : fx > 0.75 ? "end" : "middle";
-  const style = { left: `${fx * 100}%`, top: `${((p.y + (below ? 50 : -50)) / shape.height) * 100}%` };
+  // Above a unicorn standing there, clear of its head.
+  const style = { left: `${fx * 100}%`, top: `${((p.y + (below ? 50 : -84)) / shape.height) * 100}%` };
   const className = `uni-bubble ${below ? "below" : "above"} ${align}`;
   if (picking) {
     const options = view.choice!;
@@ -250,7 +253,7 @@ function StopBubble(props: { view: UnicornView; me: string; name(id: string): st
           {options.map((r) =>
             mine ? (
               <Button key={r} className="uni-choice-btn" style={riderStyle(r)} why={why} onClick={() => send({ type: "pick", rider: r })} aria-label={`Pick up the ${RIDER_NAMES[r]}`}>
-                <span aria-hidden>{RIDER_LOOK[r].emoji}</span>
+                <FigureImg who={r} />
                 <span className="uni-choice-name">{RIDER_NAMES[r]}</span>
               </Button>
             ) : (
@@ -263,9 +266,13 @@ function StopBubble(props: { view: UnicornView; me: string; name(id: string): st
   }
   return (
     <div className={`${className} say`} style={style} role="status" data-testid="uni-bubble" key={said!.key}>
-      <span className="uni-bubble-emoji" aria-hidden>
-        {said!.emoji}
-      </span>
+      {said!.who ? (
+        <FigureImg who={said!.who} className="uni-bubble-emoji" />
+      ) : (
+        <span className="uni-bubble-emoji" aria-hidden>
+          {said!.emoji}
+        </span>
+      )}
       <span className="uni-bubble-text">{said!.text}</span>
     </div>
   );

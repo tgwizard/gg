@@ -1,8 +1,8 @@
 import { type CSSProperties, useMemo } from "react";
 import { hash2, playerStyle } from "../../../ui";
 import { LOOP, RIDER_NAMES, RIDERS, type Rider, type Stop } from "../engine";
-import { type BoardShape, crowd, type Point } from "./geometry";
-import { RIDER_LOOK } from "./riders";
+import { type BoardShape, facesLeft, huddle, type Point, waiting } from "./geometry";
+import { Figure, RIDER_LOOK } from "./riders";
 
 export interface Token {
   playerId: string;
@@ -66,9 +66,13 @@ export function Board(props: {
           <path key={c} className="uni-bridge-band" d={bridge} style={{ stroke: `var(${c})`, strokeWidth: 44 - i * 7 }} />
         ))}
         {shape.bridge.slice(0, -1).map((p, i) => (
-          <circle key={i} className="uni-cloud" cx={p.x} cy={p.y} r={17} data-stop={LOOP + i} />
+          <g key={i} data-stop={LOOP + i}>
+            <circle className="uni-depth" cx={p.x} cy={p.y + 3} r={17} />
+            <circle className="uni-cloud" cx={p.x} cy={p.y} r={17} />
+          </g>
         ))}
         <g transform={`translate(${castle.x} ${castle.y})`} data-stop={LOOP + shape.bridge.length - 1}>
+          <circle className="uni-depth" cy={5} r={48} />
           <circle className="uni-castle" r={48} />
           <text className="uni-castle-face" textAnchor="middle" dominantBaseline="central" y={-2}>
             🏰
@@ -85,9 +89,9 @@ export function Board(props: {
           .filter((t) => props.flow!.to.includes(t.playerId))
           .map((t) => {
             const here = together.get(t.at)!;
-            const off = crowd(here.length, here.indexOf(t), here.length > 2 ? 46 : 40);
+            const off = huddle(here.length, here.indexOf(t));
             const p = pointAt(shape, t.at);
-            const [x, y] = [p.x + off.x, p.y + off.y];
+            const [x, y] = [p.x + off.x, p.y + off.y - 24 * off.scale];
             const { from } = props.flow!;
             const lift = Math.min(from.y, y) - 140;
             const path = `M ${from.x} ${from.y} Q ${(from.x + x) / 2} ${lift} ${x} ${y}`;
@@ -102,29 +106,39 @@ export function Board(props: {
       {/* Always in the same order: moving one to the top (the one whose turn it is, say) would replay its last hop and its friends hopping on. */}
       {tokens.map((t) => {
         const here = together.get(t.at)!;
-        // Apart enough that their rings of friends don't hide each other.
-        const off = crowd(here.length, here.indexOf(t), here.length > 2 ? 46 : 40);
+        // Side by side (smaller, when there are more), so each unicorn and its friends are seen.
+        const off = huddle(here.length, here.indexOf(t));
         const p = pointAt(shape, t.at);
+        const hop = t.hops ? (t.hops % 2 ? "a" : "b") : null;
+        const friends = SLOTS.map((s, i) => ({ ...s, rider: RIDERS[i]! }));
+        const around = (front: boolean) =>
+          friends
+            .filter((s) => s.y >= 0 === front)
+            .map((s) => (t.riders.includes(s.rider) ? <Friend key={s.rider} rider={s.rider} at={s} /> : t.gaps ? <Gap key={s.rider} rider={s.rider} at={s} /> : null));
         return (
           <g
             key={t.playerId}
             className={`uni-token ${t.active ? "active" : ""} ${t.you ? "you" : ""} ${t.powered ? "powered" : ""}`}
-            style={{ ...playerStyle(t.color), transform: `translate(${p.x + off.x}px, ${p.y + off.y}px)` } as CSSProperties}
+            style={{ ...playerStyle(t.color), transform: `translate(${p.x + off.x}px, ${p.y + off.y}px) scale(${off.scale})` } as CSSProperties}
             data-testid="uni-token"
             data-player={t.playerId}
             data-stop={t.at}
             data-powered={t.powered || undefined}
           >
             <title>{t.powered ? `${t.name}: rainbow power!` : t.name}</title>
+            {/* The shadow stays on the meadow while the unicorn hops up off it. */}
+            <ellipse className={`uni-token-shadow ${hop ? `uni-shadow-${hop}` : ""}`} cy={8} rx={BASE.rx + 3} ry={BASE.ry + 2} />
             {t.powered && <Aura />}
             {/* Two names for the same hop, so each new one restarts it without remounting the friends. */}
-            <g className={t.hops ? (t.hops % 2 ? "uni-hop-a" : "uni-hop-b") : undefined}>
-              <ellipse className="uni-token-shadow" cy={24} rx={18} ry={5} />
-              <circle className="uni-token-base" r={23} />
-              <text className="uni-token-face" y={1} textAnchor="middle" dominantBaseline="central">
-                🦄
-              </text>
-              {RIDERS.map((r) => (t.riders.includes(r) ? <Friend key={r} rider={r} /> : t.gaps ? <Gap key={r} rider={r} /> : null))}
+            <g className={hop ? `uni-hop-${hop}` : undefined}>
+              <ellipse className="uni-base-side" cy={BASE.depth} rx={BASE.rx} ry={BASE.ry} />
+              <rect className="uni-base-side" x={-BASE.rx} width={BASE.rx * 2} height={BASE.depth} />
+              <ellipse className="uni-base" rx={BASE.rx} ry={BASE.ry} />
+              {around(false)}
+              <g transform="translate(2 4)">
+                <Figure who="unicorn" h={66} flip={facesLeft(shape, LOOP, t.at)} />
+              </g>
+              {around(true)}
             </g>
           </g>
         );
@@ -133,17 +147,28 @@ export function Board(props: {
   );
 }
 
+/** A unicorn's base: an oval in its player's color, with some depth to it. */
+const BASE = { rx: 44, ry: 18, depth: 6 };
+
+/** Where each friend stands on a unicorn's base: round it, a rainbow going clockwise from behind on the left (never right behind or in front of it). */
+const SLOTS: Point[] = [-120, -60, 0, 60, 120, 180].map((deg) => ({
+  x: Math.cos((deg * Math.PI) / 180) * 35,
+  y: Math.sin((deg * Math.PI) / 180) * 12 + 2,
+}));
+
 /** Rainbow power, round a unicorn that has a rainbow roll to come: a turning ring of the colors, and twinkles. */
 function Aura() {
   return (
     <g className="uni-aura" aria-hidden>
+      <g transform="translate(0 3) scale(1 0.42)">
       <g className="uni-aura-ring">
         {BANDS.map((c, i) => {
           const a0 = (i / 6) * 2 * Math.PI;
           const a1 = ((i + 1) / 6) * 2 * Math.PI;
-          const r = 46;
+          const r = 60;
           return <path key={c} d={`M ${(Math.cos(a0) * r).toFixed(1)} ${(Math.sin(a0) * r).toFixed(1)} A ${r} ${r} 0 0 1 ${(Math.cos(a1) * r).toFixed(1)} ${(Math.sin(a1) * r).toFixed(1)}`} style={{ stroke: `var(${c})` }} />;
         })}
+      </g>
       </g>
       {[0, 1, 2].map((i) => (
         <text key={i} className={`uni-twinkle t${i}`} textAnchor="middle" dominantBaseline="central">
@@ -154,24 +179,18 @@ function Aura() {
   );
 }
 
-/** Where a friend still to find will ride, round a unicorn. */
-function Gap({ rider }: { rider: Rider }) {
-  const angle = -Math.PI / 2 + (RIDERS.indexOf(rider) / RIDERS.length) * 2 * Math.PI;
-  return <circle className="uni-friend-gap" cx={(Math.cos(angle) * 33).toFixed(1)} cy={(Math.sin(angle) * 33).toFixed(1)} r={8} style={{ "--rc": RIDER_LOOK[rider].color } as CSSProperties} />;
+/** Where a friend still to find will stand, on a unicorn's base. */
+function Gap({ rider, at }: { rider: Rider; at: Point }) {
+  return <ellipse className="uni-friend-gap" cx={at.x.toFixed(1)} cy={at.y.toFixed(1)} rx={8} ry={3.5} style={{ "--rc": RIDER_LOOK[rider].color } as CSSProperties} />;
 }
 
-/** A friend riding with a unicorn: in a ring round it, each in their own place (a rainbow, once all six are aboard). They hop on from the stop. */
-function Friend({ rider }: { rider: Rider }) {
-  const angle = -Math.PI / 2 + (RIDERS.indexOf(rider) / RIDERS.length) * 2 * Math.PI;
-  const x = Math.cos(angle) * 33;
-  const y = Math.sin(angle) * 33;
+/** A friend riding with a unicorn: standing on its base, each in their own place (a rainbow, once all six are aboard). They hop on from the stop. */
+function Friend({ rider, at }: { rider: Rider; at: Point }) {
   return (
-    <g transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`} data-testid="uni-friend" data-rider={rider}>
-      <g className="uni-friend" style={{ "--rc": RIDER_LOOK[rider].color, "--jx": `${(-x).toFixed(1)}px`, "--jy": `${(-y).toFixed(1)}px` } as CSSProperties}>
-        <circle r={11} />
-        <text textAnchor="middle" dominantBaseline="central" y={1}>
-          {RIDER_LOOK[rider].emoji}
-        </text>
+    <g transform={`translate(${at.x.toFixed(1)} ${at.y.toFixed(1)})`} data-testid="uni-friend" data-rider={rider}>
+      <g className="uni-friend" style={{ "--jx": `${(-at.x).toFixed(1)}px`, "--jy": `${(-at.y).toFixed(1)}px` } as CSSProperties}>
+        <ellipse className="uni-friend-shadow" rx={8} ry={3} />
+        <Figure who={rider} h={24} />
       </g>
     </g>
   );
@@ -185,6 +204,7 @@ function StopMark({ at, stop, index, glow }: { at: Point; stop: Stop; index: num
       {glow && <circle className="uni-stop-glow" r={52} />}
       {stop.kind === "start" ? (
         <>
+          <circle className="uni-depth" cy={5} r={40} />
           <circle className="uni-start" r={40} />
           <Arch />
           <text className="uni-start-text" y={22} textAnchor="middle">
@@ -192,34 +212,35 @@ function StopMark({ at, stop, index, glow }: { at: Point; stop: Stop; index: num
           </text>
         </>
       ) : stop.kind === "meadow" ? (
-        <circle className="uni-meadow-stone" r={17} />
+        <>
+          <circle className="uni-depth" cy={3} r={17} />
+          <circle className="uni-meadow-stone" r={17} />
+        </>
       ) : stop.kind === "stop" ? (
         <>
+          <circle className="uni-depth" cy={5} r={34} style={{ "--rc": RIDER_LOOK[stop.riders[0]!].color } as CSSProperties} />
           <circle className="uni-stone" r={34} style={{ "--rc": RIDER_LOOK[stop.riders[0]!].color } as CSSProperties} />
-          <text className="uni-stop-face" textAnchor="middle" dominantBaseline="central" y={2}>
-            {RIDER_LOOK[stop.riders[0]!].emoji}
-          </text>
+          <Waiting rider={stop.riders[0]!} at={waiting(1)[0]!} h={46} />
         </>
       ) : (
         <>
+          <circle className="uni-depth" cy={5} r={40} />
           <circle className="uni-station" r={40} />
-          {stop.riders.map((r, i) => {
-            const p = crowd(stop.riders.length, i, stop.riders.length === 2 ? 17 : 19);
-            return <Mini key={r} rider={r} at={p} />;
-          })}
+          {stop.riders.map((r, i) => (
+            <Waiting key={r} rider={r} at={waiting(stop.riders.length)[i]!} h={stop.riders.length === 2 ? 34 : 30} />
+          ))}
         </>
       )}
     </g>
   );
 }
 
-function Mini({ rider, at }: { rider: Rider; at: Point }) {
+/** A friend waiting at a stop for a ride, on a spot of their color. */
+function Waiting({ rider, at, h }: { rider: Rider; at: Point; h: number }) {
   return (
     <g transform={`translate(${at.x} ${at.y})`} style={{ "--rc": RIDER_LOOK[rider].color } as CSSProperties}>
-      <circle className="uni-mini" r={16} />
-      <text className="uni-mini-face" textAnchor="middle" dominantBaseline="central" y={1}>
-        {RIDER_LOOK[rider].emoji}
-      </text>
+      <ellipse className="uni-mini" rx={h * 0.36} ry={h * 0.13} />
+      <Figure who={rider} h={h} />
     </g>
   );
 }

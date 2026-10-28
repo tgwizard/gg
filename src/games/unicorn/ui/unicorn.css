@@ -28,13 +28,17 @@
 /* ---------- stops ---------- */
 .uni-stone { fill: var(--uni-stone); stroke: var(--rc); stroke-width: 7; }
 .uni-station { fill: var(--uni-stone); stroke: var(--uni-stone-edge); stroke-width: 3; }
-.uni-mini { fill: color-mix(in oklab, var(--rc) 30%, var(--uni-stone)); stroke: var(--rc); stroke-width: 3.5; }
+.uni-mini { fill: color-mix(in oklab, var(--rc) 40%, transparent); }
+/* Board pieces have some thickness: a darker rim showing under each. */
+.uni-depth { fill: color-mix(in oklab, var(--rc, var(--uni-stone-edge)) 70%, var(--uni-ink)); }
 .uni-meadow-stone { fill: var(--uni-meadow-stone); stroke: var(--uni-stone-edge); stroke-width: 2; }
 .uni-start { fill: var(--uni-start); stroke: var(--uni-start-edge); stroke-width: 3; }
 .uni-arch path { fill: none; stroke-width: 3.4; stroke-linecap: round; }
 .uni-start-text { font: 800 11px var(--font-body); fill: var(--uni-ink); text-transform: uppercase; letter-spacing: 0.1em; }
-.uni-stop-face { font-size: 34px; }
-.uni-mini-face { font-size: 17px; }
+/* Figurines (cut-out art) stand on the board with a soft shadow at their feet; a unicorn turns to face the way it goes. */
+.uni-figure { transition: transform 240ms ease-out; }
+.uni-figure.flip { transform: scaleX(-1); }
+.uni-figure image { filter: drop-shadow(0 1.5px 1px color-mix(in oklab, var(--uni-ink) 30%, transparent)); }
 .uni-stop-glow { fill: var(--uni-glow); animation: uni-glow 1.4s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
 @keyframes uni-glow { from { opacity: 0.45; scale: 0.9; } to { opacity: 1; scale: 1.05; } }
 
@@ -51,20 +55,24 @@
 
 /* ---------- unicorns ---------- */
 .uni-token { transition: transform 210ms cubic-bezier(0.3, 0.7, 0.4, 1); }
-.uni-token-base { fill: var(--pc); stroke: var(--uni-stone); stroke-width: 4; }
-.uni-token.active .uni-token-base { stroke: var(--gold); stroke-width: 5; }
+/* Each unicorn stands on an oval base in its player's color, its friends round it. */
+.uni-base { fill: color-mix(in oklab, var(--pc) 72%, var(--uni-stone)); stroke: var(--pc); stroke-width: 2.5; }
+.uni-base-side { fill: color-mix(in oklab, var(--pc) 68%, var(--uni-ink)); }
+.uni-token.active .uni-base { stroke: var(--gold); stroke-width: 4; }
 .uni-token.active > g { filter: drop-shadow(0 0 6px var(--gold)); }
-.uni-token-shadow { fill: color-mix(in oklab, var(--uni-ink) 28%, transparent); }
-.uni-token-face { font-size: 28px; }
-/* The same hop under two names: alternating restarts it on every stop. */
+.uni-token-shadow { fill: color-mix(in oklab, var(--uni-ink) 24%, transparent); transform-box: fill-box; transform-origin: center; }
+/* The same hop under two names: alternating restarts it on every stop. Its shadow stays put and shrinks. */
 .uni-hop-a { animation: uni-hop-a 300ms ease-out; }
 .uni-hop-b { animation: uni-hop-b 300ms ease-out; }
 @keyframes uni-hop-a { 45% { transform: translateY(-20px); } }
 @keyframes uni-hop-b { 45% { transform: translateY(-20px); } }
+.uni-shadow-a { animation: uni-shadow-a 300ms ease-out; }
+.uni-shadow-b { animation: uni-shadow-b 300ms ease-out; }
+@keyframes uni-shadow-a { 45% { transform: scale(0.78); opacity: 0.6; } }
+@keyframes uni-shadow-b { 45% { transform: scale(0.78); opacity: 0.6; } }
 
 /* Friends riding along, in a ring round their unicorn; a new one hops on from the stop. */
-.uni-friend circle { fill: color-mix(in oklab, var(--rc) 30%, var(--uni-stone)); stroke: var(--rc); stroke-width: 2.5; }
-.uni-friend text { font-size: 13px; }
+.uni-friend-shadow { fill: color-mix(in oklab, var(--uni-ink) 30%, transparent); }
 .uni-friend { animation: uni-join 700ms cubic-bezier(0.3, 1.4, 0.5, 1); }
 @keyframes uni-join {
   0% { transform: translate(var(--jx), var(--jy)) scale(1.8); }
@@ -85,9 +93,9 @@
 .uni-aura-ring path { fill: none; stroke-width: 5; stroke-linecap: round; }
 @keyframes uni-spin { to { transform: rotate(360deg); } }
 .uni-twinkle { font-size: 14px; animation: uni-twinkle 1.8s ease-in-out infinite; }
-.uni-twinkle.t0 { transform: translate(-40px, -30px); }
-.uni-twinkle.t1 { transform: translate(42px, -12px); animation-delay: 0.6s; }
-.uni-twinkle.t2 { transform: translate(-8px, 44px); animation-delay: 1.2s; }
+.uni-twinkle.t0 { transform: translate(-48px, -46px); }
+.uni-twinkle.t1 { transform: translate(52px, -28px); animation-delay: 0.6s; }
+.uni-twinkle.t2 { transform: translate(-6px, 30px); animation-delay: 1.2s; }
 @keyframes uni-twinkle { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 .plate.uni-powered {
   border-color: transparent;
@@ -253,6 +261,7 @@
 .uni-bubble.say { display: flex; align-items: center; gap: 8px; text-align: left; }
 .uni-bubble-text { text-wrap: balance; }
 .uni-bubble-emoji { font-size: 26px; line-height: 1; }
+img.uni-bubble-emoji { width: 38px; height: 38px; object-fit: contain; }
 .uni-bubble-title { margin: 0 0 8px; font-family: var(--font-display); font-size: 1.05rem; text-wrap: balance; }
 .uni-choice-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .uni-choice-btn {
@@ -275,6 +284,7 @@
 .uni-choice-btn:hover:not(.unavailable) { transform: translateY(-2px) scale(1.06); }
 .uni-choice-btn:active:not(.unavailable) { transform: translateY(1px); }
 .uni-choice-name { font-size: 12px; font-weight: 800; color: var(--text); }
+.uni-choice-btn .uni-figure-img { width: 48px; height: 44px; object-fit: contain; filter: drop-shadow(0 2px 1.5px color-mix(in oklab, var(--uni-ink) 30%, transparent)); }
 
 .uni-between { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .uni-between p { margin: 0; }
@@ -303,11 +313,10 @@
 .uni-ring .off .uni-ring-seg { stroke: var(--rc); opacity: 0.22; }
 .uni-ring .on .uni-ring-seg { stroke: var(--rc); animation: uni-seg-in 500ms ease-out; }
 @keyframes uni-seg-in { from { stroke-width: 2; opacity: 0; } }
-.uni-ring-face { font-size: 10px; }
 .uni-ring-count { font: 800 17px var(--font-display); fill: var(--text); }
 .uni-ring.all { animation: uni-ring-glow 2.4s ease-in-out infinite; }
 @keyframes uni-ring-glow { 50% { filter: drop-shadow(0 0 6px var(--gold)); } }
-.uni-friend-gap { fill: none; stroke: var(--rc); stroke-width: 2; stroke-dasharray: 3 3; opacity: 0.55; }
+.uni-friend-gap { fill: color-mix(in oklab, var(--rc) 25%, transparent); stroke: var(--rc); stroke-width: 1.5; stroke-dasharray: 3 2.5; opacity: 0.8; }
 .uni-rider {
   display: inline-grid;
   place-items: center;
@@ -319,6 +328,7 @@
   font-size: 20px;
   line-height: 1;
 }
+.uni-rider .uni-figure-img { width: 88%; height: 88%; object-fit: contain; filter: drop-shadow(0 1px 1px color-mix(in oklab, var(--uni-ink) 30%, transparent)); }
 .uni-rider.sm { width: 25px; height: 25px; font-size: 14px; }
 .uni-rider.lg { width: 48px; height: 48px; font-size: 28px; }
 .uni-rider.missing { background: transparent; border-style: dashed; opacity: 0.6; }
@@ -400,6 +410,6 @@
 .uni-age-side.unavailable { opacity: 0.55; cursor: not-allowed; }
 
 @media (prefers-reduced-motion: reduce) {
-  .uni-token { transition: none; }
-  .uni-hop-a, .uni-hop-b, .uni-friend, .uni-bridge.open .uni-castle, .uni-rider:not(.missing), .uni-rainbow.burst svg, .uni-stop-glow { animation: none; }
+  .uni-token, .uni-figure { transition: none; }
+  .uni-hop-a, .uni-hop-b, .uni-shadow-a, .uni-shadow-b, .uni-friend, .uni-bridge.open .uni-castle, .uni-rider:not(.missing), .uni-rainbow.burst svg, .uni-stop-glow { animation: none; }
 }

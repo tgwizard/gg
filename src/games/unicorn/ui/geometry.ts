@@ -98,9 +98,65 @@ function spaced(line: Point[], count: number, after: boolean): Point[] {
   return out;
 }
 
-/** Where racers standing together on a stop go, so each is seen. */
-export function crowd(n: number, i: number, r: number): Point {
-  if (n <= 1) return { x: 0, y: 0 };
-  const angle = -Math.PI / 2 + (i / n) * 2 * Math.PI;
-  return { x: Math.cos(angle) * r, y: Math.sin(angle) * r };
+/**
+ * Where racers standing together on a stop go, so each is seen: in a slanting line, each one
+ * a little nearer the front than the one before (as later ones are drawn over earlier ones),
+ * and a little smaller the more there are.
+ */
+const HUDDLE: { scale: number; at: Point[] }[] = [
+  { scale: 1, at: [{ x: 0, y: 0 }] },
+  {
+    scale: 1,
+    at: [
+      { x: -34, y: -10 },
+      { x: 34, y: 10 },
+    ],
+  },
+  {
+    scale: 0.86,
+    at: [
+      { x: -46, y: -14 },
+      { x: 0, y: 0 },
+      { x: 46, y: 14 },
+    ],
+  },
+  {
+    scale: 0.76,
+    at: [
+      { x: -57, y: -18 },
+      { x: -19, y: -6 },
+      { x: 19, y: 6 },
+      { x: 57, y: 18 },
+    ],
+  },
+];
+export function huddle(n: number, i: number): Point & { scale: number } {
+  const h = HUDDLE[Math.min(n, HUDDLE.length) - 1]!;
+  return { ...(h.at[i] ?? { x: 0, y: 0 }), scale: h.scale };
+}
+
+/** Where the friends waiting at a stop with several stand on it, back to front. */
+export const waiting = (n: number): Point[] =>
+  n <= 1
+    ? [{ x: 0, y: 14 }]
+    : n === 2
+      ? [
+          { x: -15, y: 10 },
+          { x: 15, y: 10 },
+        ]
+      : [
+          { x: -16, y: -1 },
+          { x: 16, y: -1 },
+          { x: 0, y: 21 },
+        ];
+
+/** Which way a unicorn at `at` faces: the way the path goes there (on a loop of `loop` stops, then the bridge). */
+export function facesLeft(shape: BoardShape, loop: number, at: number): boolean {
+  const line = at < loop ? shape.stops : [shape.stops[0]!, ...shape.bridge];
+  const i = at < loop ? at : at - loop + 1;
+  const n = line.length;
+  const prev = at < loop ? line[(i - 1 + n) % n]! : line[Math.max(0, i - 1)]!;
+  const next = at < loop ? line[(i + 1) % n]! : line[Math.min(n - 1, i + 1)]!;
+  // Going straight up or down, it keeps to the right rather than turning stop by stop.
+  return next.x - prev.x < -12;
 }
