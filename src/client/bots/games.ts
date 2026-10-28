@@ -17,18 +17,3 @@ export function loadGames(): Promise<Record<string, AnyGameDefinition>> {
   );
   return loading;
 }
-
-/**
- * Whether the site has changed since this page loaded (its scripts are gone, so it can't
- * load more of them): only a reload helps then.
- */
-export async function siteUpdated(): Promise<boolean> {
-  const mine = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]')?.getAttribute("src");
-  if (!mine) return false; // dev: no built scripts
-  try {
-    const html = await (await fetch("/", { cache: "no-store" })).text();
-    return !html.includes(mine);
-  } catch {
-    return false;
-  }
-}

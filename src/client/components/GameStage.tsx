@@ -5,6 +5,7 @@ import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { RequestError } from "../net/RoomClient";
 import { useHeartbeat } from "../heartbeat";
 import { morph } from "../morph";
+import { reloadNow, useGameOutdated, useHoldReload } from "../update";
 import { useServerNow } from "../useNow";
 import { Avatar, Button, busyWhy, PlayerName, play } from "../../ui";
 import type { Member } from "../../shared/protocol";
@@ -30,6 +31,8 @@ function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot
   const toast = useToast();
   const connected = snapshot.status === "connected";
   const ui = selected ? gameUIs[selected] : null;
+  // Its set-up may hold choices made and not yet started: an update waits (see ../update).
+  useHoldReload(!!selected);
   const picked = useRef<HTMLElement>(null);
   // Keep the set-up's top in sight when it opens from a card further down.
   useEffect(() => {
@@ -123,6 +126,7 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
   const shown = current ? { snapshot: seen, me: seen.you!.id, client: actingClient } : { snapshot, me: you, client };
   const connected = shown.snapshot.status === "connected" && shown.snapshot.game!.version >= game.version;
   const top = useRef<HTMLDivElement>(null);
+  const outdated = useGameOutdated(game.gameId);
   // A game that's just opened starts at its top: the set-up you started it from may have
   // been scrolled well down (on a phone, the whole page scrolls; wider, the stage does).
   useEffect(() => {
@@ -153,7 +157,7 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
           </div>
           <div className="game-header-actions">
             <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
-            {ui.settings && <GameSettings settings={ui.settings(game.view)} />}
+            {ui.settings && !outdated && <GameSettings settings={ui.settings(game.view)} />}
             {confirmEnd ? (
               <span className="row">
                 <span className="muted small">End for everyone?</span>
@@ -190,19 +194,30 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
           />
         </div>
       </InTopbar>
-      {hotSeat && <HotSeatBar local={local} acting={shown.me} members={members} waitingOn={game.waitingOn} onPick={acting.pick} />}
-      {/* Not remounted when it's shown as someone else: the move just made still animates. */}
-      <GameErrorBoundary at={`${shown.snapshot.game!.instanceId}:${shown.snapshot.game!.version}:${shown.me}`}>
-        <ui.Game
-          view={shown.snapshot.game!.view}
-          snapshot={shown.snapshot.game!}
-          me={shown.me}
-          members={members}
-          connected={connected}
-          sendOp={sendOp}
-          serverNow={serverNow}
-        />
-      </GameErrorBoundary>
+      {hotSeat && !outdated && <HotSeatBar local={local} acting={shown.me} members={members} waitingOn={game.waitingOn} onPick={acting.pick} />}
+      {outdated ? (
+        // This page has the old rules: drawing (or playing) the new game with them could go wrong.
+        <div className="game-outdated box" data-testid="game-outdated">
+          <h3 className="display">{ui.meta.name} has been updated</h3>
+          <p className="muted">Reload to keep playing. The game is waiting for you, right where it was.</p>
+          <button className="btn primary" onClick={reloadNow}>
+            Reload
+          </button>
+        </div>
+      ) : (
+        // Not remounted when it's shown as someone else: the move just made still animates.
+        <GameErrorBoundary at={`${shown.snapshot.game!.instanceId}:${shown.snapshot.game!.version}:${shown.me}`}>
+          <ui.Game
+            view={shown.snapshot.game!.view}
+            snapshot={shown.snapshot.game!}
+            me={shown.me}
+            members={members}
+            connected={connected}
+            sendOp={sendOp}
+            serverNow={serverNow}
+          />
+        </GameErrorBoundary>
+      )}
     </div>
   );
 }

@@ -23,6 +23,7 @@ import { SettingsMenu } from "../components/SettingsMenu";
 import { InviteButton, InviteSection } from "../components/Invite";
 import { TopbarSlotProvider } from "../components/TopbarSlot";
 import { PracticeTag } from "../components/PracticeTag";
+import { reloadNow, useGameOutdated, useHoldReload, useStale } from "../update";
 
 export function RoomPage({ roomId }: { roomId: string }) {
   const name = useName();
@@ -72,6 +73,10 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
   const sidebar = useSidebar(snapshot);
   const [gameSlot, setGameSlot] = useState<HTMLElement | null>(null);
   useRecentRoom(roomId, snapshot);
+  // An update waits while a game is on (see ../update).
+  useHoldReload(!!snapshot.game);
+  const stale = useStale();
+  const gameOutdated = useGameOutdated(snapshot.game?.gameId ?? "");
 
   if (snapshot.status === "not_found") {
     return (
@@ -154,6 +159,15 @@ function Room({ roomId, name, color }: { roomId: string; name: string; color: nu
             />
           </header>
           {!connected && <ConnectionBanner snapshot={snapshot} onRetry={() => client.retryNow()} />}
+          {/* A game that changed says so in its place instead. */}
+          {connected && stale && !gameOutdated && (
+            <div className="banner subtle-banner update-banner" role="status" data-testid="update-banner">
+              <span>gg has been updated. Reload for the latest; you'll be right back here.</span>
+              <button className="btn small subtle" onClick={reloadNow}>
+                Reload
+              </button>
+            </div>
+          )}
           {you && you.color !== color && (
             <div className="banner subtle-banner">
               {PLAYER_COLORS[color]!.name} is taken here, so you're {PLAYER_COLORS[you.color]!.name} in this room.

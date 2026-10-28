@@ -653,6 +653,9 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .room-title:hover:not(:disabled, .unavailable) { border-color: rgb(255 255 255 / 0.3); }
 .room-title-form input { width: min(320px, 50vw); padding: 6px 12px; }
 .subtle-banner { background: var(--surface-2); color: var(--text-2); border-color: var(--line); font-size: 13px; }
+/* A game whose rules changed since this page loaded, in the game's place (see update.ts). */
+.game-outdated { display: grid; gap: 10px; justify-items: start; max-width: 46ch; margin: 32px auto; padding: 22px 24px; }
+.game-outdated h3, .game-outdated p { margin: 0; }
 
 /* ---------- game settings ---------- */
 .icon-btn {

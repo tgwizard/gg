@@ -140,8 +140,33 @@ all look like a short blip, never lost or duplicated actions.
   Until then, those dead sockets count towards the per-IP cap: at the cap, the
   quietest socket from that IP that hasn't pinged for 30s makes way for the new
   one, rather than turning away a phone that reconnects (with its bots) often.
-- **Upgrades.** `PROTOCOL_VERSION` mismatch → close code 4426 → the client shows
-  "reload to update" instead of misbehaving.
+- **Upgrades.** A deploy leaves open pages a build behind the server, in three ways:
+  - *The room protocol* (`src/shared/protocol.ts`): a `PROTOCOL_VERSION` mismatch →
+    close code 4426 → the room shows "gg has been updated, reload" and nothing else.
+    Bumped by hand, for breaking changes to those messages only.
+  - *A game's rules*: its views and moves can change on any deploy that touches the
+    game, and an old page drawing a new view could go wrong. Every build stamps a hash
+    per game of what server and page must agree on (`tools/build-info.ts`: the game's
+    folder without `ui/`, tests, meta, bot and practice set-ups, plus the kit and
+    `types.ts`) into the page and the Worker alike (`src/shared/build.ts`, through
+    vite's `define`; dev and tests are all "dev"). The welcome carries the server's;
+    a page whose hash for the running game differs shows "<game> has been updated,
+    reload" in the game's place, and its bots stop playing it (an AI bot stops
+    calling its model). Hashes are keyed by the game's id, not its folder's name.
+  - *The page's own files*: lazily loaded ones (bots' rules, the bots' worker, AI
+    providers' SDKs) are gone from the server after a deploy, and an old name is
+    answered with the app's HTML.
+  So any page whose build id differs from the server's is stale (`src/client/update.ts`),
+  and since everything lives on the server, it reloads when that interrupts nothing:
+  when the tab is hidden (unless text is typed into a field), on going to another page
+  in the app (a full load instead), or when no game is on or being set up and nothing
+  is being typed or chosen. Until then the room shows a Reload bar. It reloads once per server build, so
+  an old page served a moment longer while a deploy spreads can't make it loop. A file
+  that fails to load also checks whether the site changed (the home page no longer
+  names this page's script), which makes the page stale too, as of the site's new
+  script. A deploy restarts the
+  rooms, so every page reconnects, and hears the new build, within seconds. Stored
+  game state isn't versioned yet (see "Known limitations").
 
 ## Look and feel (`src/ui`)
 

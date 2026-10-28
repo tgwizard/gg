@@ -18,6 +18,7 @@
  */
 import { DurableObject } from "cloudflare:workers";
 import { games } from "../games/registry";
+import { BUILD } from "../shared/build";
 import { type AnyGameDefinition, type GameContext, GameError } from "../games/types";
 import { assignColors } from "../shared/colors";
 import {
@@ -396,6 +397,7 @@ export class Room extends DurableObject<Env> {
       chatReset: reset,
       game,
       serverTime: now,
+      build: BUILD,
     });
 
     if (joinMessage) this.broadcast({ type: "chat", messages: [joinMessage] }, ws);

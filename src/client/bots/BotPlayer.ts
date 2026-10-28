@@ -21,9 +21,10 @@ import type { BotInfo } from "../../shared/protocol";
 import { devLog } from "../devlog";
 import { getConnection, PROVIDERS } from "../llm/connections";
 import { RequestError, RoomClient } from "../net/RoomClient";
+import { checkSiteUpdated, gameOutdated } from "../update";
 import { AiBrain } from "./ai/AiBrain";
 import { gameMoves } from "./ai/prompt";
-import { loadGames, siteUpdated } from "./games";
+import { loadGames } from "./games";
 import { setJoining } from "./joining";
 import { addBotStandIn, addBotUsage, type BotRecord, leftRoom, setBotError } from "./store";
 import { decide } from "./thinker";
@@ -136,7 +137,7 @@ export class BotPlayer {
         this.games = await loadGames();
       } catch (e) {
         if (this.stopped) return this.releaseLock?.();
-        const reload = await siteUpdated();
+        const reload = await checkSiteUpdated();
         this.log("couldn't load the game rules", { error: e instanceof Error ? e.message : String(e), reload });
         setJoining(this.roomId, this.bot.id, {
           problem: reload ? "gg was updated since this page loaded. Reload the page to bring bots in." : "Couldn't load what bots need to play. Trying again…",
@@ -155,10 +156,20 @@ export class BotPlayer {
     client.start();
   }
 
-  /** AI bots get a brain; switching a bot to built-in (or to another connection) replaces it. */
+  /** The game on changed its rules since this page loaded: the page reloads before the bot plays on. */
+  private gameOutdated() {
+    const game = this.client?.getSnapshot().game;
+    return !!game && gameOutdated(game.gameId);
+  }
+
+  /**
+   * AI bots get a brain; switching a bot to built-in (or to another connection) replaces it.
+   * It has none while its game is one this page can't play: it would only pay for moves
+   * that can't be made.
+   */
   private setBrain() {
     const { level, connectionId, name, persona, model, effort } = this.bot;
-    if (level !== "ai" || !connectionId || this.removing()) {
+    if (level !== "ai" || !connectionId || this.removing() || this.gameOutdated()) {
       this.brain?.stop();
       this.brain = null;
       return;
@@ -205,6 +216,9 @@ export class BotPlayer {
       if (this.client) this.leave(this.client);
       return;
     }
+    // No brain while the game on is one this page can't play; back once it's one it can.
+    const wantsBrain = this.bot.level === "ai" && !!this.bot.connectionId && !this.gameOutdated();
+    if (wantsBrain !== !!this.brain) this.setBrain();
     this.brain?.observe();
     const snapshot = this.client?.getSnapshot();
     const game = snapshot?.status === "connected" ? snapshot.game : null;
@@ -226,7 +240,7 @@ export class BotPlayer {
   private async move() {
     const client = this.client;
     const game = client?.getSnapshot().game;
-    if (!client || !game || !this.games?.[game.gameId] || this.removing()) return;
+    if (!client || !game || !this.games?.[game.gameId] || this.removing() || this.gameOutdated()) return;
     const at = { instanceId: game.instanceId, version: game.version, round: game.round };
     const legal = game.legalOps ?? [];
     // AI bots only make table moves here; their brain plays the game.

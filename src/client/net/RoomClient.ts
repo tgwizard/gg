@@ -40,6 +40,7 @@ import {
   sanitizeChat,
 } from "../../shared/protocol";
 import { devLog } from "../devlog";
+import { noteServerBuild } from "../update";
 
 export type ConnectionStatus =
   | "connecting"
@@ -620,6 +621,7 @@ export class RoomClient {
           clockOffset: msg.serverTime - Date.now(),
           notice: null,
         });
+        noteServerBuild(msg.build);
         // Resend anything unacknowledged, in order (chat at its own pace).
         this.chatInFlight.clear();
         this.chatTokens = { n: CHAT_BURST, at: Date.now() };

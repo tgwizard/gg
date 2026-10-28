@@ -48,6 +48,8 @@ describe("joining", () => {
     expect(welcome.you.name).toBe("Alice Smith");
     expect(welcome.you.id).toMatch(/^[0-9a-f]{16}$/);
     expect(welcome.chat.map((m) => m.text)).toEqual(["Alice Smith joined the room."]);
+    // Which build the server is, so older pages know to reload (unstamped in tests).
+    expect(welcome.build).toEqual({ id: "dev", games: {} });
 
     const membersSeen = alice.next("members", (m) => m.members.length === 2);
     const { client: bob, welcome: bw } = await TestClient.join(room, secret("bob"), "Bob");

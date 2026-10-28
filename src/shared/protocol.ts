@@ -2,10 +2,14 @@
  * Wire protocol between browser clients and the Room durable object.
  *
  * Everything the client sends is validated with zod on the server; everything the
- * server sends is plain typed JSON. Bump PROTOCOL_VERSION on breaking changes so
- * stale tabs are told to reload instead of misbehaving.
+ * server sends is plain typed JSON. Bump PROTOCOL_VERSION on breaking changes to the
+ * messages here, so stale tabs are told to reload instead of misbehaving. Everything
+ * else a deploy changes (a game's views and moves, the page's own files) is caught
+ * without a bump: the welcome carries the server's build (./build.ts), and a page
+ * that's older reloads when it can.
  */
 import { z } from "zod";
+import type { BuildInfo } from "./build";
 import { COLOR_COUNT } from "./colors";
 
 export const PROTOCOL_VERSION = 3;
@@ -203,6 +207,8 @@ export type ServerMessage =
       chatReset: boolean;
       game: GameSnapshot | null;
       serverTime: number;
+      /** The server's build: a page that's older reloads (see src/client/update.ts). */
+      build?: BuildInfo;
     }
   | { type: "members"; members: Member[] }
   | { type: "room"; name: string | null }

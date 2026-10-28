@@ -1,7 +1,7 @@
 # gg: notes for Claude
 
 - Cloudflare Worker + one `Room` Durable Object per room (`src/worker/room.ts`), React SPA (`src/client`), games in `src/games/<id>` (engine + `ui/`). Read `docs/ARCHITECTURE.md` first.
-- Client/server contract: `src/shared/protocol.ts`. Bump `PROTOCOL_VERSION` on breaking changes.
+- Client/server contract: `src/shared/protocol.ts`. Bump `PROTOCOL_VERSION` on breaking changes to those messages. Games' views and moves need no bump: each build carries a per-game hash, and pages a build behind reload (`src/client/update.ts`, "Upgrades" in the architecture doc).
 - Game state never goes to clients directly; only `view(state, viewer)`. Keep views built field by field.
 - The room server must stay game-agnostic (it only uses the `GameDefinition` contract). Shared game building blocks go in `src/games/kit`; every game must pass `src/games/conformance.test.ts`.
 - No disabled buttons: one that can't be used now is a `Button` from `src/ui` with `why` (greyed; pressing it shows why). Use it for anything new or touched.

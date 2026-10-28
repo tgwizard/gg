@@ -302,3 +302,4 @@ these through the browser and reports back.
 - [ ] Light and dark mode (the settings cog, /settings, or Ctrl+Shift+L anywhere, ⌃⇧L on a Mac): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
 - [ ] `/ui` style guide: nothing broken after design changes, in both modes.
 - [ ] Bump `PROTOCOL_VERSION` with a tab open: the tab shows "gg has been updated, reload".
+- [ ] Deploy (or `pnpm build && pnpm preview`, then build again) with tabs open: a room with no game on reloads by itself; one with a game on shows the Reload bar, and reloads when you switch away from the tab; text typed in the chat is never lost to it. A game whose rules changed shows "<game> has been updated" in its place, while the chat still works. (Automated: `test/e2e/updates.spec.ts`.)
