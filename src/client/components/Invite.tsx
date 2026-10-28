@@ -3,7 +3,7 @@ import { Panel } from "../../ui";
 import type { BotRecord } from "../bots/store";
 import type { GuestRecord } from "../guests";
 import type { RoomSnapshot } from "../net/RoomClient";
-import { AddGuest, BotTag, bringWhy, GuestTag, InviteBot, MemberButton, RemoveMember } from "./Members";
+import { AddGuest, BotTag, bringWhy, GuestTag, InviteBot, JoiningBots, MemberButton, RemoveMember } from "./Members";
 import { Popover, usePeek } from "./Popover";
 
 /** A people icon by the room's name: hover or click it for the room code and invite link. */
@@ -61,6 +61,7 @@ export function InviteSection({ snapshot, roomId, bots, guests }: { snapshot: Ro
               <RemoveMember member={m} bots={bots} guests={guests} roomId={roomId} />
             </li>
           ))}
+          {snapshot.status === "connected" && <JoiningBots roomId={roomId} bots={bots} members={here.map((m) => m.id)} className="invite-person" />}
           <li>
             <InviteBot roomId={roomId} members={snapshot.members} why={why} className="btn small" />
           </li>

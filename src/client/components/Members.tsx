@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { MAX_OWNED_PER_PLAYER, type Member } from "../../shared/protocol";
 import { ActivityBubble, Avatar, Button, busyWhy, Panel, PlayerName, playerStyle } from "../../ui";
+import { joiningOf, useJoining } from "../bots/joining";
 import { type BotRecord, type BotSetup, createBot, inviteBot, removeFromRoom, suggestBot, updateBot, useMyBots } from "../bots/store";
 import { createGuest, type GuestRecord, inviteGuest, removeGuest, updateGuest, useMyGuests } from "../guests";
 import { saveColor, saveName } from "../identity";
@@ -38,10 +39,12 @@ export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnap
                 </span>
               )}
               {waiting.has(m.id) && !leaving && <span className="tag gold">to act</span>}
+              {!m.online && connected && record && m.kind === "bot" && !leaving && <JoinTag bot={record as BotRecord} roomId={roomId} />}
               <RemoveMember member={m} bots={bots} guests={guests} roomId={roomId} />
             </li>
           );
         })}
+        {connected && <JoiningBots roomId={roomId} bots={bots} members={snapshot.members.map((m) => m.id)} />}
       </ul>
       <div className="members-foot">
         <InviteBot roomId={roomId} members={snapshot.members} why={bringWhy(roomId, connected)} />
@@ -49,6 +52,55 @@ export function Members({ snapshot, roomId, bots, guests }: { snapshot: RoomSnap
         {full && <span className="muted small">Up to {MAX_OWNED_PER_PLAYER} bots or players on your device each.</span>}
       </div>
     </Panel>
+  );
+}
+
+/**
+ * Your bots on their way into the room (invited, not in it yet), so "Invite" visibly does
+ * something on a slow connection, and says why when a bot can't come in.
+ */
+export function JoiningBots({ roomId, bots, members, className }: { roomId: string; bots: BotRecord[]; members: string[]; className?: string }) {
+  const here = new Set(members);
+  return bots
+    .filter((b) => !here.has(b.playerId) && !isLeaving(b, roomId))
+    .map((b) => (
+      <li key={b.id} className={`${className ?? ""} bot-joining`} data-testid="bot-joining">
+        <span className="member-plain">
+          <Avatar name={b.name} color={b.color} bot size="sm" />
+          <PlayerName name={b.name} color={b.color} className="member-name" />
+        </span>
+        <JoinTag bot={b} roomId={roomId} />
+        <button className="member-remove" onClick={() => removeFromRoom(b.id, roomId)} aria-label={`Remove ${b.name}`} title={`Don't bring ${b.name} in after all (it stays one of your bots)`}>
+          ×
+        </button>
+      </li>
+    ));
+}
+
+/** "joining…", or "can't join" (press it for why) while one of your bots isn't in the room. */
+function JoinTag({ bot, roomId }: { bot: BotRecord; roomId: string }) {
+  const state = joiningOf(useJoining(), roomId, bot.id);
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  if (!state.problem) return <span className="tag">joining…</span>;
+  return (
+    <>
+      <button ref={button} type="button" className="tag danger tag-button" onClick={() => setOpen(!open)} aria-expanded={open}>
+        can't join
+      </button>
+      {open && button.current && (
+        <Popover anchor={button.current} label={`Why ${bot.name} isn't here`} onClose={() => setOpen(false)}>
+          <div className="join-problem">
+            <p>{state.problem}</p>
+            {state.reload && (
+              <button type="button" className="btn primary small" onClick={() => location.reload()}>
+                Reload the page
+              </button>
+            )}
+          </div>
+        </Popover>
+      )}
+    </>
   );
 }
 

@@ -189,3 +189,55 @@ test("your bots can be taken out from the invite panel too, not only the sidebar
   await expect(invite.getByText(bot)).toHaveCount(0);
   await expect(page.getByTestId("member").filter({ hasText: bot })).toHaveCount(0);
 });
+
+test("a bot on its way in shows as joining, or says why it can't come in, and comes in once it can", async ({ browser }) => {
+  const { page } = await newPlayer(browser);
+  await createRoom(page, "Alice");
+  // The rules bots play by fail to download (a dropped request, or a deploy since the page loaded).
+  let broken = true;
+  await page.route(/games\/registry/, (r) => (broken ? r.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html>" }) : r.continue()));
+  await page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  const dialog = page.getByRole("dialog", { name: "Invite a bot" });
+  const name = await dialog.getByLabel("Bot's name").inputValue();
+  await dialog.getByRole("button", { name: "Make and invite" }).click();
+
+  const joining = page.getByTestId("invite-section").getByTestId("bot-joining");
+  await expect(joining).toContainText(name);
+  await joining.getByRole("button", { name: "can't join" }).click();
+  await expect(page.getByRole("dialog", { name: `Why ${name} isn't here` })).toContainText("Couldn't load what bots need to play");
+  await page.keyboard.press("Escape");
+
+  // It keeps trying, and comes in once the download works.
+  broken = false;
+  await expect(joining).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.getByTestId("member").filter({ hasText: name })).toHaveClass(/online/);
+  await expect(chat(page)).toContainText(`added a bot, ${name}.`);
+});
+
+test("a bot whose connection doesn't get through shows as joining", async ({ browser }) => {
+  const { page } = await newPlayer(browser);
+  await createRoom(page, "Alice");
+  await page.routeWebSocket(/\/api\/rooms\/[^/]+\/ws$/, (ws) => {
+    const server = ws.connectToServer();
+    let bot = false;
+    ws.onMessage((m) => {
+      if (typeof m === "string" && m.includes('"owner"')) bot = true;
+      if (!bot) server.send(m);
+    });
+    server.onMessage((m) => !bot && ws.send(m));
+  });
+  await page.reload();
+  await expectConnected(page);
+  await page.getByRole("complementary").getByRole("button", { name: "+ Invite a bot" }).click();
+  const dialog = page.getByRole("dialog", { name: "Invite a bot" });
+  const name = await dialog.getByLabel("Bot's name").inputValue();
+  await dialog.getByRole("button", { name: "Make and invite" }).click();
+  const joining = page.getByTestId("invite-section").getByTestId("bot-joining");
+  await expect(joining).toContainText(name);
+  await expect(joining).toContainText("joining…");
+  // In the room's list too, with a × to call it off.
+  const listed = page.getByRole("complementary").getByTestId("bot-joining");
+  await expect(listed).toContainText("joining…");
+  await listed.getByRole("button", { name: `Remove ${name}` }).click();
+  await expect(joining).toHaveCount(0);
+});

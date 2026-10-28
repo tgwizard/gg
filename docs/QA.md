@@ -68,6 +68,7 @@ these through the browser and reports back.
 - [ ] Network throttling *Slow 3G*: actions still work, with no duplicates after rapid clicks.
 - [ ] Kill the dev server mid-hand and restart it: clients reconnect on their own (backoff, then *Retry now* works) and the hand continues where it was.
 - [ ] Close the laptop lid or background the tab for 5+ minutes: on return, it reconnects within seconds and catches up.
+- [ ] On a phone, switch to another app for a minute or two, then back: the room is live again within ~3s (one new connection, not a burst), with your bots.
 - [ ] Phone: switch between Wi-Fi and cellular mid-game.
 - [ ] The other player sees you go grey (away) while you're disconnected, and green again after.
 
@@ -252,7 +253,7 @@ these through the browser and reports back.
 - [ ] End screens (Coast to Coast, chess, Othello, Go, Four in a Row, Luffarschack, Battleship, Cannons, Finns i sjön, Fem kort): the winner under a crown, how it ended, everyone's scores best first; confetti and a fanfare only when you won it live (not after a refresh); *See the board* tucks it into a bar with *Show results*; *Play again* works from it.
 
 ### Bots
-- [ ] With no bots yet, *+ Invite a bot* in the members panel opens a new bot's form (a free name and color, a personality); *Make and invite* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner. With bots, it lists the ones not in the room (one click invites), plus *+ New bot* and a link to *Your bots*.
+- [ ] With no bots yet, *+ Invite a bot* in the members panel opens a new bot's form (a free name and color, a personality); *Make and invite* joins it (chat: "X added a bot, Y."), tagged *bot*, with a robot avatar and a × only for its owner. Until it's in (throttle the network in devtools), it shows as *joining…*; if it can't come in, *can't join*, which says why when pressed (with *Reload the page* after a deploy). With bots, it lists the ones not in the room (one click invites), plus *+ New bot* and a link to *Your bots*.
 - [ ] Settings, *Bots & AI* (`/settings#bots`): your bots with their kind, rooms and usage; *+ New bot*, *Edit* inline, *Delete* (confirm; it leaves its rooms right away, also ones not open). *Delete all bots* bottom right, with a confirmation sliding in. AI keys: added without a check; the card's light shows whether the provider takes it, which bots use it and the tokens used with it; removing a key turns its bots built-in.
 - [ ] Settings, *Profile*: name and color, the players on this device (if any), then Sound effects and Dark mode (On/Off), then Delete all data, which clears everything, your player identity too (you're someone new in rooms you've been in), and takes you to the home page as someone new.
 - [ ] The same bot in two rooms is the same player; editing it in one room changes it in both. × takes it out of one room only (it's still in settings).

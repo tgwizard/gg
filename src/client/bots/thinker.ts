@@ -5,6 +5,7 @@
  * if the worker fails, they decide on the page instead.
  */
 import type { BotStrength } from "../../games/types";
+import { loadGames } from "./games";
 
 export interface Question {
   gameId: string;
@@ -51,6 +52,6 @@ function start(): Worker | null {
 }
 
 async function onThePage({ gameId, view, ops, strength }: Question): Promise<unknown> {
-  const { games } = await import("../../games/registry");
+  const games = await loadGames();
   return games[gameId]?.bot.play(view, ops, (n) => Math.floor(Math.random() * n), { strength }) ?? null;
 }

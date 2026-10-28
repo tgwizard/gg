@@ -23,6 +23,8 @@ import { getConnection, PROVIDERS } from "../llm/connections";
 import { RequestError, RoomClient } from "../net/RoomClient";
 import { AiBrain } from "./ai/AiBrain";
 import { gameMoves } from "./ai/prompt";
+import { loadGames, siteUpdated } from "./games";
+import { setJoining } from "./joining";
 import { addBotStandIn, addBotUsage, type BotRecord, leftRoom, setBotError } from "./store";
 import { decide } from "./thinker";
 
@@ -31,6 +33,8 @@ const THINK_MS: [number, number] = [BOT_MIN_MOVE_MS, 1800];
 /** Until a person sits down, bots leave the seats to people for this long. */
 const SEAT_WAIT_MS = 10_000;
 const MAX_ATTEMPTS = 3;
+/** Between tries at loading the game rules, at most. */
+const MAX_LOAD_RETRY_MS = 30_000;
 const random = (maxExclusive: number) => Math.floor(Math.random() * maxExclusive);
 
 export class BotPlayer {
@@ -62,6 +66,7 @@ export class BotPlayer {
   }
 
   start() {
+    if (!this.removing()) setJoining(this.roomId, this.bot.id, {});
     // Held until stop(). A player stopped before (or just as) the lock comes through
     // must let go of it at once, or the bot's next player waits forever: React mounts
     // the room twice in dev, and leaving the room can race the lock too.
@@ -101,6 +106,7 @@ export class BotPlayer {
     this.client?.stop();
     this.client = null;
     this.releaseLock?.();
+    setJoining(this.roomId, this.bot.id, null);
   }
 
   /** Removed: leave the room for good once connected (retried on every change until it's done). */
@@ -123,9 +129,23 @@ export class BotPlayer {
     devLog(this.roomId, `bot ${this.bot.name}`, event, data);
   }
 
-  private async connect() {
-    // Game rules are only needed once you have a bot, so they load separately.
-    this.games ??= (await import("../../games/registry")).games;
+  private async connect(tries = 0) {
+    // Game rules are only needed once you have a bot, so they load separately, and that can fail.
+    if (!this.games) {
+      try {
+        this.games = await loadGames();
+      } catch (e) {
+        if (this.stopped) return this.releaseLock?.();
+        const reload = await siteUpdated();
+        this.log("couldn't load the game rules", { error: e instanceof Error ? e.message : String(e), reload });
+        setJoining(this.roomId, this.bot.id, {
+          problem: reload ? "gg was updated since this page loaded. Reload the page to bring bots in." : "Couldn't load what bots need to play. Trying again…",
+          reload,
+        });
+        this.timer = setTimeout(() => void this.connect(tries + 1), Math.min(MAX_LOAD_RETRY_MS, 2_000 * 2 ** tries));
+        return;
+      }
+    }
     if (this.stopped) return this.releaseLock?.();
     const { secret, name, color } = this.bot;
     const client = new RoomClient(this.roomId, secret, name, color, { owner: this.ownerSecret, bot: botInfo(this.bot) });
@@ -163,7 +183,21 @@ export class BotPlayer {
     this.brain.observe();
   }
 
+  /** For the room page: on its way in, or why it can't come in yet. */
+  private showJoining() {
+    const snapshot = this.client?.getSnapshot();
+    if (!snapshot || snapshot.status === "connected" || this.removing()) return setJoining(this.roomId, this.bot.id, null);
+    const problem =
+      snapshot.status === "outdated"
+        ? "gg was updated since this page loaded. Reload the page to bring bots in."
+        : snapshot.status === "not_found"
+          ? "This room is gone."
+          : (snapshot.notice ?? undefined);
+    setJoining(this.roomId, this.bot.id, problem ? { problem, reload: snapshot.status === "outdated" } : {});
+  }
+
   private onChange() {
+    this.showJoining();
     if (this.removing() || this.client?.getSnapshot().status === "not_found") {
       clearTimeout(this.timer);
       this.brain?.stop();
@@ -198,7 +232,14 @@ export class BotPlayer {
     // AI bots only make table moves here; their brain plays the game.
     let op: unknown = tableMove(legal, random);
     if (op == null && !this.brain) {
-      op = await decide({ gameId: game.gameId, view: game.view, ops: legal.filter((o) => !isLobbyOp(o)), strength: this.bot.strength ?? "hard" });
+      try {
+        op = await decide({ gameId: game.gameId, view: game.view, ops: legal.filter((o) => !isLobbyOp(o)), strength: this.bot.strength ?? "hard" });
+      } catch (e) {
+        // Its rules didn't load (see ./games): it thinks again in a moment.
+        this.log("couldn't decide", { error: e instanceof Error ? e.message : String(e) });
+        if (!this.stopped && ++this.attempts < MAX_ATTEMPTS && this.seen === `${at.instanceId}:${at.version}`) this.think();
+        return;
+      }
       // The game moved on while it thought: it looks again at the new situation.
       if (this.seen !== `${at.instanceId}:${at.version}` || this.stopped || this.removing()) return;
     }

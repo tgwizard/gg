@@ -1,13 +1,21 @@
 import { useEffect } from "react";
 import { BotPlayer } from "./BotPlayer";
+import { loadGames } from "./games";
 import { botsIn, subscribeBots } from "./store";
 
 /**
  * Play your bots for this room while it's open: invited ones join, edited ones tell the
  * room, removed (or deleted) ones leave it (in whichever tab is playing them, which then
  * forgets them there), and closing the room stops them.
+ *
+ * The rules bots play by load a moment after the room opens, bots or not: a page that
+ * loads them only later, after a deploy, would find them gone from the server.
  */
 export function useRunBots(roomId: string, ownerSecret: string) {
+  useEffect(() => {
+    const warm = setTimeout(() => void loadGames().catch(() => {}), 3_000);
+    return () => clearTimeout(warm);
+  }, []);
   useEffect(() => {
     const players = new Map<string, BotPlayer>();
     const sync = () => {

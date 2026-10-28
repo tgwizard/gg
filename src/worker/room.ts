@@ -103,6 +103,13 @@ type AckResult = { ok: true } | { ok: false; error: AckError };
 const SWEEP_INTERVAL_MS = 5 * 60_000;
 /** Generous, since browsers throttle timers (and so pings) in background tabs. */
 const STALE_SOCKET_MS = 120_000;
+/**
+ * A socket this quiet is probably dead (a visible tab pings every 10 s). At the per-IP cap,
+ * the quietest such one makes way for a new connection: a phone on a flaky network
+ * reconnects (with its bots) faster than dead sockets are swept. If it was alive after
+ * all (a background tab), it reconnects when it's next looked at.
+ */
+const SILENT_SOCKET_MS = 30_000;
 const CHAT_PAGE = 100;
 const CHAT_CATCHUP_MAX = 300;
 const CHAT_RETAIN = 1000;
@@ -221,8 +228,19 @@ export class Room extends DurableObject<Env> {
     }
     // Stops one client from hoarding connections that never join (which would fill the room).
     const ip = clientIp(request);
-    if (sockets.filter((ws) => this.attachment(ws)?.ip === ip).length >= MAX_SOCKETS_PER_IP) {
-      return rejectSocket(RATE_LIMITED, "Too many connections from your network to this room.", 30_000);
+    const fromIp = sockets.filter((ws) => this.attachment(ws)?.ip === ip);
+    if (fromIp.length >= MAX_SOCKETS_PER_IP) {
+      const now = Date.now();
+      const quietest = fromIp
+        .filter((ws) => this.attachment(ws)?.playerId && now - this.lastHeard(ws) > SILENT_SOCKET_MS)
+        .sort((a, b) => this.lastHeard(a) - this.lastHeard(b))[0];
+      if (!quietest) return rejectSocket(RATE_LIMITED, "Too many connections from your network to this room.", 30_000);
+      try {
+        quietest.close(1001, "silent");
+      } catch {
+        // already closed
+      }
+      this.onDisconnect(quietest);
     }
     const { 0: client, 1: server } = new WebSocketPair();
     this.ctx.acceptWebSocket(server);
@@ -696,6 +714,12 @@ export class Room extends DurableObject<Env> {
    * Close sockets that stopped heartbeating (e.g. a laptop lid closed mid-game), and
    * ones that never said hello (pings alone don't count: they'd let anyone squat).
    */
+  /** When a socket last pinged (or connected). */
+  private lastHeard(ws: WebSocket): number {
+    const lastPing = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? 0;
+    return Math.max(lastPing, this.attachment(ws)?.connectedAt ?? 0);
+  }
+
   private sweep(now: number) {
     this.lastSweepAt = now;
     for (const ws of this.ctx.getWebSockets()) {
@@ -705,8 +729,7 @@ export class Room extends DurableObject<Env> {
       if (!att?.playerId) {
         if (now - connectedAt >= HELLO_TIMEOUT_MS) reason = "hello timeout";
       } else {
-        const lastPing = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? 0;
-        if (now - Math.max(lastPing, connectedAt) > STALE_SOCKET_MS) reason = "stale";
+        if (now - this.lastHeard(ws) > STALE_SOCKET_MS) reason = "stale";
       }
       if (!reason) continue;
       try {

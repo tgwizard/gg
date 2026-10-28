@@ -321,6 +321,11 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .bot-about dt { color: var(--text-2); }
 .bot-about dd { margin: 0; overflow-wrap: anywhere; }
 .members li.away { opacity: 0.55; }
+/* One of your bots on its way in (or stuck outside: press "can't join" for why). */
+.bot-joining .avatar { opacity: 0.55; }
+.tag-button { font-family: inherit; cursor: pointer; }
+.join-problem { display: grid; gap: 10px; max-width: 30ch; justify-items: start; }
+.join-problem p { margin: 0; }
 .member-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member-edit {
   display: flex;

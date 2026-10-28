@@ -2,7 +2,11 @@
  * Client side of the room connection: one WebSocket, kept alive forever.
  *
  *   - Reconnects with jittered exponential backoff; immediately when the browser
- *     comes back online or the tab becomes visible.
+ *     comes back online or the tab comes back (shown, focused, restored). A connection
+ *     that looks open after the tab was hidden is checked with a quick ping: a phone
+ *     that was away often has a dead one that it still calls open. Those events come
+ *     in bunches, so it acts on them once, and never cuts short an attempt that's
+ *     just started.
  *   - Heartbeats detect half-dead connections (e.g. after a laptop sleeps) that
  *     the browser would otherwise consider open for minutes.
  *   - Every mutation goes through an outbox keyed by a client id (cid). After a
@@ -110,6 +114,10 @@ interface Outgoing {
 const HEARTBEAT_EVERY_MS = 10_000;
 const HEARTBEAT_TIMEOUT_MS = 8_000;
 const CONNECT_TIMEOUT_MS = 10_000;
+/** Coming back to the tab: how long the connection has to answer before it's replaced. */
+const PROBE_TIMEOUT_MS = 3_000;
+/** Coming back fires several events at once (shown, focused): one check for all of them. */
+const RESUME_EVERY_MS = 2_000;
 const MAX_BACKOFF_MS = 10_000;
 const MAX_CHAT = 500;
 const PENDING_CHAT_MAX_AGE_MS = 60 * 60 * 1000;
@@ -150,6 +158,11 @@ export class RoomClient {
   private chatTimer: ReturnType<typeof setTimeout> | undefined;
   private retryTimer: ReturnType<typeof setTimeout> | undefined;
   private connectTimer: ReturnType<typeof setTimeout> | undefined;
+  private probeTimer: ReturnType<typeof setTimeout> | undefined;
+  private connectStartedAt = 0;
+  private resumedAt = 0;
+  /** The tab was hidden since the connection was last checked. */
+  private wasHidden = false;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   private pingSentAt: number | null = null;
   private lastReceivedAt = 0;
@@ -182,7 +195,9 @@ export class RoomClient {
     this.restorePendingChat();
     window.addEventListener("online", this.onOnline);
     window.addEventListener("offline", this.onOffline);
-    document.addEventListener("visibilitychange", this.onVisible);
+    document.addEventListener("visibilitychange", this.onResume);
+    window.addEventListener("focus", this.onResume);
+    window.addEventListener("pageshow", this.onResume);
     this.heartbeatTimer = setInterval(this.heartbeat, 2_000);
     this.connect();
   }
@@ -191,8 +206,11 @@ export class RoomClient {
     this.stopped = true;
     window.removeEventListener("online", this.onOnline);
     window.removeEventListener("offline", this.onOffline);
-    document.removeEventListener("visibilitychange", this.onVisible);
+    document.removeEventListener("visibilitychange", this.onResume);
+    window.removeEventListener("focus", this.onResume);
+    window.removeEventListener("pageshow", this.onResume);
     clearInterval(this.heartbeatTimer);
+    clearTimeout(this.probeTimer);
     clearTimeout(this.retryTimer);
     clearTimeout(this.connectTimer);
     clearTimeout(this.chatTimer);
@@ -208,10 +226,11 @@ export class RoomClient {
     this.connect();
   }
 
-  /** Skip the backoff and try now. */
+  /** Skip the backoff and try now (unless an attempt has only just started). */
   retryNow() {
     if (this.stopped || this.isTerminal()) return;
     if (this.ws && this.ws.readyState === WebSocket.OPEN && this.welcomed) return;
+    if (this.ws && Date.now() - this.connectStartedAt < PROBE_TIMEOUT_MS) return;
     this.dropSocket();
     this.connect();
   }
@@ -435,6 +454,7 @@ export class RoomClient {
     const ws = new WebSocket(`${proto}://${location.host}/api/rooms/${this.roomId}/ws`);
     this.ws = ws;
     this.welcomed = false;
+    this.connectStartedAt = Date.now();
     this.pingSentAt = null;
     this.latencyMs = null;
     this.update({ status: this.snapshot.joined ? "reconnecting" : "connecting", nextRetryAt: null });
@@ -497,6 +517,7 @@ export class RoomClient {
     this.ws = null;
     this.welcomed = false;
     clearTimeout(this.connectTimer);
+    clearTimeout(this.probeTimer);
     if (ws) {
       ws.onopen = ws.onmessage = ws.onclose = null;
       try {
@@ -549,13 +570,28 @@ export class RoomClient {
     else this.update({ status: "offline" });
   };
 
-  private onVisible = () => {
-    if (document.visibilityState !== "visible") return;
-    if (this.isConnected()) {
-      // Verify the connection right away rather than trusting a socket that slept.
-      this.pingSentAt = Date.now();
-      this.ws!.send(PING);
-    } else this.retryNow();
+  /** Back in the tab: check the connection now, rather than at the next heartbeat. */
+  private onResume = (e: Event) => {
+    if (document.visibilityState === "hidden") this.wasHidden = true;
+    // Every page load has a pageshow; only one restored from the back/forward cache is a return.
+    if (document.visibilityState !== "visible" || this.stopped || (e instanceof PageTransitionEvent && !e.persisted)) return;
+    const now = Date.now();
+    if (now - this.resumedAt < RESUME_EVERY_MS) return;
+    this.resumedAt = now;
+    if (!this.isConnected()) return this.retryNow();
+    // A tab that stayed in sight kept up its heartbeat: nothing to check.
+    if (!this.wasHidden && !(e instanceof PageTransitionEvent)) return;
+    this.wasHidden = false;
+    // Don't trust a socket that slept: it has a moment to answer, or it's replaced.
+    const ws = this.ws!;
+    this.pingSentAt = now;
+    ws.send(PING);
+    clearTimeout(this.probeTimer);
+    this.probeTimer = setTimeout(() => {
+      if (this.ws !== ws || this.lastReceivedAt >= now) return;
+      devLog(this.roomId, this.who(), "no answer after coming back; reconnecting");
+      this.onSocketLost(ws);
+    }, PROBE_TIMEOUT_MS);
   };
 
   private sendRaw(msg: ClientMessage) {

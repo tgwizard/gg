@@ -128,10 +128,18 @@ all look like a short blip, never lost or duplicated actions.
   error boundary), with the room, chat and *End game* still working.
 - **Liveness.** The client pings every 10s and treats 8s of silence as a dead
   connection (catching half-open sockets), reconnecting with jittered
-  exponential backoff (max 10s), immediately on `online`, and on tab focus. The
+  exponential backoff (max 10s), immediately on `online`, and when the tab comes
+  back (shown, focused, restored from the back/forward cache). A socket that still
+  looks open then gets a ping and 3s to answer before it's replaced: a phone back
+  from another app often has a dead one it calls open, which the heartbeat alone
+  would take ~10s to notice. Those events come in bunches, so they're acted on once
+  per 2s, and an attempt that started under 3s ago is never cut short. The
   server's alarm sweeps every 5 minutes while anyone is connected, closing sockets
   that haven't pinged for 2 minutes (other people's presence dots can lag a few
   minutes for a hard-dead client; each wake-up is billed, so this stays lazy).
+  Until then, those dead sockets count towards the per-IP cap: at the cap, the
+  quietest socket from that IP that hasn't pinged for 30s makes way for the new
+  one, rather than turning away a phone that reconnects (with its bots) often.
 - **Upgrades.** `PROTOCOL_VERSION` mismatch → close code 4426 → the client shows
   "reload to update" instead of misbehaving.
 
@@ -824,6 +832,13 @@ A bot is just another member of the room, played from its owner's browser:
 - **Where it runs.** While the owner has the room open. One tab plays each bot
   (a Web Lock per bot); other tabs of the room wait and take over if it closes.
   When the owner leaves, the bot is a disconnected member, back when they return.
+- **Joining.** Each bot is its own connection, and needs the game rules, a separate
+  download (`bots/games.ts`; warmed up a few seconds after the room opens, since
+  after a deploy the page's old copy is gone from the server). Until a bot is in,
+  the owner sees it in the room's lists as *joining…*, or *can't join* with the
+  reason on a press (the server's refusal, the rules not loading, or "gg was updated:
+  reload", when the page's scripts are no longer the site's) and a × to call it
+  off. It keeps trying meanwhile (`bots/joining.ts` holds the state).
 - **Looks.** Bots' avatars are a robot in their color instead of an initial, in
   the members list and on every game board (`PlayerPlate` reads who's a bot from
   `PlayersProvider`).
@@ -948,7 +963,7 @@ e2e test for exactly that). All values are in `src/worker/limits.ts` and
 | scenario state (practice rooms) | worker, per IP (connection limit) and while reading | 120/min, 128 KB | a late Coast to Coast game is ~15 KB |
 | sustained flooding | DO | 50 refused messages (forgiven at 1/s) → disconnect for 30s | only scripts get here |
 | connections per player | DO | newest 6 kept; older tabs pause | refreshing on a bad connection can leave dead sockets behind |
-| connections per IP per room | DO | 20 | |
+| connections per IP per room | DO | 20; at the cap, one silent for 30s+ makes way | flaky phones leave dead sockets behind faster than they're swept |
 | joined connections per room | DO | 100 | |
 | time to say hello | DO | 10s, then closed | pings alone don't keep a socket open |
 | members remembered per room | DO | 200, longest-gone offline ones forgotten first | |

@@ -2,6 +2,7 @@ import { env, evictDurableObject, runDurableObjectAlarm, runInDurableObject } fr
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { PokerView } from "../../src/games/poker/engine";
+import { MAX_SOCKETS_PER_IP } from "../../src/worker/limits";
 import { CloseCode, MAX_OWNED_PER_PLAYER, PROTOCOL_VERSION } from "../../src/shared/protocol";
 import { generateRoomCode } from "../../src/shared/roomCode";
 import { createRoom, secret, TestClient } from "./client";
@@ -77,6 +78,35 @@ describe("joining", () => {
     expect((await c.next("error")).code).toBe("outdated");
     await sleep(20);
     expect(c.closed?.code).toBe(CloseCode.Outdated);
+  });
+});
+
+describe("connections", () => {
+  it("at one network's cap, lets a new connection in instead of one that's gone quiet", async () => {
+    const room = await createRoom();
+    const ip = "203.0.113.9";
+    const alice = await TestClient.connect(room, ip);
+    const welcome = alice.next("welcome");
+    alice.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("alice"), name: "Alice", chatCursor: null });
+    await welcome;
+    for (let i = 1; i < MAX_SOCKETS_PER_IP; i++) await TestClient.connect(room, ip);
+    // All of them lively: the next one is turned away.
+    const refused = await TestClient.connect(room, ip);
+    expect(await refused.next("error")).toMatchObject({ code: "rate_limited" });
+
+    // Alice's has heard nothing for a minute (a phone that lost it): it makes way.
+    await runInDurableObject(stub(room), (_i, state) => {
+      for (const ws of state.getWebSockets()) {
+        const att = ws.deserializeAttachment() as { playerId: string | null; connectedAt: number };
+        if (att?.playerId) ws.serializeAttachment({ ...att, connectedAt: Date.now() - 60_000 });
+      }
+    });
+    const back = await TestClient.connect(room, ip);
+    const again = back.next("welcome");
+    back.send({ type: "hello", protocol: PROTOCOL_VERSION, secret: secret("alice"), name: "Alice", chatCursor: null });
+    await again;
+    await sleep(20);
+    expect(alice.closed?.code).toBe(1001);
   });
 });
 

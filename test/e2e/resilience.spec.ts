@@ -97,3 +97,47 @@ test("a silent half-open connection is detected by the heartbeat", async ({ brow
   await expectConnected(alice.page, 20_000);
   await expect(chat(alice.page)).toContainText("said during the blackout");
 });
+
+test("coming back to the tab checks the connection at once, and replaces a dead one in seconds", async ({ browser }) => {
+  const { page } = await newPlayer(browser);
+  await createRoom(page, "Alice");
+  const dead = new Set<WebSocketRoute>();
+  const sockets: WebSocketRoute[] = [];
+  await page.routeWebSocket(/\/api\/rooms\/[^/]+\/ws$/, (ws) => {
+    sockets.push(ws);
+    const server = ws.connectToServer();
+    ws.onMessage((m) => !dead.has(ws) && server.send(m));
+    server.onMessage((m) => !dead.has(ws) && ws.send(m));
+  });
+  await page.reload();
+  await expectConnected(page);
+  // Away (another app), then back: a phone fires several of these at once.
+  const comeBack = () =>
+    page.evaluate(() => {
+      const show = (state: string) => {
+        Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+        document.dispatchEvent(new Event("visibilitychange"));
+      };
+      show("hidden");
+      show("visible");
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false }));
+    });
+
+  // A live connection answers and is kept.
+  let opened = sockets.length;
+  await comeBack();
+  await page.waitForTimeout(3_500);
+  expect(sockets.length).toBe(opened);
+  await expect(page.getByTestId("connection-status")).toHaveText("Connected");
+
+  // One that died while away (still "open") is replaced well before the heartbeat would notice, once.
+  for (const ws of sockets) dead.add(ws);
+  opened = sockets.length;
+  await page.waitForTimeout(2_000); // past the check for the last time it came back
+  await comeBack();
+  await expect.poll(() => sockets.length, { timeout: 5_000 }).toBe(opened + 1);
+  await expectConnected(page, 5_000);
+  await page.waitForTimeout(2_000);
+  expect(sockets.length).toBe(opened + 1);
+});
