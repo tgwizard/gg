@@ -131,7 +131,7 @@ export function FemKortGame({ view, me, members, connected, sendOp, serverNow }:
       />
 
       {!(view.phase === "over" && view.you.seat !== null) && (
-        <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fem-tray">
+        <ActionTray pinned={!!view.you.playable} aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fem-tray">
           {mine && view.phase === "playing" ? (
             <div className="fem-me" data-testid="fem-me">
               <Hint view={view} me={me} who={who} hand={mine.hand ?? []} serverNow={serverNow} />

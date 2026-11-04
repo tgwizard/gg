@@ -9,6 +9,7 @@ import {
   onDeadline,
   type PokerConfig,
   type PokerState,
+  rebuy,
   sit,
   start,
   viewFor,
@@ -351,6 +352,83 @@ describe("view redaction", () => {
     }
     // Spectators see no hole cards at all.
     expect(viewFor(state, "zed").hand!.players.every((p) => p.cards === null)).toBe(true);
+  });
+});
+
+/** Everyone folds to the big blind: the quickest hand. Then deals the next one. */
+function foldAround(state: PokerState, ctx: (now?: number) => ReturnType<ReturnType<typeof makeCtx>["ctx"]>) {
+  while (state.hand!.status === "betting") act(state, toActId(state), { type: "fold" }, ctx());
+  onDeadline(state, ctx(nextDeadline(state)!));
+}
+
+describe("blind levels", () => {
+  it("stay put unless asked", () => {
+    const { state, ctx } = table([0, 1], { button: 0 });
+    for (let i = 0; i < 12; i++) foldAround(state, ctx);
+    expect(state.hand!.blinds).toEqual({ small: 5, big: 10, level: 0 });
+  });
+
+  it("go up every N hands, announced, and the minimum raise follows", () => {
+    const { state, ctx, announcements } = table([0, 1, 2], { button: 0, config: { blindsUpEvery: 2 } });
+    const seen: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const b = state.hand!.blinds!;
+      seen.push(`${state.hand!.id}:${b.small}/${b.big}`);
+      foldAround(state, ctx);
+    }
+    expect(seen).toEqual(["1:5/10", "2:5/10", "3:10/20", "4:10/20", "5:15/30", "6:15/30"]);
+    expect(announcements.filter((a) => a.startsWith("The blinds"))).toEqual(["The blinds are up to 10/20.", "The blinds are up to 15/30.", "The blinds are up to 20/40."]);
+    const hand = state.hand!; // hand 7: 20/40
+    expect(hand.blinds!.big).toBe(40);
+    expect(legalActions(state, hand.toAct!)!.minRaiseTo).toBe(80);
+    const view = viewFor(state, "a");
+    expect(view.blinds).toMatchObject({ small: 20, big: 40 });
+    expect(view.nextBlinds).toEqual({ small: 30, big: 60, level: 4, atHand: 9 });
+  });
+
+  it("a hand from before blind levels plays on at the configured blinds", () => {
+    const { state, ctx } = table([0, 1], { button: 0 });
+    delete state.hand!.blinds;
+    act(state, "a", { type: "call" }, ctx());
+    act(state, "b", { type: "check" }, ctx());
+    expect(state.hand!.street).toBe("flop");
+    expect(legalActions(state, state.hand!.toAct!)!.minRaiseTo).toBe(10);
+    expect(viewFor(state, "a").hand!.blinds).toEqual({ small: 5, big: 10, level: 0 });
+  });
+});
+
+describe("buy-ins", () => {
+  /** a has lost everything to b, between hands. */
+  function busted(config: Partial<PokerConfig> = {}) {
+    const { ctx, announcements } = makeCtx();
+    const state = createState({ ...CONFIG, ...config });
+    sit(state, "a", 0, ctx());
+    sit(state, "b", 1, ctx());
+    state.seats[0]!.stack = 0;
+    state.seats[1]!.stack = 2000;
+    return { state, ctx, announcements };
+  }
+
+  it("are counted, rebuys too, in the ledger and the chat", () => {
+    const { state, ctx, announcements } = busted();
+    rebuy(state, "a", ctx());
+    expect(viewFor(state, "b").ledger).toEqual([
+      { playerId: "a", boughtIn: 2000, rebuys: 1, chips: 1000 },
+      { playerId: "b", boughtIn: 1000, rebuys: 0, chips: 2000 },
+    ]);
+    state.seats[0]!.stack = 0;
+    rebuy(state, "a", ctx());
+    expect(announcements).toEqual(["a buys back in for 1,000 (first rebuy).", "a buys back in for 1,000 (rebuy #2)."]);
+  });
+
+  it("can't be topped up without rebuys: a freezeout", () => {
+    const { state, ctx } = busted({ rebuys: false });
+    expect(() => rebuy(state, "a", ctx())).toThrow(GameError);
+    expect(poker.legalOps(state, "a")).not.toContainEqual({ type: "rebuy" });
+    // Standing up and sitting down again doesn't buy you back in either.
+    leave(state, "a", ctx());
+    sit(state, "a", 3, ctx());
+    expect(state.seats[3]!.stack).toBe(0);
   });
 });
 

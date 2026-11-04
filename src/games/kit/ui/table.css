@@ -3,8 +3,8 @@
   --seat-room-x: 72px;
   --seat-room-y: 56px;
   position: relative;
-  /* Fit the viewport height so the action tray stays on screen. */
-  width: min(100%, max(520px, calc((100dvh - 460px) * 2.1)));
+  /* Fit the viewport height so the action tray stays on screen (a pinned one stays anyway). */
+  width: min(100%, max(560px, calc((100dvh - 360px) * 2.1)));
   margin: 0 auto;
   padding: var(--seat-room-y) var(--seat-room-x);
 }
@@ -39,6 +39,12 @@
 
 .table-seat { position: absolute; translate: -50% -50%; z-index: 3; display: flex; flex-direction: column; align-items: center; }
 .table-bet { position: absolute; translate: -50% -50%; z-index: 2; }
+/* A bet held by its seat (betAt="seat"): in front of it, toward the middle, clear of its cards. */
+.seat-bet { position: absolute; z-index: 1; display: flex; }
+.side-bottom > .seat-bet { bottom: calc(100% + 6px); left: 50%; translate: -50% 0; }
+.side-top > .seat-bet { top: calc(100% + 6px); left: 50%; translate: -50% 0; }
+.side-left > .seat-bet { left: calc(100% + 6px); bottom: 12px; }
+.side-right > .seat-bet { right: calc(100% + 6px); bottom: 12px; }
 .table-marker { position: absolute; translate: -50% -50%; z-index: 2; }
 /* Beside the seat rather than under its cards. */
 .table-marker.side-bottom, .table-marker.side-top { translate: calc(-50% + 78px) -50%; }

@@ -117,7 +117,7 @@ export function FinnsISjonGame({ view, me, members, connected, sendOp, serverNow
       />
 
       {!(view.phase === "over" && view.you.seat !== null) && (
-      <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fish-tray">
+      <ActionTray pinned={!!ask} aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="fish-tray">
         {mine && view.phase === "playing" ? (
           <div className="fish-me" data-testid="fish-me">
             <div className="fish-hand">

@@ -36,6 +36,8 @@ export interface GameUI {
   Setup?: ComponentType<GameSetupProps<any>>;
   /** The running game's settings (from its view), for anyone to look up. */
   settings?(view: any): GameSetting[];
+  /** Pictures for the rules, under their text (poker's hands, with cards). Not given to AI bots, who get the text. */
+  help?: ComponentType;
   /** No chime when it becomes your turn: the game's own sounds already say so. */
   quietTurn?: boolean;
 }

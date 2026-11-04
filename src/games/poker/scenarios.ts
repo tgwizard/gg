@@ -53,6 +53,23 @@ export const scenarios: Scenario<PokerState>[] = [
     build: riverShove,
   },
   {
+    id: "full-table",
+    name: "A full table",
+    description: "Five at the table, chips out before the flop (a raise and calls), and it's your move: for checking the layout.",
+    bots: 4,
+    build(players, ctx) {
+      const c = scenarioContext(ctx);
+      const state = game.create(game.configSchema.parse({}), c);
+      [0, 2, 4, 5, 7].forEach((seat, i) => game.apply(state, players[i]!, { type: "sit", seat }, c));
+      game.apply(state, players[0]!, { type: "start" }, c);
+      const raiser: Policy<PokerView, PokerOp> = (view, ops, rand) =>
+        view.hand!.currentBet < 40 && ops.some((op) => op.type === "raise") ? { type: "raise", to: 40 } : passive(view, ops, rand);
+      const policies = Object.fromEntries(players.slice(1).map((id) => [id, raiser]));
+      playUntil(game, state, c, (s) => s.hand?.toAct === 0, { policies });
+      return state;
+    },
+  },
+  {
     id: "showdown",
     name: "Showdown",
     description: "You called the river all-in: the hands are shown and your flush takes the bot's stack.",

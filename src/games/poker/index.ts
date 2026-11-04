@@ -16,6 +16,7 @@ import {
   type PokerState,
   type PokerView,
   rebuy,
+  rebuysAllowed,
   SEAT_COUNT,
   seatOf,
   setSittingOut,
@@ -32,6 +33,8 @@ const configSchema = z
     smallBlind: z.number().int().min(1).max(100_000).default(5),
     bigBlind: z.number().int().min(2).max(200_000).default(10),
     turnSeconds: z.number().int().min(0).max(600).default(60),
+    blindsUpEvery: z.number().int().min(0).max(1000).default(0),
+    rebuys: z.boolean().default(true),
   })
   .refine((c) => c.bigBlind >= c.smallBlind, "Big blind must be at least the small blind.")
   .refine((c) => c.startingStack >= c.bigBlind * 2, "Starting stack must cover at least two big blinds.");
@@ -86,7 +89,7 @@ export const poker: GameDefinition<PokerState, PokerOp, PokerView, PokerConfig> 
     const seat = seatOf(state, player);
     const ops: PokerOp[] = legalLobbyOps(state, player, { sitOut: true, canStart: canStart(state) });
     if (seat < 0) return ops;
-    if (state.seats[seat]!.stack === 0 && !inCurrentHand(state, seat)) ops.push({ type: "rebuy" });
+    if (state.seats[seat]!.stack === 0 && !inCurrentHand(state, seat) && rebuysAllowed(state.config)) ops.push({ type: "rebuy" });
     const legal = legalActions(state, seat);
     if (legal) {
       ops.push({ type: "fold" }, legal.canCheck ? { type: "check" } : { type: "call" });

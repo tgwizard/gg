@@ -28,6 +28,7 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
 @media (prefers-reduced-motion: reduce) { .plate.active { animation: none; } }
 .plate.selected { box-shadow: 0 0 0 3px var(--accent), var(--shadow-md); }
 .plate.dim { opacity: 0.6; }
+.plate-badge { position: absolute; top: -9px; right: -9px; z-index: 1; display: flex; }
 .plate.winner { --box-bg: #6b4a1e; --box-line: #4a3010; }
 .plate-line { display: flex; justify-content: center; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
 .plate-line.status { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -99,6 +100,13 @@ button.plate.selectable:hover { box-shadow: 0 0 0 2px var(--accent-hover), var(-
 }
 .action-tray-main { flex: 1; min-width: 260px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .action-tray-aside { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.action-tray-aside:empty { display: none; }
+/* Your move: kept on screen at the bottom while the game is, should the game be taller than the window. */
+.action-tray.pinned { position: sticky; bottom: 8px; z-index: 30; }
+@media (max-width: 860px) {
+  /* On a phone it usually is, and the tray floats over the table. */
+  .action-tray.pinned { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow-md), 0 8px 30px rgb(0 0 0 / 0.35); }
+}
 
 .game-log { padding: 0 4px; }
 

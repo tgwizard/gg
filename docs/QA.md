@@ -81,7 +81,10 @@ these through the browser and reports back.
 - [ ] Split pot (board plays): the odd chip goes to the first winner left of the button.
 - [ ] All-in before the river: hands flip and the board deals street by street.
 - [ ] Turn timer: idle player is checked/folded and marked *Sitting out*; *I'm back* resumes dealing.
-- [ ] Bust out → *Rebuy* appears between hands.
+- [ ] Bust out → *Rebuy* appears between hands. With *Rebuys* off in the set-up: no *Rebuy*, "You're out of chips…" in the tray, and once one player has every chip the table says so.
+- [ ] *Blinds go up every* 2 hands: hands 1–2 at 5/10, then 10/20 (announced in chat), 15/30…; the felt shows the blinds and when they go up next, and *Min* follows them.
+- [ ] *Buy-ins* under the table: everyone's bought in / has / up or down, rebuys counted, adding up. A rebuy says so in the chat ("… buys back in for 1,000 (first rebuy)."), and busting out at a table without rebuys says you're out of the game.
+- [ ] Sizing a bet: − and + step by the small blind (from the minimum to round amounts, up to all-in), the slider (wide screens) lands on the same stops, and typing any amount still works. On a phone, *Raise…* opens presets, −/+ and *Raise to N* with *Back*.
 - [ ] *Fold & leave seat* mid-hand: you fold, your blind stays in the pot, and the hand carries on.
 - [ ] Sitting down mid-hand: you're dealt in on the next hand.
 - [ ] Motion: dealing sends cards from the middle to each seat in turn; when a betting round ends the bets slide into the pot; new board cards (and hands shown at the showdown) turn over; the pot flies to the winner. A refresh mid-hand shows the table still. Nothing moves with reduced motion.
@@ -282,7 +285,7 @@ these through the browser and reports back.
 - [ ] While its model works, a bubble over its nameplate says what it's doing, and dots show on its avatar in the members list (the name stays readable).
 - [ ] Edit it: tokens used so far; change model or effort and it uses them from its next move.
 - [ ] Remove the key in settings (or use a bad one): the bot shows *AI problem* and the built-in bot plays its moves, so the game never waits.
-- [ ] *?* in a game's header shows How to play.
+- [ ] *?* in a game's header shows How to play. Texas Hold'em's ends with the hands, best to worst, each with five cards (the ones that don't count greyed), readable on a phone and in dark mode.
 
 ### End screens (via `/try`)
 - [ ] Every game's "won"/"game over" scenario: the result reads right, winners are marked, *Play again* (or *Start*) works, in light and dark mode and on a phone.
@@ -297,7 +300,10 @@ these through the browser and reports back.
 - [ ] Every timed game's set-up has *Disable timer*; once it's 0 the button looks spent, and pressing it again says "Timer already disabled".
 - [ ] A spectator can't end a game while its players are online; the game's starter or a player can.
 - [ ] Desktop 1280×800: the whole table and action bar fit without scrolling.
-- [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table.
+- [ ] Mobile portrait: seats don't overlap badly, and chat sits below the table. Bets sit in front of each seat, never under its cards (`/try/poker/full-table`, at 320px wide too).
+- [ ] Phone, your move in poker, Fem kort or Finns i sjön: the tray stays at the bottom of the screen (with your cards in it in poker) until you scroll past the game; not your move, it sits under the table.
+- [ ] Phone: scroll down through the chat and back up: reaching the top of the chat carries on up to the game in the same swipe (the chat isn't a box of its own there). A long chat shows the latest 30, with *Show N earlier messages*. Reading at the bottom, new messages come into view.
+- [ ] Phone: buttons are comfortably big to tap (44px; small ones 38px), and nothing wraps badly because of it (top bar, tray, footer, chat).
 - [ ] Long names (24 chars) and 9 seated players.
 - [ ] Light and dark mode (the settings cog, /settings, or Ctrl+Shift+L anywhere, ⌃⇧L on a Mac): every screen readable, the choice survives a reload, and a fresh browser follows the system setting.
 - [ ] `/ui` style guide: nothing broken after design changes, in both modes.

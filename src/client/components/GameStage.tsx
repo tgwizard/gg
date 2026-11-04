@@ -72,7 +72,7 @@ function GamePicker({ client, snapshot, invite }: { client: RoomClient; snapshot
               <GameFacts meta={ui.meta} style={morphStyle(ui.meta.id, "players")} />
             </div>
             <div className="picked-actions">
-              <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
+              <GameHelp name={ui.meta.name} rules={ui.meta.rules} extra={ui.help && <ui.help />} />
               <button type="button" className="btn ghost small" onClick={() => choose(null)}>
                 ← All games
               </button>
@@ -156,7 +156,7 @@ function ActiveGame({ client, snapshot, guests }: { client: RoomClient; snapshot
             <WipBadge wip={ui.meta.wip} />
           </div>
           <div className="game-header-actions">
-            <GameHelp name={ui.meta.name} rules={ui.meta.rules} />
+            <GameHelp name={ui.meta.name} rules={ui.meta.rules} extra={ui.help && <ui.help />} />
             {ui.settings && !outdated && <GameSettings settings={ui.settings(game.view)} />}
             {confirmEnd ? (
               <span className="row">
@@ -346,11 +346,12 @@ function GameSettings({ settings }: { settings: GameSetting[] }) {
 }
 
 /** How to play: the game's rules (the same text AI bots get). */
-function GameHelp({ name, rules }: { name: string; rules: string }) {
+function GameHelp({ name, rules, extra }: { name: string; rules: string; extra?: ReactNode }) {
   return (
     <HeaderPopover label="How to play" icon={<span className="icon-btn-text">?</span>} wide>
       <h3 className="label">How to play {name}</h3>
       <Rules text={rules} />
+      {extra}
     </HeaderPopover>
   );
 }

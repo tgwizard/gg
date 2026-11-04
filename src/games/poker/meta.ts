@@ -12,6 +12,7 @@ export const pokerMeta: GameMeta = {
 - On your turn: fold, check (if there's nothing to call), call the current bet, or raise. No limit: you can raise up to all your chips.
 - When betting ends with more than one player in, the best five-card hand from your two cards and the five shared cards wins the pot.
 - Hands, best first: straight flush, four of a kind, full house, flush, straight, three of a kind, two pair, one pair, high card.
-- Run out of time and you check if you can, otherwise fold. Lose all your chips and you can rebuy.`,
+- Run out of time and you check if you can, otherwise fold. Lose all your chips and you can rebuy, unless the table was set up without rebuys: then you're out.
+- The table may be set up for the blinds to go up every so many hands; the table shows the blinds now and when they go up next.`,
   botNotes: `Cards are two characters: rank (2–9, T for 10, J, Q, K, A) then suit (s, h, d, c), e.g. "As" or "Td". A raise is written as the total you bet this round ("to"), between you.actions.minRaiseTo and maxRaiseTo; any amount in that range is fine, not just the examples listed.`
 };

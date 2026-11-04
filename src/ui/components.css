@@ -97,6 +97,11 @@
 .btn.ghost:active:not(:disabled, .unavailable) { translate: none; box-shadow: none; }
 .btn.small { font-size: 12.5px; padding: 8px 13px; }
 .btn.big { font-size: 15px; padding: 14px 22px; }
+/* Fingers rather than a mouse: buttons big enough to hit (about 44px, as Apple and Google advise; small ones a little less). */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .btn.small { min-height: 38px; }
+}
 
 /* ---------- forms ---------- */
 

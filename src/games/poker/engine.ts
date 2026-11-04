@@ -34,6 +34,32 @@ export interface PokerConfig {
   bigBlind: number;
   /** Seconds a player has to act before auto check/fold; 0 disables the clock. */
   turnSeconds: number;
+  /** The blinds go up a level (BLIND_LEVELS) every this many hands; 0 or unset: never. */
+  blindsUpEvery?: number;
+  /** Whether a player out of chips may buy back in; unset is yes. Without, once you're out you're out (a freezeout). */
+  rebuys?: boolean;
+}
+
+/** The blinds at each level, as multiples of the starting ones: they double every two levels. */
+export const BLIND_LEVELS = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128];
+
+export interface Blinds {
+  small: number;
+  big: number;
+  /** Index into BLIND_LEVELS. */
+  level: number;
+}
+
+/** The blinds for hand number `handNumber` (1 is the first). */
+export function blindsAt(config: PokerConfig, handNumber: number): Blinds {
+  const every = config.blindsUpEvery ?? 0;
+  const level = every > 0 ? Math.min(BLIND_LEVELS.length - 1, Math.floor(Math.max(0, handNumber - 1) / every)) : 0;
+  const m = BLIND_LEVELS[level]!;
+  return { small: config.smallBlind * m, big: config.bigBlind * m, level };
+}
+
+export function rebuysAllowed(config: PokerConfig): boolean {
+  return config.rebuys !== false;
 }
 
 export type PokerSeat = Seat & { stack: number };
@@ -90,6 +116,8 @@ export interface Hand {
   button: number;
   sb: number;
   bb: number;
+  /** The blinds this hand was dealt at (missing in hands from before blind levels: the config's). */
+  blinds?: Blinds;
   deck: Card[];
   board: Card[];
   street: Street;
@@ -117,6 +145,8 @@ export interface PokerState extends Seating<PokerSeat> {
   timers: Timers<PokerTimer>;
   /** Every chip ever handed out (buy-ins, rebuys): what's on the table must add up to this. */
   chipsIssued: number;
+  /** Chips each player has bought in for, sitting down and rebuying (missing in games from before it was kept). */
+  buyIns?: Record<string, number>;
 }
 
 export type PokerAction =
@@ -146,6 +176,7 @@ export function createState(config: PokerConfig): PokerState {
     started: false,
     timers: {},
     chipsIssued: 0,
+    buyIns: {},
   };
 }
 
@@ -164,6 +195,31 @@ export function inCurrentHand(state: PokerState, seat: number): HandPlayer | und
 
 function eligibleSeats(state: PokerState): number[] {
   return seatsWhere(state, (s) => s.stack > 0 && !s.sittingOut);
+}
+
+/** The big blind of the hand being played (the minimum bet and raise). */
+function bigBlindOf(state: PokerState, hand: Hand): number {
+  return hand.blinds?.big ?? state.config.bigBlind;
+}
+
+/** How many players' buy-ins are remembered; the longest gone that aren't at the table are forgotten first. */
+const BUY_INS_KEEP = 64;
+
+function noteBuyIn(state: PokerState, playerId: string, chips: number) {
+  const buyIns = (state.buyIns ??= {});
+  const before = buyIns[playerId] ?? 0;
+  delete buyIns[playerId]; // to the end: most recent last
+  buyIns[playerId] = before + chips;
+  const here = new Set([...state.seats.flatMap((s) => (s ? [s.playerId] : [])), ...Object.keys(state.away)]);
+  for (const id of Object.keys(buyIns)) {
+    if (Object.keys(buyIns).length <= BUY_INS_KEEP) break;
+    if (!here.has(id)) delete buyIns[id];
+  }
+}
+
+/** How many times a player has bought back in (every buy-in is the starting chips). */
+function rebuysOf(state: PokerState, playerId: string): number {
+  return Math.max(0, Math.round((state.buyIns?.[playerId] ?? 0) / state.config.startingStack) - 1);
 }
 
 function seatList(seats: number[]) {
@@ -229,6 +285,7 @@ export function sit(state: PokerState, playerId: string, seat: number, ctx: Game
   // Returning players get their old stack back (standing up must not top you up).
   sitDown(state, playerId, seat, () => {
     state.chipsIssued += state.config.startingStack;
+    noteBuyIn(state, playerId, state.config.startingStack);
     return { stack: state.config.startingStack };
   });
   maybeScheduleNextHand(state, ctx);
@@ -249,11 +306,15 @@ export function setSittingOut(state: PokerState, playerId: string, sittingOut: b
 
 export function rebuy(state: PokerState, playerId: string, ctx: GameContext) {
   const seat = requireSeat(state, playerId);
+  if (!rebuysAllowed(state.config)) throw new GameError("no_rebuys", "There are no rebuys at this table: once you're out, you're out.");
   if (inCurrentHand(state, seat)) throw new GameError("in_hand", "Wait for the hand to finish.");
   const s = stackOf(state, seat);
   if (s.stack > 0) throw new GameError("has_chips", "You can only rebuy when you're out of chips.");
   s.stack = state.config.startingStack;
   state.chipsIssued += state.config.startingStack;
+  noteBuyIn(state, playerId, state.config.startingStack);
+  const n = rebuysOf(state, playerId);
+  ctx.announce(`${ctx.nameOf(playerId)} buys back in for ${state.config.startingStack.toLocaleString("en-US")} (${n === 1 ? "first rebuy" : `rebuy #${n}`}).`);
   maybeScheduleNextHand(state, ctx);
 }
 
@@ -311,6 +372,9 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
     lastAction: null,
   }));
 
+  const blinds = blindsAt(state.config, state.handCount + 1);
+  if (blinds.level > (state.hand?.blinds?.level ?? 0)) ctx.announce(`The blinds are up to ${blinds.small}/${blinds.big}.`);
+
   const deck = shuffle(newDeck(), ctx.randomInt);
   // Deal one card at a time, starting left of the button.
   const order = [...players].sort((a, b) => ((a.seat - button + SEAT_COUNT - 1) % SEAT_COUNT) - ((b.seat - button + SEAT_COUNT - 1) % SEAT_COUNT));
@@ -321,14 +385,15 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
     button,
     sb,
     bb,
+    blinds,
     deck,
     board: [],
     street: "preflop",
     status: "betting",
     players,
     toAct: null,
-    currentBet: state.config.bigBlind,
-    minRaise: state.config.bigBlind,
+    currentBet: blinds.big,
+    minRaise: blinds.big,
     result: null,
     log: [],
   };
@@ -338,8 +403,8 @@ export function startHand(state: PokerState, ctx: GameContext): boolean {
 
   const sbPlayer = players.find((p) => p.seat === sb)!;
   const bbPlayer = players.find((p) => p.seat === bb)!;
-  log(hand, sbPlayer, `Small blind ${putIn(state, sbPlayer, state.config.smallBlind)}`);
-  log(hand, bbPlayer, `Big blind ${putIn(state, bbPlayer, state.config.bigBlind)}`);
+  log(hand, sbPlayer, `Small blind ${putIn(state, sbPlayer, blinds.small)}`);
+  log(hand, bbPlayer, `Big blind ${putIn(state, bbPlayer, blinds.big)}`);
 
   advance(state, bb, ctx);
   return true;
@@ -442,7 +507,7 @@ function endStreet(state: PokerState, ctx: GameContext) {
     p.actedAtBet = null;
   }
   hand.currentBet = 0;
-  hand.minRaise = state.config.bigBlind;
+  hand.minRaise = bigBlindOf(state, hand);
 
   if (hand.street === "river") return showdown(state, ctx);
 
@@ -526,7 +591,8 @@ function completeHand(state: PokerState, ctx: GameContext) {
   setTimer(state.timers, "nextHand", state.started ? ctx.now + NEXT_HAND_DELAY_MS : null);
   for (const p of hand.players) {
     const s = state.seats[p.seat];
-    if (s && s.playerId === p.playerId && s.stack === 0) ctx.announce(`${ctx.nameOf(p.playerId)} is out of chips.`);
+    if (s && s.playerId === p.playerId && s.stack === 0)
+      ctx.announce(`${ctx.nameOf(p.playerId)} is out of chips${rebuysAllowed(state.config) ? "." : ", and out of the game: no rebuys at this table."}`);
   }
 }
 
@@ -643,6 +709,7 @@ export interface HandView {
   button: number;
   sb: number;
   bb: number;
+  blinds: Blinds;
   board: Card[];
   street: Street;
   status: Hand["status"];
@@ -656,12 +723,28 @@ export interface HandView {
   log: LogEntry[];
 }
 
+export interface LedgerLine {
+  playerId: string;
+  /** Chips bought in for, all told. */
+  boughtIn: number;
+  /** Times they've bought back in after running out. */
+  rebuys: number;
+  /** Chips they have now: their stack, and what they've put in the hand being played. */
+  chips: number;
+}
+
 export interface PokerView {
   config: PokerConfig;
   seats: (PokerSeat | null)[];
   started: boolean;
   nextHandAt: number | null;
   hand: HandView | null;
+  /** The blinds now: the hand's, or between hands the next one's. */
+  blinds: Blinds;
+  /** When the blinds go up next (a hand number), and to what; null if they don't. */
+  nextBlinds: (Blinds & { atHand: number }) | null;
+  /** Who's bought in for how much, and what they have now, most recent first. */
+  ledger: LedgerLine[];
   you: { seat: number | null; actions: LegalActions | null };
 }
 
@@ -672,8 +755,27 @@ export interface PokerView {
 export function viewFor(state: PokerState, viewer: string): PokerView {
   const hand = state.hand;
   const seat = seatOf(state, viewer);
+  const live = handInProgress(state);
+  // Between hands, the blinds the next one will be dealt at.
+  const handNumber = live ? state.handCount : state.handCount + 1;
+  const blinds = live && hand!.blinds ? hand!.blinds : blindsAt(state.config, handNumber);
+  const every = state.config.blindsUpEvery ?? 0;
+  const atHand = (blinds.level + 1) * every + 1;
+  const nextBlinds = every > 0 && blinds.level < BLIND_LEVELS.length - 1 ? { ...blindsAt(state.config, atHand), atHand } : null;
+  const chipsOf = (playerId: string) => {
+    const at = seatOf(state, playerId);
+    const inHand = live ? (hand!.players.find((p) => p.playerId === playerId && !p.folded)?.committed ?? 0) : 0;
+    return (at >= 0 ? state.seats[at]!.stack : (state.away[playerId]?.stack ?? 0)) + inHand;
+  };
   return {
-    config: state.config,
+    config: {
+      startingStack: state.config.startingStack,
+      smallBlind: state.config.smallBlind,
+      bigBlind: state.config.bigBlind,
+      turnSeconds: state.config.turnSeconds,
+      blindsUpEvery: every,
+      rebuys: rebuysAllowed(state.config),
+    },
     seats: state.seats.map((s) => (s ? { playerId: s.playerId, stack: s.stack, sittingOut: s.sittingOut } : null)),
     started: state.started,
     nextHandAt: state.timers.nextHand ?? null,
@@ -682,6 +784,7 @@ export function viewFor(state: PokerState, viewer: string): PokerView {
       button: hand.button,
       sb: hand.sb,
       bb: hand.bb,
+      blinds: hand.blinds ? { ...hand.blinds } : { small: state.config.smallBlind, big: state.config.bigBlind, level: 0 },
       board: [...hand.board],
       street: hand.street,
       status: hand.status,
@@ -702,6 +805,11 @@ export function viewFor(state: PokerState, viewer: string): PokerView {
       result: hand.result,
       log: hand.log.slice(-40),
     },
+    blinds: { ...blinds },
+    nextBlinds,
+    ledger: Object.entries(state.buyIns ?? {})
+      .reverse()
+      .map(([playerId, boughtIn]) => ({ playerId, boughtIn, rebuys: rebuysOf(state, playerId), chips: chipsOf(playerId) })),
     you: { seat: seat >= 0 ? seat : null, actions: seat >= 0 ? legalActions(state, seat) : null },
   };
 }

@@ -10,10 +10,14 @@ export function Herald({ children, testId, big, className }: { children: ReactNo
   );
 }
 
-/** Your controls, under the table: the main actions, and seat housekeeping to the side. */
-export function ActionTray({ children, aside, testId }: { children?: ReactNode; aside?: ReactNode; testId?: string }) {
+/**
+ * Your controls, under the table: the main actions, and seat housekeeping to the side.
+ * `pinned` while your move is made in here: on a phone it then stays in sight at the
+ * bottom of the screen, rather than below the table where you'd have to go looking.
+ */
+export function ActionTray({ children, aside, testId, pinned }: { children?: ReactNode; aside?: ReactNode; testId?: string; pinned?: boolean }) {
   return (
-    <div className="action-tray box on-brand" data-testid={testId}>
+    <div className={`action-tray box on-brand${pinned ? " pinned" : ""}`} data-testid={testId}>
       <div className="action-tray-main">{children}</div>
       {aside && <div className="action-tray-aside">{aside}</div>}
     </div>

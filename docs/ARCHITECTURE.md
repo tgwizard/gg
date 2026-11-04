@@ -189,6 +189,8 @@ display type and Nunito for everything else.
   cells and cards in hand that are buttons follow it too (their own CSS keeps
   `:not(:disabled, .unavailable)` off hover effects). Only inputs, selects and sliders
   keep `disabled`.
+- **Touch-sized buttons.** On a touch screen (`pointer: coarse`) every `.btn` is at least
+  44px tall (small ones 38px), about what Apple and Google advise for a fingertip.
 - `mode.ts`: light/dark. Follows the system until you choose (the settings cog, /settings, or
   Ctrl+Shift+L); the choice is remembered per browser. `index.html` applies it before first paint.
 - Artwork lives in `public/icons/` (generated illustrations for gg and each game;
@@ -196,7 +198,8 @@ display type and Nunito for everything else.
 - Small panels behind a button (your profile, a member, inviting a bot, the game's rules
   and settings, the connection) are all `components/Popover.tsx`: kept within what's
   visible (on a phone, above the browser's bars and the keyboard), scrolling inside
-  without scrolling the page, and closed by clicking elsewhere or Escape.
+  without scrolling the page, following their button as the page scrolls (and closed once
+  it's out of sight, unless you're typing in one), and closed by clicking elsewhere or Escape.
 - `/ui` is a style guide with every component, in either mode.
 - The room's members-and-chat sidebar can be folded into a rail (people online, a
   count of new messages) to give a game the whole width; it's remembered per
@@ -272,11 +275,15 @@ can once none of its players are online).
 - `cards.ts`: a standard 52-card deck, shuffling, rank names.
 - `ui/`: the card-game base. `CardTable` (a wood-and-felt table with seats spaced
   around it, you at the bottom, bets and a dealer button in front of seats (`betAt`
-  sets how far in: played cards sit nearer the middle than chips), content in the
-  middle), `PlayerPlate` (nameplate), `Cards` (faces, backs, slots, fans),
+  sets how far in: played cards sit nearer the middle than chips; `"seat"` keeps a bet
+  just in front of its seat, clear of that seat's cards, whatever the table's size), content in the
+  middle), `PlayerPlate` (nameplate, with an optional `badge` on its corner, like poker's dealer button), `Cards` (faces, backs, slots, fans),
   `Chips`/`Pot`/`DealerButton`, `TurnTimer`, `TimerField` (a set-up's seconds with
   a "Disable timer" button), `Herald`/`ActionTray`/`GameLog`
-  for the strip, tray and history under the table, and `useSend` (`sendOp` plus a `busy`
+  for the strip, tray and history under the table (an `ActionTray` that's `pinned`, while
+  your move is made in it, sticks to the bottom of the screen when the game is taller than
+  the window, as it usually is on a phone: what you can do is never below the fold; games
+  whose move is made on the board, like Cannons' aiming, leave it unpinned), and `useSend` (`sendOp` plus a `busy`
   flag for disabling buttons while a move is on its way). `Flights` moves things across
   the table (dealt cards, chips, a catch from the lake): a game compares the new
   view with the last one, measures both ends on screen (`CardTable` marks seats with
@@ -803,6 +810,21 @@ A bot is just another member of the room, played from its owner's browser:
 - **Identity.** Your bots are kept in localStorage like your own name (`gg.bots`,
   `src/client/bots/store.ts`, on `src/client/local.ts`, the store for every player kept
   in this browser besides you, shared with hot-seat players): each has its own secret, so it's the same player in
+- **Blind levels** (`blindsUpEvery`): the blinds can go up a level every so many hands,
+  through `BLIND_LEVELS` (×1, 2, 3, 4, 6, 8…: doubling every two levels), announced in the
+  chat. Each hand keeps the blinds it was dealt at (`hand.blinds`), and the minimum bet and
+  raise follow them. The table shows the blinds and when they go up next.
+- **Buy-ins**: `rebuys: false` makes a freezeout (out of chips, you're out; standing up and
+  sitting down again doesn't top you up), and the table says who has all the chips at the end.
+  Every buy-in is counted per player (`buyIns`); a rebuy is announced in the chat ("Sam buys
+  back in for 1,000 (rebuy #2)."), and *Buy-ins* under the table shows each player's bought
+  in (and rebuys), has now, and up or down, for settling up after a home game.
+- **Sizing a bet**: presets (min, ½ pot, pot, all-in), − and + that step by the small blind
+  (stops: the minimum, round multiples of the small blind, all-in; `ui/amounts.ts`), and on
+  wide screens a slider over the same stops. The rules still take any whole amount from the
+  minimum raise up. On a phone, *Raise…* opens the sizing as a step of its own, and the tray
+  shows your two cards, as it may be covering your seat.
+
   every room, and a name, color, personality and (optionally) an AI key, model and
   effort. You make, edit and delete them in /settings (the *Bots & AI* tab), or make
   one on the spot from a room. In a room, *+ Invite a bot* lists your bots that aren't
@@ -924,7 +946,9 @@ it out of it (the bot form says so).
   bot's record and shown when editing it.
 
 Every game has `meta.rules` (also shown in the game's "How to play" help) and
-optional `meta.botNotes` (how its view and moves are written, for models).
+optional `meta.botNotes` (how its view and moves are written, for models). A game's UI
+can add pictures under the rules in its help (`GameUI.help`; poker's hands, best to
+worst, drawn with cards); those are for people only.
 
 **Dev logs.** Bots live in the browser, so in dev they (and every room connection)
 report through `devLog` to a Vite dev-server endpoint, which writes

@@ -23,6 +23,8 @@ export function PlayerPlate(props: {
   why?: string | null;
   onClick?(): void;
   tags?: ReactNode;
+  /** A token pinned to the plate's corner (a dealer button). */
+  badge?: ReactNode;
   className?: string;
   testId?: string;
   children?: ReactNode;
@@ -51,6 +53,7 @@ export function PlayerPlate(props: {
         {props.tags}
       </div>
       {props.children}
+      {props.badge && <span className="plate-badge">{props.badge}</span>}
       {activity && <ActivityBubble text={activity} />}
     </>
   );

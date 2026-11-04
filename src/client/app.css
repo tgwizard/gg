@@ -376,6 +376,7 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .msg-game .msg-text { color: var(--accent-text); font-weight: 700; }
 .msg.pending { opacity: 0.5; }
 .chat-input { display: flex; gap: 8px; }
+.chat-earlier { align-self: center; margin-bottom: 4px; }
 
 /* ---------- stage: picker & active game ---------- */
 .picker { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
@@ -478,9 +479,12 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 @media (max-width: 860px) {
   .room { height: auto; min-height: 100%; }
   .room-main { grid-template-columns: minmax(0, 1fr); }
+  /* The page is what scrolls here, so nothing inside it does: a swipe that reaches the top of
+     the chat carries on up to the game, and a pinned action tray (kit) sticks to the screen. */
+  .stage { padding: 16px 12px 24px; overflow-x: clip; overflow-y: visible; }
   .sidebar { border-left: none; border-top: 1px solid var(--line-strong); }
-  .chat-list { max-height: 50vh; }
-  .stage { padding: 16px 12px 24px; }
+  .members ul { max-height: none; overflow: visible; }
+  .chat-list { min-height: 0; overflow: visible; }
 }
 @media (max-width: 760px) {
   .home-forms, .home-forms.known { grid-template-columns: 1fr; grid-template-areas: "profile" "start" "or" "join"; }

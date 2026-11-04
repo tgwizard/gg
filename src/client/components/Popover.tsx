@@ -5,8 +5,10 @@ import { createPortal } from "react-dom";
  * A small dialog under `anchor`, right-aligned with it (or left-aligned, kept on
  * screen), moved up if it would run off the bottom of the window, and scrolling inside
  * if it's taller than the window. "The window" is what you can actually see: on a phone
- * that's less than `100vh` (the browser's bars, the on-screen keyboard). Clicking
- * elsewhere closes it.
+ * that's less than `100vh` (the browser's bars, the on-screen keyboard). It follows its
+ * anchor as the page (or anything around it) scrolls, and closes once the anchor is
+ * scrolled out of sight, unless you're typing in it (a phone's keyboard scrolls the page).
+ * Clicking elsewhere closes it.
  */
 export function Popover({
   anchor,
@@ -27,16 +29,23 @@ export function Popover({
   children: ReactNode;
 }) {
   const pop = useRef<HTMLDivElement>(null);
-  const rect = anchor.getBoundingClientRect();
-  const [place, setPlace] = useState({ top: rect.bottom + 10, left: Math.max(12, rect.left), maxHeight: window.innerHeight - 24 });
-  const below = rect.bottom + 10;
+  const [place, setPlace] = useState(() => {
+    const rect = anchor.getBoundingClientRect();
+    return { top: rect.bottom + 10, left: Math.max(12, rect.left), maxHeight: window.innerHeight - 24 };
+  });
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useLayoutEffect(() => {
     const el = pop.current;
     if (!el) return;
     const update = () => {
+      const rect = anchor.getBoundingClientRect();
+      const below = rect.bottom + 10;
       const seen = window.visualViewport;
       const height = seen?.height ?? window.innerHeight;
       const offset = seen?.offsetTop ?? 0;
+      const typing = el.contains(document.activeElement) && document.activeElement?.matches("input, textarea, select");
+      if (!typing && (rect.bottom < offset || rect.top > offset + height)) return closeRef.current();
       const maxHeight = height - 24;
       const tall = Math.min(el.scrollHeight, maxHeight);
       // Lined up with the anchor's left or right edge, but never off either side of the window.
@@ -55,13 +64,16 @@ export function Popover({
     window.visualViewport?.addEventListener("resize", update);
     window.visualViewport?.addEventListener("scroll", update);
     window.addEventListener("resize", update);
+    // Any scroller, the page included: the anchor moves, and the popover with it.
+    document.addEventListener("scroll", update, { capture: true, passive: true });
     return () => {
       observer.disconnect();
       window.visualViewport?.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
+      document.removeEventListener("scroll", update, { capture: true });
     };
-  }, [below, rect.left, rect.right, align]);
+  }, [anchor, align]);
   useEffect(() => {
     const close = (e: PointerEvent) => {
       const t = e.target as Node;

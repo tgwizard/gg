@@ -4,6 +4,7 @@ import { Button, busyWhy, play, useNarrow } from "../../../ui";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
+import { betStops } from "./amounts";
 import { arrivalStyle, Flights, rectOf, reducedMotion, seatRect, useFlights } from "../../kit/ui/Flights";
 import { ActionTray, GameLog, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
@@ -34,7 +35,6 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
       testId: `seat-${i}`,
       className: ["seat", isMe && "me", !seat && "empty"].filter(Boolean).join(" "),
       bet: hp && hp.bet > 0 ? <Bet amount={hp.bet} /> : undefined,
-      marker: seat && hand?.button === i ? <DealerButton /> : undefined,
       // Once the game's going, open seats only matter to someone who could take one.
       node: !seat && view.started && view.you.seat !== null ? null : (
         <SeatView
@@ -59,6 +59,7 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
     <div className="poker">
       <CardTable
         seats={seats}
+        betAt="seat"
         testId="poker-table"
         center={
           <>
@@ -81,19 +82,22 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
           </>
         }
       />
-      <ActionBar view={view} connected={connected} sendOp={sendOp} nameOf={nameOf} />
+      <ActionBar view={view} connected={connected} sendOp={sendOp} nameOf={nameOf} narrow={narrow} />
       <TableFooter
         log={
-          hand && (
-            <GameLog title={`Hand #${hand.id} log`}>
-              {hand.log.map((e, i) => (
-                <li key={i}>
-                  {(i === 0 || hand.log[i - 1]!.street !== e.street) && <span className="label log-street">{e.street}</span>}
-                  <strong>{nameOf(e.playerId)}</strong> {e.action}
-                </li>
-              ))}
-            </GameLog>
-          )
+          <>
+            {hand && (
+              <GameLog title={`Hand #${hand.id} log`}>
+                {hand.log.map((e, i) => (
+                  <li key={i}>
+                    {(i === 0 || hand.log[i - 1]!.street !== e.street) && <span className="label log-street">{e.street}</span>}
+                    <strong>{nameOf(e.playerId)}</strong> {e.action}
+                  </li>
+                ))}
+              </GameLog>
+            )}
+            <Ledger view={view} nameOf={nameOf} />
+          </>
         }
         actions={<SeatActions view={view} connected={connected} sendOp={sendOp} />}
       />
@@ -172,6 +176,7 @@ function SeatView(props: {
         active={isTurn}
         dim={hp?.folded || (!hp && !!hand)}
         winner={!!won}
+        badge={hand?.button === index ? <DealerButton /> : undefined}
       >
         <div className="plate-line">
           <Chips amount={seat.stack} />
@@ -189,11 +194,37 @@ function CenterMessage({ view, nameOf, serverNow }: { view: PokerView; nameOf(id
   const nextIn = view.nextHandAt ? Math.max(0, Math.ceil((view.nextHandAt - serverNow) / 1000)) : null;
   const seated = view.seats.filter(Boolean).length;
 
+  // A freezeout that's down to one player with chips is over.
+  const withChips = view.seats.filter((s) => s && s.stack > 0);
+  const champion = view.started && !view.config.rebuys && seated >= 2 && withChips.length === 1 && hand?.status !== "betting" && hand?.status !== "runout" ? withChips[0]! : null;
+  if (champion && view.nextHandAt === null) {
+    return (
+      <div className="center-msg result" data-testid="table-winner">
+        <div>
+          <strong className="display">{nameOf(champion.playerId)}</strong> has all the chips!
+        </div>
+      </div>
+    );
+  }
   if (!hand) {
     return <div className="center-msg">{seated < 2 ? "Waiting for players to sit down…" : "Ready when you are. Deal when everyone's seated."}</div>;
   }
   if (hand.status !== "complete" || !hand.result) {
-    return <div className="center-msg label">Hand #{hand.id}</div>;
+    const next = view.nextBlinds;
+    return (
+      <div className="center-msg label" data-testid="hand-label">
+        <div>Hand #{hand.id}</div>
+        <div className="center-sub">
+          Blinds {hand.blinds.small}/{hand.blinds.big}
+          {next && (
+            <>
+              <br />
+              {next.small}/{next.big} from hand #{next.atHand}
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
   const playerAt = (seat: number) => hand.players.find((p) => p.seat === seat)!.playerId;
   return (
@@ -213,7 +244,7 @@ function CenterMessage({ view, nameOf, serverNow }: { view: PokerView; nameOf(id
   );
 }
 
-function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; connected: boolean; sendOp: Send; nameOf(id: string): string }) {
+function ActionBar({ view, connected, sendOp, nameOf, narrow }: { view: PokerView; connected: boolean; sendOp: Send; nameOf(id: string): string; narrow: boolean }) {
   const { hand, you } = view;
   const actions = you.actions;
   const mySeat = you.seat;
@@ -225,9 +256,12 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
 
   const [busy, setBusy] = useState(false);
   const [raiseTo, setRaiseTo] = useState(actions?.minRaiseTo ?? 0);
+  // On a phone, sizing a bet is a step of its own (Raise…), so the tray stays small until then.
+  const [sizing, setSizing] = useState(false);
   const resetKey = `${hand?.id}:${hand?.street}:${hand?.currentBet}:${actions?.minRaiseTo}`;
   useEffect(() => {
     if (actions) setRaiseTo(actions.minRaiseTo);
+    setSizing(false);
   }, [resetKey]);
 
   const run = async (op: PokerOp) => {
@@ -243,66 +277,117 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
 
   let main: ReactNode;
   if (actions && hand) {
+    const { minRaiseTo: min, maxRaiseTo: max } = actions;
     const potAfterCall = hand.pot + actions.toCall;
-    const clamp = (v: number) => Math.round(Math.min(actions.maxRaiseTo, Math.max(actions.minRaiseTo, v)));
+    const clamp = (v: number) => Math.round(Math.min(max, Math.max(min, v)));
+    // Amounts go up in small blinds (the minimum and all-in excepted), so they come out round.
+    const stops = betStops(min, max, hand.blinds.small);
     const presets: [string, number][] = [
-      ["Min", actions.minRaiseTo],
+      ["Min", min],
       ["½ pot", clamp(hand.currentBet + potAfterCall / 2)],
       ["Pot", clamp(hand.currentBet + potAfterCall)],
-      ["All-in", actions.maxRaiseTo],
+      ["All-in", max],
     ];
     const isBet = hand.currentBet === 0;
-    const allIn = raiseTo >= actions.maxRaiseTo;
-    main = (
-      <div className="actions" data-testid="actions">
-        <Button className="btn danger" why={why} onClick={() => run({ type: "fold" })}>
-          Fold
-        </Button>
-        {actions.canCheck ? (
-          <Button className="btn" why={why} onClick={() => run({ type: "check" })}>
-            Check
-          </Button>
-        ) : (
-          <Button className="btn" why={why} onClick={() => run({ type: "call" })}>
-            Call {actions.toCall}
-          </Button>
-        )}
-        {actions.canRaise && (
-          <div className="raise">
-            <div className="presets">
-              {presets.map(([label, v]) => (
-                <Button key={label} className={`btn small subtle ${raiseTo === v ? "on" : ""}`} why={why} onClick={() => setRaiseTo(v)}>
-                  {label}
-                </Button>
-              ))}
-            </div>
-            <div className="row">
-              <input
-                type="range"
-                min={actions.minRaiseTo}
-                max={actions.maxRaiseTo}
-                value={raiseTo}
-                onChange={(e) => setRaiseTo(Number(e.target.value))}
-                aria-label="Raise amount"
-              />
-              <input
-                type="number"
-                className="raise-input"
-                min={actions.minRaiseTo}
-                max={actions.maxRaiseTo}
-                value={raiseTo}
-                onChange={(e) => setRaiseTo(Number(e.target.value))}
-                onBlur={() => setRaiseTo(clamp(raiseTo))}
-                aria-label="Raise to"
-              />
-              <Button className="btn primary" why={why} onClick={() => run({ type: "raise", to: clamp(raiseTo) })}>
-                {allIn ? `All-in ${actions.maxRaiseTo}` : isBet ? `Bet ${clamp(raiseTo)}` : `Raise to ${clamp(raiseTo)}`}
-              </Button>
-            </div>
+    const amount = clamp(raiseTo);
+    const allIn = amount >= max;
+    const fold = (
+      <Button className="btn danger" why={why} onClick={() => run({ type: "fold" })}>
+        Fold
+      </Button>
+    );
+    const callOrCheck = actions.canCheck ? (
+      <Button className="btn" why={why} onClick={() => run({ type: "check" })}>
+        Check
+      </Button>
+    ) : (
+      <Button className="btn" why={why} onClick={() => run({ type: "call" })}>
+        Call {actions.toCall.toLocaleString("en-US")}
+      </Button>
+    );
+    const confirm = (
+      <Button className="btn primary raise-go" why={why} onClick={() => run({ type: "raise", to: amount })}>
+        {allIn ? `All-in ${max.toLocaleString("en-US")}` : `${isBet ? "Bet" : "Raise to"} ${amount.toLocaleString("en-US")}`}
+      </Button>
+    );
+    const sizer = (
+      <div className="raise" data-testid="raise">
+        <div className="presets">
+          {presets.map(([label, v]) => (
+            <Button key={label} className={`btn small subtle ${amount === v ? "on" : ""}`} why={why} onClick={() => setRaiseTo(v)}>
+              {label}
+            </Button>
+          ))}
+        </div>
+        <div className="raise-row">
+          {!narrow && (
+            <input
+              type="range"
+              min={0}
+              max={stops.count - 1}
+              step={1}
+              value={stops.indexOf(amount)}
+              onChange={(e) => setRaiseTo(stops.at(Number(e.target.value)))}
+              aria-label="Raise amount"
+              aria-valuetext={String(amount)}
+            />
+          )}
+          <div className="stepper">
+            <Button className="btn subtle step" why={amount <= min ? "That's the smallest raise you can make." : null} onClick={() => setRaiseTo(stops.down(amount))} aria-label={`Less (by ${hand.blinds.small})`}>
+              −
+            </Button>
+            <input
+              type="number"
+              inputMode="numeric"
+              className="raise-input"
+              min={min}
+              max={max}
+              value={raiseTo}
+              onChange={(e) => setRaiseTo(Number(e.target.value))}
+              onBlur={() => setRaiseTo(amount)}
+              aria-label={isBet ? "Bet" : "Raise to"}
+            />
+            <Button className="btn subtle step" why={amount >= max ? "That's all your chips." : null} onClick={() => setRaiseTo(stops.up(amount))} aria-label={`More (by ${hand.blinds.small})`}>
+              +
+            </Button>
           </div>
-        )}
+          {!narrow && confirm}
+        </div>
       </div>
     );
+    if (!narrow) {
+      main = (
+        <div className="actions" data-testid="actions">
+          {fold}
+          {callOrCheck}
+          {actions.canRaise && sizer}
+        </div>
+      );
+    } else if (sizing && actions.canRaise) {
+      main = (
+        <div className="actions sizing" data-testid="actions">
+          {sizer}
+          <div className="actions-row">
+            <button type="button" className="btn subtle" onClick={() => setSizing(false)}>
+              Back
+            </button>
+            {confirm}
+          </div>
+        </div>
+      );
+    } else {
+      main = (
+        <div className="actions actions-row" data-testid="actions">
+          {fold}
+          {callOrCheck}
+          {actions.canRaise && (
+            <Button className="btn primary" why={why} onClick={() => setSizing(true)}>
+              {isBet ? "Bet…" : "Raise…"}
+            </Button>
+          )}
+        </div>
+      );
+    }
   } else if (handLive && hand.toAct !== null) {
     const waitingFor = view.seats[hand.toAct]?.playerId;
     main = <span className="muted">{waitingFor ? `Waiting for ${nameOf(waitingFor)}…` : "…"}</span>;
@@ -310,12 +395,15 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     main = <span className="muted">Dealing…</span>;
   } else if (mySeat === null) {
     main = <span className="muted">Pick an open seat to join the game.</span>;
+  } else if (me && me.stack === 0 && !view.config.rebuys) {
+    main = <span className="muted">You're out of chips, and there are no rebuys at this table.</span>;
   } else if (hand && view.nextHandAt !== null) {
     main = <span className="muted">Hand over. The next one is dealt in a moment.</span>;
   }
 
   return (
     <ActionTray
+      pinned={!!actions}
       aside={
         <>
           {canDeal && (
@@ -323,9 +411,9 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
               Deal
             </Button>
           )}
-          {me && me.stack === 0 && !inHand && (
+          {me && me.stack === 0 && !inHand && view.config.rebuys && (
             <Button className="btn" why={why} onClick={() => run({ type: "rebuy" })}>
-              Rebuy {view.config.startingStack}
+              Rebuy {view.config.startingStack.toLocaleString("en-US")}
             </Button>
           )}
           {me?.sittingOut && (
@@ -338,11 +426,57 @@ function ActionBar({ view, connected, sendOp, nameOf }: { view: PokerView; conne
     >
       {holding && (
         <div className="poker-holding" data-testid="poker-holding">
+          {/* On a phone the tray may be over your seat: your cards are here too. */}
+          {narrow && mine?.cards && (
+            <span className="poker-holding-cards">
+              {mine.cards.map((c) => (
+                <PlayingCard key={c} card={c} size="sm" />
+              ))}
+            </span>
+          )}
           <span className="label">Your hand</span> <strong>{holding}</strong>
         </div>
       )}
       {main}
     </ActionTray>
+  );
+}
+
+/** Who's bought in for how much, and how they're doing: for settling up after a home game. */
+function Ledger({ view, nameOf }: { view: PokerView; nameOf(id: string): string }) {
+  if (!view.ledger.length) return null;
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  return (
+    <details className="log game-log poker-ledger" data-testid="ledger">
+      <summary>Buy-ins</summary>
+      <table>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Bought in</th>
+            <th>Has</th>
+            <th>Up/down</th>
+          </tr>
+        </thead>
+        <tbody>
+          {view.ledger.map((l) => {
+            const net = l.chips - l.boughtIn;
+            return (
+              <tr key={l.playerId}>
+                <td>{nameOf(l.playerId)}</td>
+                <td className="num">
+                  {fmt(l.boughtIn)}
+                  {l.rebuys > 0 && <span className="ledger-rebuys">{l.rebuys === 1 ? "1 rebuy" : `${l.rebuys} rebuys`}</span>}
+                </td>
+                <td className="num">{fmt(l.chips)}</td>
+                <td className={`num ${net > 0 ? "up" : net < 0 ? "down" : ""}`}>{net > 0 ? `+${fmt(net)}` : fmt(net)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="muted small">{view.config.rebuys ? `A rebuy is ${fmt(view.config.startingStack)} chips, once you're out.` : "No rebuys at this table: once you're out, you're out."}</p>
+    </details>
   );
 }
 

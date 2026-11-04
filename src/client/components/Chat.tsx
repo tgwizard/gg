@@ -1,10 +1,13 @@
-import { type FormEvent, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MAX_CHAT_LENGTH } from "../../shared/protocol";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { formatDateTimeZone, formatTime } from "../format";
 import { noAutofill } from "../noAutofill";
-import { Button, Panel, playerStyle, usePlayerColors } from "../../ui";
+import { Button, Panel, playerStyle, useMedia, usePlayerColors } from "../../ui";
 import { useToast } from "./Toasts";
+
+/** Messages shown when the chat is part of the page, before "Show earlier". */
+const IN_PAGE_RECENT = 30;
 
 export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text: string): Promise<void> }) {
   const [text, setText] = useState("");
@@ -12,11 +15,34 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
   const colorOf = usePlayerColors();
   const listRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
+  // Under the game (phones, narrow windows) the chat is part of the page, which is what
+  // scrolls: a box scrolling inside it would stop a swipe up at its top, short of the game.
+  const inPage = useMedia("(max-width: 860px)");
+  const [showAll, setShowAll] = useState(false);
+  const pageAtBottom = useRef(false);
+  useEffect(() => {
+    if (!inPage) return;
+    const note = () => (pageAtBottom.current = innerHeight + scrollY >= document.documentElement.scrollHeight - 60);
+    note();
+    addEventListener("scroll", note, { passive: true });
+    addEventListener("resize", note);
+    return () => {
+      removeEventListener("scroll", note);
+      removeEventListener("resize", note);
+    };
+  }, [inPage]);
 
   useLayoutEffect(() => {
     const el = listRef.current;
-    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
-  }, [snapshot.chat, snapshot.pendingChat]);
+    if (!el) return;
+    // Reading the latest at the bottom of the page: new messages come into view.
+    if (inPage) {
+      if (pageAtBottom.current) scrollTo({ top: document.documentElement.scrollHeight });
+    } else if (stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [snapshot.chat, snapshot.pendingChat, inPage]);
+
+  const earlier = inPage && !showAll ? Math.max(0, snapshot.chat.length - IN_PAGE_RECENT) : 0;
+  const messages = earlier ? snapshot.chat.slice(earlier) : snapshot.chat;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -29,6 +55,7 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
     });
     setText("");
     stickToBottom.current = true;
+    pageAtBottom.current = true;
   }
 
   return (
@@ -42,7 +69,12 @@ export function Chat({ snapshot, onSend }: { snapshot: RoomSnapshot; onSend(text
           stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         }}
       >
-        {snapshot.chat.map((m) =>
+        {earlier > 0 && (
+          <button type="button" className="btn ghost small chat-earlier" onClick={() => setShowAll(true)}>
+            Show {earlier} earlier {earlier === 1 ? "message" : "messages"}
+          </button>
+        )}
+        {messages.map((m) =>
           m.kind === "user" ? (
             <div key={m.seq} className="msg" data-testid="chat-message">
               <time className="msg-time" title={formatDateTimeZone(m.ts)}>{formatTime(m.ts)}</time>

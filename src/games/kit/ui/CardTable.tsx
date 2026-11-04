@@ -33,8 +33,11 @@ export function CardTable({
   center?: ReactNode;
   testId?: string;
   className?: string;
-  /** How far out from the middle bets sit (1 is at the seat): played cards want to be further in than chips. */
-  betAt?: number;
+  /**
+   * How far out from the middle bets sit (1 is at the seat): played cards want to be further in than chips.
+   * "seat": just in front of the seat, toward the middle, so the seat's own cards never cover it.
+   */
+  betAt?: number | "seat";
 }) {
   const n = seats.length;
   return (
@@ -52,9 +55,11 @@ export function CardTable({
           return (
             <div key={seat.key} className="table-spot">
               {/* Always there (empty without a bet), so chips have somewhere to fly from. */}
-              <div className="table-bet" style={at(betAt)} data-bet-spot={i}>
-                {seat.bet}
-              </div>
+              {betAt !== "seat" && (
+                <div className="table-bet" style={at(betAt)} data-bet-spot={i}>
+                  {seat.bet}
+                </div>
+              )}
               {seat.marker && (
                 <div className={`table-marker side-${side}`} style={at(0.8)}>
                   {seat.marker}
@@ -62,6 +67,11 @@ export function CardTable({
               )}
               <div className={`table-seat side-${side} ${seat.className ?? ""}`} style={at(1)} data-testid={seat.testId} data-seat={i}>
                 {seat.node}
+                {betAt === "seat" && (
+                  <div className="seat-bet" data-bet-spot={i}>
+                    {seat.bet}
+                  </div>
+                )}
               </div>
             </div>
           );
