@@ -7,7 +7,7 @@ Built on Cloudflare Workers + Durable Objects (one per room, hibernatable WebSoc
 SQLite storage), with a React SPA. Game logic is server-authoritative and modular.
 Games so far: Coast to Coast (a fan-made take on Ticket to Ride), no-limit Texas Hold'em,
 chess, Othello, Go, Four in a Row, Luffarschack (five in a row on squared paper), Battleship,
-Cannons (an artillery game), Finns i sjön (Swedish Go Fish), Fem kort and tic-tac-toe.
+Unicorn race, Cannons (an artillery game), Finns i sjön (Swedish Go Fish), Fem kort and tic-tac-toe.
 
 - **Rooms** have short codes (`/r/K7QXM4PZR2`). Whoever has the link or code can join.
 - **Names** (and colors) are set once per browser and used in every room. Change
@@ -49,7 +49,9 @@ Copy `src/games/tictactoe` (it's small) and see "Games" in docs/ARCHITECTURE.md.
 2. `src/games/<id>/ui/`: a `GameUI` (`Game` component, optional `Setup`, and `icon`
    artwork in `public/icons/`). Build it from `src/games/kit/ui` (table, cards, plates)
    and `src/ui` (buttons, panels; see `/ui`). Register it in `src/games/ui-registry.ts`.
-3. `pnpm test`: the conformance suite fuzzes every registered game automatically,
+3. `src/games/<id>/README.md`: how it's built (rules as built, state, page, bot) and a QA
+   checklist for it (see the other games').
+4. `pnpm test`: the conformance suite fuzzes every registered game automatically,
    and has a table of its bots play it.
    Add rule tests for the engine, and redaction tests if it has hidden information.
 

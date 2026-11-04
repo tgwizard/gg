@@ -12,6 +12,8 @@ test("Finns i sjön: deal, keep hands private, and play a turn", async ({ browse
   await alice.page.getByRole("button", { name: /Finns i sjön/ }).click();
   await alice.page.getByRole("button", { name: "Open the table" }).click();
   await alice.page.getByTestId("fish-seat-0").getByRole("button", { name: "Sit here" }).click();
+  // Bob sits once he's seen Alice sit: a move made on an older view is refused as stale.
+  await expect(bob.page.getByTestId("fish-seat-0")).toContainText("Alice");
   await bob.page.getByTestId("fish-seat-1").getByRole("button", { name: "Sit here" }).click();
   await alice.page.getByRole("button", { name: "Deal" }).click();
 

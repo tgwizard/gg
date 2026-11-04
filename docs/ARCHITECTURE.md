@@ -189,6 +189,10 @@ display type and Nunito for everything else.
   cells and cards in hand that are buttons follow it too (their own CSS keeps
   `:not(:disabled, .unavailable)` off hover effects). Only inputs, selects and sliders
   keep `disabled`.
+- **On a phone the page scrolls, nothing inside it does** (≤860px): chat and the members
+  list grow with the page instead of being boxes of their own (a scroll box inside a page
+  traps the swipe), and `.stage` clips sideways with `overflow-x: clip`, not `hidden`, which
+  would make it a scroller and stop the pinned tray from sticking.
 - **Touch-sized buttons.** On a touch screen (`pointer: coarse`) every `.btn` is at least
   44px tall (small ones 38px), about what Apple and Google advise for a fingertip.
 - `mode.ts`: light/dark. Follows the system until you choose (the settings cog, /settings, or
@@ -273,6 +277,7 @@ can once none of its players are online).
   `nextDeadline`/`onDeadline` become `nextTimer` plus a switch over
   `takeDueTimer`.
 - `cards.ts`: a standard 52-card deck, shuffling, rank names.
+- `testing.ts`: a seeded RNG for tests.
 - `ui/`: the card-game base. `CardTable` (a wood-and-felt table with seats spaced
   around it, you at the bottom, bets and a dealer button in front of seats (`betAt`
   sets how far in: played cards sit nearer the middle than chips; `"seat"` keeps a bet
@@ -305,22 +310,21 @@ can once none of its players are online).
 your turn (unless the game's UI sets `quietTurn`, as Luffarschack does: the other
 side's pen scratch says so already), and puts it in the tab's title. With 10 s or less left on the snapshot's
 `deadline` while it's your turn, a heartbeat plays, quicker for the last 4 s
-(`src/client/heartbeat.ts`). The active player's nameplate breathes a
-gold glow. Sound effects (`src/ui/sound.ts`) are synthesized with the Web Audio API
+(`src/client/heartbeat.ts`). Sound effects (`src/ui/sound.ts`) are synthesized with the Web Audio API
 (tones and filtered noise, no audio files), quiet, and on unless turned off with the
 speaker in the top bar or on /settings (remembered per browser). Games play them for
 what just happened (`play("chip")`, a flight's landing `sound`, `useOnChange` for live
 changes only); in a background tab only the "your turn" chime plays. /ui lists them all
 to audition.
-- `testing.ts`: a seeded RNG for tests.
 
-**Conformance (`src/games/conformance.test.ts`).** Every registered game is
+**Conformance (`src/games/conformance.ts`).** Every registered game is
 fuzzed with random legal moves from random people (mostly whoever's turn it is),
 timers firing, and players removed for good. After each step it checks that legal
 ops are accepted and unoffered table moves refused, `removePlayer` works, state
 and views are plain JSON, `waitingOn` ⊆ `players`, deadlines make progress (no
 alarm hot-loops), and the game's invariants hold. For poker that's about 3,000
-hands per run, with people joining, leaving and sitting out mid-hand.
+hands per run, with people joining, leaving and sitting out mid-hand. The checks are
+split between `conformance.<n>.test.ts` files so they run in parallel.
 
 - **Server-authoritative.** Clients send ops, and the DO validates and applies them
   to a `structuredClone` of the state. If `apply` throws, nothing changes.
@@ -371,405 +375,24 @@ built, and no timer is long overdue. The worst a bad state can do is break its o
 practice room. `pnpm scenario [game] [scenario] [--open] [--base URL]` prints (or
 opens) the links.
 
-### Tic-tac-toe (`src/games/tictactoe`)
+### The games
 
-The smallest complete game, and the template to copy: kit seats (scores survive
-standing up), a turn clock that forfeits the round and the seat (so an empty
-chair doesn't keep losing rounds, and an abandoned table stops), alternating
-openers, and a pause between rounds. It has no hidden information, so the view is the state.
+Each game's own notes (its rules as built, its state and view, its page, its bot) and
+its manual QA checks are in a README in its folder. Read the one for a game you work on.
 
-### Finns i sjön (`src/games/finnsisjon`)
-
-Go Fish, the Swedish way, for 2–6 players. You ask an opponent for a rank you
-hold. If they have none ("Finns i sjön!"), you draw from the lake and go again
-only if you catch what you asked for. Fours are laid down as books; most books
-wins.
-- **Hidden information:** hands and drawn cards are private; asks and answers,
-  including exactly which cards were handed over, are public, as at a real table.
-  A lucky catch is shown, since you have to show it.
-- **Running out of cards:** with an empty hand you draw at the start of your turn.
-  If nobody you could ask has cards, you draw and pass. With no cards and an empty
-  lake, you're out.
-- **Away players:** running out of time plays your turn for you and marks you away.
-  After that your turns are played quickly (asking for what you hold most of)
-  until you're back. A dropped player never stalls the table. Going away and back
-  never extends a turn: the turn's end (`turnEndsAt`) is set once, when it begins.
-- **Leaving mid-game** shuffles your hand back into the lake. Your books stay on
-  the table, but you can't win.
-
-This was the generality test: the room and protocol needed no changes. The
-shared deck and card UI moved from poker into the kit.
-
-### Fem kort (`src/games/femkort`)
-
-The old Swedish last-trick game for 2–6 players, built like Finns i sjön (kit seats, away
-players auto-played, new players dealt in at the next deal). Five cards each (three, then
-two, from the dealer's left), ace high, no trumps. You must follow suit if you can and,
-with överstick (the modern rule, on by default), beat the best card of that suit so far
-if you can; with none of the suit you play anything. Only the fifth trick counts: its
-winner wins the deal, and the first to win `dealsToWin` deals (default 3) wins the game.
-- **The rules** (`rules.ts`) are pure functions over a hand and the trick on the table
-  (`playable`, `winningPlay`), shared by the engine, the bot and the board, which marks
-  the cards you may play.
-- **State** keeps each player's hand, the trick on the table, the tricks taken this deal
-  and the undealt cards (secret, for the card-count invariant). After the last trick
-  there's a `nextDeal` pause (5 s, `dealOver`) with the trick still on the table; then
-  the deal passes clockwise.
-- **Settings:** deals to win, överstick (off: the older rule, just follow suit), two deals
-  in a row wins, and bättre kort: once a deal, the player on lead (not to the last trick)
-  may ask for better cards; everyone else answers (`vote`, a `concurrentOp`), and only a
-  unanimous yes deals again. No answer within 30 s, or anyone away, is a no.
-- **Hidden information:** hands and the undealt cards. Played cards are public. The view
-  lists `you.playable`, so the board and bots (built-in and AI) don't need the rules.
-- **Leaving mid-deal** deals the cards again without you; with fewer than two left at the
-  table the game ends.
-- **The table** (`ui/FemKortGame.tsx`) closes up around who's playing. Played cards sit on
-  the felt in front of each seat (the card winning so far ringed in gold); a taken trick
-  stays a moment and is gathered to its winner. Five pips count the tricks, the last one a
-  gold star. The last trick gets a "Last trick!" banner, a glowing felt ring and a chime,
-  and the card that takes it pulses gold while a star pops onto the winner's plate.
-- **The built-in bot** rates each card by its chance to stand up as the last trick's lead
-  (unseen higher cards of its suit against the cards the others hold), keeps its best,
-  dumps its weakest early and follows cheaply; on the fourth trick it weighs winning the
-  lead for the last against keeping the better card. It votes for better cards with
-  nothing strong to keep.
-
-### Battleship (`src/games/battleship`)
-
-Classic Battleship for two: each player hides a fleet (Carrier 5, Battleship 4,
-Cruiser 3, Submarine 3, Destroyer 2) on a 10×10 sea, then they take turns firing.
-- **Placing** is server-validated one ship at a time (`arrange` sends the whole,
-  possibly unfinished layout), or `random` lets the server deal a valid fleet.
-  `ready` needs all five; `unready` is allowed until both are ready. Placing ops
-  are `concurrentOp`s: both players place at once, so one's placing never makes
-  the other's click stale; `round` (the game's number) keeps one held up by a
-  reconnect from landing in the next game. Fem kort's votes on better cards work the
-  same way, each call for them its own round. The other
-  side only learns "placing…" or "ready".
-- **Hidden information:** a fleet's layout is only in its owner's view until the
-  game is over, when both are revealed. Shots and their results are public, and
-  a sunk ship's cells are shown (as at a real table). A plain hit doesn't say
-  which ship it was, not even in the log. Tests check that the opponent's and a
-  spectator's views don't change when the untouched ships are moved.
-- **Settings:** ships may touch (default yes; never overlap), a hit earns another
-  shot (default no), a placement clock (unfinished fleets are completed at
-  random) and a turn clock (a random shot is fired for you; three in a row
-  forfeits).
-- Leaving while placing calls the game off unscored; leaving while firing
-  forfeits. *Play again* starts the next game with the opener alternating.
-
-### Cannons (`src/games/cannons`)
-
-Gorillas / Scorched Earth for 2–4, kept simple: every player is a cannon on a side-view
-landscape; take turns firing; one hit knocks a cannon out and the last one standing wins.
-- **The physics** (`physics.ts`) is pure and shared: one shot's whole flight from (angle,
-  power, wind, ground), on a fixed 20 ms step, and the crater it leaves. It only adds,
-  multiplies and divides (sines come from a Taylor-series table of whole degrees, square
-  roots from Newton's method), so a flight is the same to the last bit in any engine.
-  Distance goes with power (speed with its square root), the wind pushes sideways (more
-  on long, high shots), and a ball passing within 15 m of a cannon knocks it out (your own
-  too, once the ball has got clear of it). Balls can fly off the top and come back, or off
-  the sides for good. A crater takes what's inside its circle out of each column and lets
-  what's above settle (no overhangs); cannons sink with the ground.
-- **The field** (`terrain.ts`) is made from a seed per game (gentle, hilly, or mountains
-  with a ridge between neighbours): heights every 4 m, kept in the state, with a flat patch
-  under each cannon. Who stands where is shuffled each game.
-- **Moves are continuous**, whole numbers checked by the engine: `{type: "fire", angle:
-  0–180, power: 5–100}`. `legalOps` offers 9 example aims towards the nearest cannon
-  (a representative sample, as the contract allows), and the AI is told any angle and power
-  in range will do. No contract change was needed.
-- **A shot** is worked out on the server at once (crater and knock-out included), then the
-  game is `flying` (waiting on nobody) for as long as the ball takes on screen plus a beat;
-  a `land` timer then announces any hit, ends the game or moves to the next turn, with a
-  new wind (it drifts each turn, within the game's strength). So nobody reads about a hit
-  in the chat before seeing it. The view keeps each player's latest shot with its path
-  (whole-meter points); the browser replays that path rather than recomputing it.
-- **The view** has a `situation`, the position in words from the viewer's cannon (where
-  everyone is, the ground between, the wind, where the last shots landed: "landed 40 m
-  short of player X (to the left)"), for AI bots.
-- **Turn clock**: running out passes your turn without a shot (firing for you could win
-  you the game); three in a row and your cannon is out. Leaving before anyone has fired calls the game off; after, your cannon is out.
-- **The scene** (`ui/Scene.tsx`) is SVG in world meters: sky, clouds drifting with the
-  wind, hazy mountains and wooded hills far off, the ground in layers (topsoil, clay,
-  rock) ending in cliffs down to the sea at both edges (`SEA_LEVEL`: a ball off the side
-  ends there, with a splash), 1940s-style field guns painted in their players' colors
-  (a ring of light on the ground under whoever's aiming), and each player's last shot as
-  a faint trail. A miss throws up dirt; a hit is a fireball with flying wreckage, a shake
-  and a flash, and leaves a burning wreck. Only a shot that arrives live flies (ball,
-  trail, a burst where it lands, a camera that widens to keep the ball in view); after a
-  refresh the field is just as it is. Aim by dragging from your cannon, with the steppers
-  and sliders, or ←/→ and ↑/↓ (Space fires). Colors are tokens (`--cannons-*`).
-- **The built-in bot** aims like a person: the nearest cannon, an angle that looks like it
-  clears the hills, a first power from a rough sense of distance and wind (deliberately
-  6–18% off), then corrections by eye from where its shots landed (how far off, and roughly
-  how many meters a point of power is worth), allowing for the wind roughly. It aims higher
-  when a hill catches its shot. It hits in about 3 shots (rarely the first).
-
-### Chess (`src/games/chess`)
-
-Standard chess for two, with chess clocks.
-- **The rules** (`rules.ts`) are pure functions over a position (64 squares, a1 = 0):
-  legal moves (castling through or out of check refused, en passant, promotions,
-  pins), making a move, SAN and FEN, threefold-repetition keys (an en passant square
-  only counts when a pawn can take there) and insufficient material. It's checked
-  against the standard perft counts, and the board in the browser uses the same code
-  to show legal moves without asking the server.
-- **State** keeps the position as a FEN string, the moves (UCI and SAN), and the
-  position keys since the last capture or pawn move for repetition. A move op is UCI
-  (`{type: "move", move: "e7e8q"}`), which is also what AI bots send.
-- **Games** start when both seats fill; *Play again* starts the next with colors
-  swapped. They end on the board (mate, stalemate, repetition, fifty moves, too
-  little material) or off it (resigning, an accepted draw, time, leaving). Leaving
-  before your first move calls the game off unscored. One draw offer per move; it
-  stands until the other side answers or moves.
-- **Clocks** are Fischer: `minutes` each plus `increment` seconds per move. Only the
-  side to move's clock runs (`clock` is the time left as of `clockSince`), and its flag
-  is the game's one timer. Running out loses, or draws if the other side has only a
-  king. `minutes: 0` means no clock.
-- **The board** (`ui/Board.tsx`): click-click or drag, legal-move dots and capture
-  rings, last move and check highlights, a promotion picker on the file, and moves
-  slide into place (not the ones you dragged, nor with reduced motion) while a taken
-  piece is knocked off its square. The king can castle by moving two squares or onto
-  its rook: with the king picked up, both squares are marked (the rook tagged
-  *castle*), pointing at one shows the king and rook where they'd end up, and the panel
-  says how, or why not now (`castlingOptions`: pieces between, in check, crossing an
-  attacked square). Each move records the piece and what it took (`moveFacts`), so the panel
-  says the last move in words ("Rivet's queen took your bishop on d5. Check!") and the
-  move list marks captures and checks. Your move
-  shows at once and is taken back if the server refuses it.
-- **Premoves** are the browser's alone: the server only ever sees an ordinary move.
-  While the other side is to move (or your own move is on its way), picking up a piece
-  queues one up, from `premoves` (how the pieces move whatever the other side does
-  first: your own pieces block a line but can be aimed at, to take back; one of theirs
-  may step aside; castling if only their pieces are in the way). One at a time, shown
-  in blue squares with its piece faint where it's going, and in the panel, called off by clicking an empty square, a right-click, Escape
-  or *Cancel*. It's sent the moment the view says it's your turn, if it's legal then
-  (otherwise the panel says it couldn't be). It belongs to the position, game and
-  player it was made by, so a failed move of yours, a new game or a hot-seat hand-over
-  drops it. Pieces are Cburnett's
-  SVGs (BSD) in `public/pieces`; square colors are tokens (`--board-*`).
-
-### Othello (`src/games/othello`)
-
-Othello for two, built like chess (the two share the seating, colors swapping every
-game, calling the game off if you leave before moving, and Fischer clocks).
-- **The rules** (`rules.ts`) work on the board as a 64-character string ("b", "w",
-  "."), a1 at the top left as Othello boards are written: what a disc would turn
-  over, the legal moves, playing one. The browser uses the same code for the hints.
-- **Passing** is never a choice: after a move, if the other side has no move but the
-  mover does, the server records a pass for them and it's the mover's turn again, so
-  the game only waits on someone who can move. When neither can, it's over: most discs
-  wins, equal is a draw. Moves record what they turned over, and the view has the last
-  disc set down (`lastMove`, with `flipped`) and who passed after it (`passed`).
-- **The board** (`ui/Board.tsx`): your legal squares get a faint disc; pointing at one
-  shows your disc and marks what it would turn over; click to play (shown at once,
-  taken back if refused). A new disc drops in and the trapped ones flip in 3D (two
-  faces back to back), outward from it one step at a time, live moves only. Colors are
-  tokens (`--othello-*`, `--disc-*`).
-- **The built-in bot** weighs squares the classic way (corners high, the squares next to
-  an empty corner low), likes leaving few replies, and avoids opening a corner.
-
-### Four in a Row (`src/games/fourinarow`)
-
-Four in a Row for two on an upright board of 7×6, 8×7 or 9×7, built like Othello (seating,
-calling the game off if you leave before moving, Fischer clocks).
-- **The rules** (`rules.ts`) work on the board as a string of columns × rows cells ("x" for
-  whoever starts this game, "o", "."), row by row from the top; columns are numbered from 1 on
-  the left, rows from 1 at the bottom. A disc falls to the lowest empty cell. A disc that makes
-  four or more in a line wins (`fourThrough` gives every disc in such lines, two lines at
-  once included); a full board is a draw. A move is `{type: "drop", column}`.
-- **Who starts:** by default players take turns; with `opener: "loser"` the loser of each game
-  starts the next (after a draw, the other player). The next opener is kept in state
-  (`nextXSeat`), so a game called off is replayed with the same one.
-- **Colors:** discs are drawn in the players' own colors. If the two are too alike (OKLab
-  distance under 0.16, `ui/colors.ts`), the viewer keeps theirs and the other side's discs get
-  the palette color furthest from it.
-- **The board** (`ui/Board.tsx`): an SVG wooden front with a hole per cell, over the discs.
-  Pointing at a column (or ←/→, Home/End) holds your disc over it and marks where it would
-  land; click, tap, Enter, Space or a digit drops it (shown at once, taken back if refused). A
-  new disc falls in behind the front with gravity and a small bounce (sound `drop`, timed to
-  the landing), live moves only. The last disc has a dot; at the end a gold line joins the
-  winning discs, which glow while the rest dim, and the results come up 1.6 s later. Colors
-  are tokens (`--fiar-*`) plus the players' colors.
-- **The built-in bot** (`search.ts`, `bot.ts`) searches: negamax with alpha-beta (principal
-  variation search), iterative deepening, a transposition table and move ordering, within 450
-  ms and 14 moves on the page. It always takes a win it can see, blocks a threat without using
-  up depth, and never drops under the other side's winning spot. Its evaluation counts the
-  lines of four still open to each side and the threats, which count most on rows of the right
-  parity (with an even number of rows) and not at all above the other side's lower threat in
-  the same column. It opens in the middle and varies its first moves among near-best ones.
-  With `quick` it looks 4 moves ahead with no time limit, so set-up positions are repeatable.
-
-### Luffarschack (`src/games/luffarschack`)
-
-The Swedish pen-and-paper five in a row, for two, on a sheet of squared paper of 15×15, 19×19
-(the default) or 25×25, built like Four in a Row (seating, calling the game off if you leave
-before your first mark, the first cross alternating between games) with a turn timer.
-- **The rules** (`rules.ts`) work on the sheet as a string of n² cells ("x" for whoever starts
-  this game, "o", "."), row by row from the top. Squares are named like spreadsheet cells: a
-  column letter and a row from 1 at the top ("A1" is the top left), which is also the move:
-  `{type: "mark", square: "J10"}`. Five or more in a row wins (the Swedish way, with no
-  setting for exactly five), across, down or diagonally. `winningRuns` gives each winning
-  line's ends (two at once included); a full sheet is a draw.
-- **The turn timer** (`turnSeconds`, default 60, 0 for none) is per mark: run out and you lose.
-- **The sheet** (`ui/Sheet.tsx`) is one SVG in squares of 100 units: faint blue rulings over
-  the whole paper (with grain and a little light from tokens), a red margin, letters and
-  numbers in pencil and a ruled pencil frame around the playing area. Marks are hand-drawn
-  (`ui/ink.ts`): each cross is two slightly bowed strokes ending in a flick, each circle one
-  lopsided loop that runs on past its start, with jitter from a seed made from the game, the
-  move and the square, so every mark is different but the same on every render and refresh.
-  An SVG filter roughens their edges and makes the ink uneven. Ink is the player's color at a
-  pen's lightness (`oklch(from …)`, dark on light paper, light on the dim paper of dark mode;
-  clashing colors are split as in Four in a Row). A new mark is drawn stroke by stroke
-  (`stroke-dashoffset`) with a soft pen scratch (sound `pen`), live moves only; the last mark
-  gets a stroke of highlighter, and a winning five is ringed by hand, in a rough loop, in the winner's
-  ink. Pointing at a square pencils your mark in; on touch screens the first tap pencils it in, boxed in the
-  accent color with its row and column shaded (nothing goes over the sheet), and a second tap
-  inks it (or *Mark J10* under the sheet); the
-  arrow keys move a dotted cursor and Enter marks. Colors are tokens (`--lfs-*`).
-- **The built-in bot** (`bot.ts`) reads threats rather than searching: for each empty square
-  near the marks it asks what a mark there makes, line by line, for itself and (as a block)
-  for the other side: five, an open four, a four, an open three, a closed three, or room to
-  grow, with extra for a four and an open three at once or two open threes. It takes a five,
-  then stops one, then plays a win by fours (VCF: fours the other side must answer, until one
-  can't be), and otherwise takes the best square (a little randomness among near-equals),
-  with a bonus for the first square of the other side's win by fours. It takes a few
-  milliseconds a move.
-
-### Go (`src/games/go`)
-
-Go for two on 9×9, 13×13 or 19×19, built like Othello (seating, colors swapping every
-game, calling the game off if you leave before moving), with byo-yomi clocks.
-- **The rules** (`rules.ts`) work on the board as a string of size² cells ("b", "w",
-  "."), points named the Go way (a column letter skipping I, the row from the
-  bottom: A1 is the bottom left). No suicide, and positional superko: no move may
-  bring back any earlier position. The state keeps every position as a short hash
-  (`positionKey`, two 32-bit hashes) rather than whole boards. Scoring is by area
-  (stones plus surrounded points, dead stones taken off), with 7.5 komi for White.
-  The view lists the points ko forbids (`ko`) for the board's marker.
-- **Counting** is a phase of its own. Two passes in a row stop play; the server
-  guesses the dead stones (`estimateDead`, random playouts from the final position),
-  and either player can mark a group dead or alive (which withdraws both
-  acceptances). When both accept, the game is scored as marked. Either can resume
-  play instead (the other side moves first). Counting has no clock but a deadline:
-  quiet for 3 minutes and it's scored as marked. A counted game keeps its marking
-  after it's over, so the board shows the territory under the end screen.
-- **Clocks** are byo-yomi: main time, then periods of a few seconds; a move made
-  within a period keeps it, letting one run out uses it up. One flag timer per turn,
-  at main time plus all periods; `spend` works out what's left when the move comes.
-- **The bot** (`montecarlo.ts`, `bot.ts`) is Monte Carlo: fast playouts on typed
-  arrays (random moves that never fill their own eyes and take stones left in atari
-  by the last move) score each candidate move, steered by UCB and RAVE (credit for a
-  point played anywhere later in a playout), within 5000 playouts or 350 ms on the
-  page. It skips edge moves with nothing near, passes when every open point is
-  settled one way (by playout ownership) or when the other side has passed and it's
-  ahead, and resigns hopeless games late on. While counting it corrects the marking
-  only where it's clearly wrong against it, then accepts; two bots can't fight over
-  a group. With `quick` (tests, set-up positions) it uses 40 playouts.
-- **The board** (`ui/Board.tsx`): an SVG grid with stones as gradient discs (tokens
-  `--go-*`, `--stone-*`). Pointing shows your stone; on a touch screen a 13×13 or
-  19×19 board takes two taps on the same point (the stone appears lightly first).
-  A new stone clacks down and captured ones lift off; the last stone has a ring.
-  While counting, dead stones fade, each side's area gets small squares, and
-  clicking a stone marks its group.
-
-### Coast to Coast (`src/games/ticket`)
-
-Ticket to Ride's rules on its North American map, under our own name: fan-made,
-not affiliated with Days of Wonder, and credited as such in its tagline, setup and
-rules. The art (map, cards, icon) is our own.
-
-The standard game on the North American map, for 2–5 players: 45 trains each, 110
-train cards (12 of each of eight colors, 14 locomotives), five face up (three
-locomotives showing and all five are replaced), 30 destination tickets, 100 routes.
-- **The map** (`map.ts`) is data: cities with three-letter codes, routes with ids like
-  `SEA-HEL` (`DUL-OMA/1`, `/2` for double routes), lengths and colors, and the
-  tickets, checked against a published route list. `graph.ts` answers questions
-  about it: whether a route is open to a player (double-route rules), whether routes
-  connect two cities, the longest continuous path, and the cheapest way to finish a
-  ticket (for the built-in bot).
-- **A turn** has stages: `start`, `second` (one card drawn, one to go) and `tickets`
-  (choosing drawn tickets). Choosing the first tickets is simultaneous (`keep` is a
-  `concurrentOp`). A claim names a color and a number of locomotives
-  (`{route, color, locos}`; color `"loco"` for locomotives only); `legalOps` lists the
-  fewest-locomotive way per color, the UI every way.
-- **Hidden information:** hands, kept and offered tickets, cards drawn blind, the
-  decks. Card, ticket and train counts are public, and so are face-up draws and the
-  cards paid for a route. Tickets are revealed in the final score.
-- **The end:** finishing a turn with 2 or fewer trains starts the last round, kept
-  as the list of players still to play (`finalTurns`), so leaving or being skipped
-  can't stall it. A player who can't do anything at all (no cards to draw, no route
-  they can pay for, no tickets) is passed over; if nobody can, the game ends.
-- **Away players** work as in Finns i sjön: running out of time draws two cards from
-  the deck for you (or whatever's possible) and marks you away. Leaving mid-game
-  discards your cards and returns your tickets; your trains stay on the map.
-- **Geography** (`ui/geography.ts`) is generated by `tools/ttr-geography.ts` from
-  Natural Earth's 1:50m countries, lakes and borders (public domain). The board
-  isn't a real projection, so the outlines are bent onto it with a thin-plate spline
-  fitted to the 36 cities' real coordinates (every city lands within a few pixels of
-  its board position, so coastal cities stay on their coasts), then clipped and
-  simplified to ~28 KB of SVG paths.
-- The map is drawn as SVG (`ui/TicketMap.tsx`, `ui/geometry.ts`) in two layers: the
-  printed board (coasts, lakes, borders, relief shading, paper texture), drawn once
-  in its own layer so the costly filters aren't redrawn on hover, and the live
-  tracks and cities on top. Train cars are spaced along straight or bowed tracks,
-  curved where the printed board curves them, with label offsets per city. Train
-  colors and the board's land and water are tokens (`--train-*`, `--map-*`).
-
-### Unicorn race (`src/games/unicorn`)
-
-A children's race for 1–4 unicorns (WIP, an original design; expect it to change). Each
-seat is a kid or a grown-up, chosen when sitting down (`sit` takes an optional `kid`) and
-changeable between races (`{type: "kid"}`).
-- **The track** (`TRACK` in `engine.ts`) is a loop of 30 stops from the start: stops with one
-  kind of friend, stations with two or three to choose from, and meadow. There are six
-  friends, one per rainbow color (Ladybug, Fox, Chick, Frog, Whale, Octopus); each has two
-  stops of its own and three stations (a unit test keeps it so). After it comes the rainbow
-  bridge: positions `LOOP`… (`BRIDGE` stops, the castle, `FINISH`, last).
-- **A turn:** `roll` moves you forward by the die, stop by stop (`nextStop`). Where you stop,
-  whoever's there that you lack wants a ride, and you pick them up yourself (`stage:
-  "pick"`, `pick`), even when there's only one: it's a kids' game, the tap is the fun. With
-  all six, the bridge opens for you: at the start you turn onto it instead of going round
-  again, nobody's on it to pick up, and the first to reach the castle wins (galloping past
-  it counts). The next race opens with the next racer (the first race, a kid).
-- **Rainbow power:** every roll adds its pips to a shared meter; at `config.rainbowAt` (12,
-  20 or 30 from the set-up; 20 by default) it empties and every kid racing gets a rainbow
-  roll (at most 3 saved), used right after their next move, so the kid whose roll filled
-  it rolls again at once.
-- **The bot** only decides at stations: the friend with the fewest stops in the 12 ahead
-  (easy: anyone). `meta.botPaceMs` (3 s) makes bots wait for a roll to play out.
-- **The board** (`ui/`): an SVG meadow (`geometry.ts`: a superellipse loop with a wobble,
-  stops spaced evenly along it; turned upright on phones). The bridge curves from the start
-  into the middle to the castle (left on a wide board, up on a tall one), faded until
-  someone has all six; the rainbow meter, the die and what to do go in the rest of the
-  middle (`controls`). Each unicorn carries its friends in a ring round it, each friend in
-  its own place (faint dashed places for those still to find), so all six make a rainbow;
-  a new one hops on from the stop. `useGallop` plays a live roll out a little behind the
-  server: the die tumbles (900 ms), then the unicorn hops stop by stop (320 ms each); the
-  choice, the bubbles and the results wait for that.
-- **The die** (`ui/Die.tsx`) is a CSS 3D cube with real faces (opposites adding to 7), and
-  it's the roll button: tap it. A roll spins it whole turns onto the number while it's
-  thrown up and bounces; when it isn't yours to roll, pressing it says why.
-- **Bubbles at the stop** (`StopBubble`): when a unicorn stops, a bubble pops out of that
-  stop: who wants a ride (buttons for the one picking, the friends for everyone else),
-  or for a few seconds what the roll came to ("Oh no, there's nothing here!", "The Fox
-  hops on!", "Over the rainbow bridge!").
-- **Rainbow power:** when the meter fills it flashes, and rainbow ribbons flow from it into
-  every kid's unicorn; each is then powered up (a turning rainbow ring and twinkles on the
-  board, a rainbow rim on their card) until they've rolled their rainbow roll.
-- **Cards:** each racer's card has a ring of six segments in the friends' colors, filled
-  as they come aboard, with how many in the middle (the castle once all six are aboard),
-  and how many are still to find.
-- Sounds: `dice`, `hop`, `sparkle`. Colors are tokens (`--uni-*`); friends and unicorns are
-  emoji on discs of their colors.
-
-### Texas Hold'em (`src/games/poker`)
-
-No-limit hold'em for 2–9 seats: blinds (heads-up rules included), min-raise
-tracking, incomplete all-in raises that don't re-open betting, side pots, split
-pots with odd chips going clockwise from the button, uncalled bets returned, dead
-money from players who leave, street-by-street all-in runouts, a turn clock
-(auto check/fold, then sit out), rebuys, and automatic next hands.
+- [Tic-tac-toe](../src/games/tictactoe/README.md) (the smallest, and the template to copy)
+- [Finns i sjön](../src/games/finnsisjon/README.md)
+- [Fem kort](../src/games/femkort/README.md)
+- [Battleship](../src/games/battleship/README.md)
+- [Cannons](../src/games/cannons/README.md)
+- [Chess](../src/games/chess/README.md)
+- [Othello](../src/games/othello/README.md)
+- [Four in a Row](../src/games/fourinarow/README.md)
+- [Luffarschack](../src/games/luffarschack/README.md)
+- [Go](../src/games/go/README.md)
+- [Coast to Coast](../src/games/ticket/README.md)
+- [Unicorn race](../src/games/unicorn/README.md)
+- [Texas Hold'em](../src/games/poker/README.md)
 
 ## LLM connections (`src/client/llm`)
 
@@ -810,21 +433,6 @@ A bot is just another member of the room, played from its owner's browser:
 - **Identity.** Your bots are kept in localStorage like your own name (`gg.bots`,
   `src/client/bots/store.ts`, on `src/client/local.ts`, the store for every player kept
   in this browser besides you, shared with hot-seat players): each has its own secret, so it's the same player in
-- **Blind levels** (`blindsUpEvery`): the blinds can go up a level every so many hands,
-  through `BLIND_LEVELS` (×1, 2, 3, 4, 6, 8…: doubling every two levels), announced in the
-  chat. Each hand keeps the blinds it was dealt at (`hand.blinds`), and the minimum bet and
-  raise follow them. The table shows the blinds and when they go up next.
-- **Buy-ins**: `rebuys: false` makes a freezeout (out of chips, you're out; standing up and
-  sitting down again doesn't top you up), and the table says who has all the chips at the end.
-  Every buy-in is counted per player (`buyIns`); a rebuy is announced in the chat ("Sam buys
-  back in for 1,000 (rebuy #2)."), and *Buy-ins* under the table shows each player's bought
-  in (and rebuys), has now, and up or down, for settling up after a home game.
-- **Sizing a bet**: presets (min, ½ pot, pot, all-in), − and + that step by the small blind
-  (stops: the minimum, round multiples of the small blind, all-in; `ui/amounts.ts`), and on
-  wide screens a slider over the same stops. The rules still take any whole amount from the
-  minimum raise up. On a phone, *Raise…* opens the sizing as a step of its own, and the tray
-  shows your two cards, as it may be covering your seat.
-
   every room, and a name, color, personality and (optionally) an AI key, model and
   effort. You make, edit and delete them in /settings (the *Bots & AI* tab), or make
   one on the spot from a room. In a room, *+ Invite a bot* lists your bots that aren't
@@ -858,17 +466,8 @@ A bot is just another member of the room, played from its owner's browser:
   two moves, Go a few hundred playouts, chess not at all), misses things now and then
   (blocks, its own wins in tic-tac-toe, fives to stop in Luffarschack), and aims
   worse in Cannons; in the card games it plays without memory or much thought.
-  `src/games/strength.test.ts` checks hard clearly beats easy. On hard: tic-tac-toe takes
-  wins and blocks, poker plays loose and passive with a rough sense of hand strength,
-  Finns i sjön asks for what it holds most of and remembers some asks, Battleship
-  places at random and hunts around every hit, Coast to Coast keeps its cheapest
-  tickets and claims routes on the cheapest path to them, chess looks one move ahead
-  (mates, material, no free pieces for the other side) with some randomness, Othello
-  weighs squares (corners, edges) and the replies it leaves, Go runs a few
-  thousand random playouts per move, Four in a Row searches with alpha-beta, Luffarschack
-  answers threats and looks for a win by fours, Fem
-  kort keeps its strongest card for the last trick and dumps low cards early, and
-  Cannons aims like a person, correcting from where its last shots landed. The bot
+  `src/games/strength.test.ts` checks hard clearly beats easy. What each game's bot does
+  is in that game's README. The bot
   decides in a Web Worker (`thinker.ts`, `think.worker.ts`: one for all the bots on the
   page), so a search never holds up the page; still, it should decide within half a
   second or so. An answer for a game that has moved on meanwhile is dropped.
@@ -906,7 +505,8 @@ model at low effort by default; a key's model list is saved with it), and
 optionally a personality. The room's chat and the bot's own view of the game go to
 the model's provider; only its moves and messages go to the room. "Never reveal
 your cards" is an instruction, not a boundary: people in the chat can try to talk
-it out of it (the bot form says so).
+it out of it (the bot form says so). That's part of the fun, as at a real table, not
+something to fix.
 
 - **One tool**, `act({ op?, say? })`: `op` is the game's own `opSchema` as JSON
   Schema, minus table moves (those stay with `botMove`'s table logic), checked
@@ -1069,16 +669,5 @@ every 5 minutes for the presence sweep.
 - CI (`.github/workflows/ci.yml`) runs the typecheck and the unit and integration
   tests; the browser tests run locally. `pnpm run deploy` runs the typecheck and those
   tests before building.
-- An AI bot sees its own hidden cards alongside the room's chat, and what it says goes
-  to everyone: "keep your cards to yourself" is an instruction to the model, not
-  something enforced, so people can try to talk it into telling. That's part of the
-  fun (as at a real table), not something to fix.
 - Every game's page is in the main bundle (about 800 kB, 250 kB gzipped); loading a
   game's UI only when it's picked would make the first visit lighter on a phone.
-- Battleship's placing ops are concurrent within a game (`round` keeps them out of the
-  next one). Within a game, resends keep the player's own order: a *Ready* lost on the
-  way lands before a change made after it, and that change is then refused ("You're
-  ready"); *Change fleet* and make it again.
-- Go limits play-resumes from counting to 3 per game, and counts any game that reaches
-  4 moves per point (324 on 9×9), so no-progress pass/resume cycles can't grow a game
-  without bound. Fem kort forgets people who left without winning a deal.

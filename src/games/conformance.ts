@@ -13,27 +13,50 @@
  *
  * It also seats a table of built-in bots, easy and hard, which must keep the game going:
  * whenever the game waits on a bot, the bot has a move, and every move is legal.
+ *
+ * It's CPU-bound and vitest runs files in parallel, not the tests in a file, so the games
+ * are split between `conformance.<n>.test.ts` files, each running its share.
  */
 import { describe, expect, it } from "vitest";
 import { botMove } from "./kit/bot";
 import { isLobbyOp } from "./kit/lobby";
 import { seededRandomInt } from "./kit/testing";
-import { gameMetas } from "./metas";
 import { games } from "./registry";
 import { type AnyGameDefinition, type GameContext, GameError } from "./types";
 
 const SEEDS = 30;
 const STEPS = 1500;
 
-for (const def of Object.values(games)) {
+export const SHARDS = 5;
+
+const CHECKS = ["random", "bots", "json"] as const;
+type Check = (typeof CHECKS)[number];
+
+/**
+ * Defines this shard's part (1 to SHARDS) of the checks: every game's random play is
+ * dealt round the shards, then every game's bots, so the slow checks spread out evenly.
+ */
+export function conformanceTests(shard: number) {
+  const ids = Object.keys(games).sort();
+  const mine = CHECKS.flatMap((check) => ids.map((id) => ({ id, check }))).filter((_, i) => i % SHARDS === shard - 1);
+  for (const id of ids) {
+    const checks = new Set(mine.filter((unit) => unit.id === id).map((unit) => unit.check));
+    if (checks.size) suite(games[id]!, checks);
+  }
+}
+
+function suite(def: AnyGameDefinition, checks: Set<Check>) {
+  // Only this shard's checks are defined (not skipped), so each runs, and shows, once.
+  const check = (c: Check, name: string, fn: () => void, timeout?: number) => checks.has(c) && it(name, fn, timeout);
   describe(`${def.meta.name} conforms to the game contract`, () => {
-    it("creates a plain-JSON state from the default config", () => {
+    check("json", "creates a plain-JSON state from the default config", () => {
       const state = def.create(def.configSchema.parse({}), ctxAt(0, seededRandomInt(1)));
+      assertPlainJson(state);
       expect(JSON.parse(JSON.stringify(state))).toEqual(state);
       expect(def.players(state)).toEqual([]);
     });
 
-    it("survives random play by random people", () => {
+    check("random", "survives random play by random people", () => {
       for (let seed = 1; seed <= SEEDS; seed++) {
         try {
           play(def, seed);
@@ -43,7 +66,7 @@ for (const def of Object.values(games)) {
       }
     }, 30_000);
 
-    it("can be played by a table of built-in bots", () => {
+    check("bots", "can be played by a table of built-in bots", () => {
       for (let seed = 1; seed <= 10; seed++) {
         try {
           playBots(def, seed);
@@ -163,7 +186,7 @@ function play(def: AnyGameDefinition, seed: number) {
       continue;
     }
 
-    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+    assertPlainJson(state);
     def.checkInvariants?.(state);
     const players = new Set(def.players(state));
     for (const id of def.waitingOn(state)) if (!players.has(id)) throw new Error(`waiting on non-player ${id}`);
@@ -171,8 +194,29 @@ function play(def: AnyGameDefinition, seed: number) {
   }
 }
 
-describe("game metas", () => {
-  it("lists every registered game, for things that don't load the engines", () => {
-    expect(gameMetas.map((m) => m.id).sort()).toEqual(Object.keys(games).sort());
-  });
-});
+/**
+ * Throws unless the value survives JSON unchanged: plain objects and arrays of strings,
+ * booleans, null and finite numbers (an object's undefined fields are dropped, which is
+ * fine). Much quicker than a deep comparison of a round trip, which ran on every step.
+ */
+function assertPlainJson(value: unknown, path = "state"): void {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${path} is ${value}, which JSON can't hold`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, i) => {
+      if (item === undefined) throw new Error(`${path}[${i}] is undefined`);
+      assertPlainJson(item, `${path}[${i}]`);
+    });
+    return;
+  }
+  if (typeof value === "object") {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) throw new Error(`${path} is a ${proto?.constructor?.name ?? "non-plain object"}`);
+    for (const [key, item] of Object.entries(value)) if (item !== undefined) assertPlainJson(item, `${path}.${key}`);
+    return;
+  }
+  throw new Error(`${path} is a ${typeof value}`);
+}

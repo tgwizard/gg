@@ -24,7 +24,7 @@
  * must be plain JSON (it's stored and structuredClone'd).
  *
  * Shared building blocks for seats and timers live in `./kit`. Every registered
- * game must pass `conformance.test.ts`.
+ * game must pass the conformance suite (`conformance.ts`).
  */
 import type { z } from "zod";
 

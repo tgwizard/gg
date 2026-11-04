@@ -6,6 +6,9 @@ const PORT = Number(process.env.E2E_PORT ?? 5312);
 export default defineConfig({
   testDir: "test/e2e",
   fullyParallel: true,
+  // More than three at once (the default is half the cores) starves the one dev server
+  // and workerd, and tests time out at random.
+  workers: 3,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
