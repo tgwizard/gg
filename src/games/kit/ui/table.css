@@ -42,9 +42,13 @@
 /* A bet held by its seat (betAt="seat"): in front of it, toward the middle, clear of its cards. */
 .seat-bet { position: absolute; z-index: 1; display: flex; }
 .side-bottom > .seat-bet { bottom: calc(100% + 6px); left: 50%; translate: -50% 0; }
-.side-top > .seat-bet { top: calc(100% + 6px); left: 50%; translate: -50% 0; }
+.side-top > .seat-bet { top: calc(100% + 2px); left: 50%; translate: -50% 0; }
 .side-left > .seat-bet { left: calc(100% + 6px); bottom: 12px; }
 .side-right > .seat-bet { right: calc(100% + 6px); bottom: 12px; }
+/* A wide table is short: a bottom seat's bet goes beside its cards, not up into the pot. */
+@media (min-width: 641px) {
+  .side-bottom > .seat-bet { bottom: auto; top: 4px; left: calc(50% + 56px); translate: none; }
+}
 .table-marker { position: absolute; translate: -50% -50%; z-index: 2; }
 /* Beside the seat rather than under its cards. */
 .table-marker.side-bottom, .table-marker.side-top { translate: calc(-50% + 78px) -50%; }

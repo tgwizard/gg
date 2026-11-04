@@ -4,8 +4,14 @@
 .poker .center-msg { font-size: 14px; max-width: 100%; color: var(--on-brand); text-shadow: 0 1px 2px rgb(0 0 0 / 0.4); }
 .poker .center-msg.label { color: var(--on-brand-2); }
 .poker .center-sub { margin-top: 3px; font-size: 10px; line-height: 1.4; opacity: 0.85; }
-/* Wide tables are short: the hand's number goes above the board, clear of your cards. */
-@media (min-width: 641px) { .poker .center-msg.label { order: -1; } }
+.poker .center-row { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+/* Wide tables are short, with seats reaching in from the top and the bottom: the pot and
+   what's said go side by side under the board, to leave them room. */
+@media (min-width: 641px) {
+  .poker .table-center { inset: 22% 16%; }
+  .poker .center-row { flex-direction: row; gap: 16px; text-align: left; }
+  .poker .center-row .center-msg.result { align-items: flex-start; }
+}
 .poker .center-msg.result { display: flex; flex-direction: column; gap: 4px; }
 .poker .center-msg.result strong { font-size: 1.6rem; color: var(--gold); }
 .poker .center-msg.result .label { color: var(--on-brand-2); }

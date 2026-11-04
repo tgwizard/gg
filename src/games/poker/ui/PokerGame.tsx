@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Member } from "../../../shared/protocol";
-import { Button, busyWhy, play, useNarrow } from "../../../ui";
+import { Button, busyWhy, play, useMedia, useNarrow } from "../../../ui";
 import { CardTable, type TableSeat } from "../../kit/ui/CardTable";
 import { CardBack, CardSlot, PlayingCard } from "../../kit/ui/Cards";
 import { Bet, Chips, DealerButton, Pot } from "../../kit/ui/Chips";
@@ -19,6 +19,8 @@ type Send = Props["sendOp"];
 
 export function PokerGame({ view, me, members, connected, sendOp, serverNow }: Props) {
   const narrow = useNarrow();
+  // Your cards are bigger than everyone else's, unless the table's too short for them (they'd cover the pot).
+  const roomy = useMedia("(min-width: 1100px) and (min-height: 860px)");
   const hand = view.hand;
   const nameOf = (id: string) => members.get(id)?.name ?? "Player";
   const winningCards = new Set(hand?.result ? Object.values(hand.result.hands).flatMap((h) => h.cards) : []);
@@ -47,7 +49,7 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
           connected={connected}
           serverNow={serverNow}
           winningCards={winningCards}
-          narrow={narrow}
+          bigCards={!narrow && roomy}
           motion={motion.state}
           onSit={() => sendOp({ type: "sit", seat: i })}
         />
@@ -77,8 +79,10 @@ export function PokerGame({ view, me, members, connected, sendOp, serverNow }: P
                 );
               })}
             </div>
-            {hand && <Pot amount={hand.pot} />}
-            <CenterMessage view={view} nameOf={nameOf} serverNow={serverNow} />
+            <div className="center-row">
+              {hand && <Pot amount={hand.pot} />}
+              <CenterMessage view={view} nameOf={nameOf} serverNow={serverNow} />
+            </div>
           </>
         }
       />
@@ -116,7 +120,8 @@ function SeatView(props: {
   connected: boolean;
   serverNow: number;
   winningCards: Set<string>;
-  narrow: boolean;
+  /** Your own cards at the bigger size. */
+  bigCards: boolean;
   motion: Motion | null;
   onSit(): void;
 }) {
@@ -146,7 +151,7 @@ function SeatView(props: {
   else if (!hp && seat.stack === 0) status = "Out of chips";
   else if (!hp && seat.sittingOut) status = "Sitting out";
   if (won) status = `Wins ${won.toLocaleString("en-US")}`;
-  const cardSize = isMe && !props.narrow ? "md" : "sm";
+  const cardSize = isMe && props.bigCards ? "md" : "sm";
   const m = props.motion?.hand === hand?.id ? props.motion : null;
   const arriving = m?.deal?.get(index);
   const flip = m?.reveal?.has(index) ? { animationDelay: `${m.revealDelay}s` } : null;
