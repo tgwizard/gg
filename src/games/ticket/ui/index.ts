@@ -2,6 +2,7 @@ import { turnTimerSetting } from "../../kit/ui/settings";
 import type { GameUI } from "../../ui";
 import type { TtrView } from "../engine";
 import { ticketMeta } from "../meta";
+import { RouteScoring } from "./RouteScoring";
 import { TicketGame } from "./TicketGame";
 import { TicketSetup } from "./TicketSetup";
 
@@ -10,6 +11,7 @@ export const ticketUI: GameUI = {
   icon: "/icons/coast.jpg",
   Game: TicketGame,
   Setup: TicketSetup,
+  help: RouteScoring,
   settings: ({ config, bothTracks, phase }: TtrView) => [
     turnTimerSetting(config.turnSeconds, "Run out and your turn is played for you (two cards from the deck), and you're marked away."),
     ...(phase === "lobby"

@@ -62,10 +62,11 @@
   .ttr-side .ttr-market { gap: 10px 14px; }
   .ttr-side .ttr-hand-cards { gap: 12px; }
   .ttr-side .ttr-hand > .label { width: 100%; }
-  .ttr-side .ttr-news { min-height: 0; padding: 8px 12px; }
+  .ttr-side .ttr-news { padding: 8px 12px; }
   .ttr-side .ttr-ticket-row, .ttr-side .ttr-ticket-row > *, .ttr-side .ttr-ticket { width: 100%; }
   .ttr-side .ttr-ticket { font-size: 13px; }
   .ttr-side .ttr-yours { padding: 10px 12px; }
+  .ttr-side .ttr-note { min-height: calc(3 * 1.45em); }
 }
 
 /* ---------- players ---------- */
@@ -82,12 +83,138 @@
 .ttr-stats .num { color: var(--text); font-size: 14px; }
 .ttr-points .num { color: var(--gold); }
 .ttr-swatch { width: 14px; height: 7px; border-radius: 2px; background: var(--pc); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35); }
-.ttr-mini-card { width: 8px; height: 11px; border-radius: 2px; background: var(--card-back); box-shadow: 0 0 0 1px var(--card-back-line); }
+/* An open seat you can take: the whole dashed spot is the button. */
+.ttr-seat-open:has(.ttr-sit) { padding: 0; transition: border-color 120ms ease; }
+.ttr-seat-open:has(.ttr-sit:hover) { border-color: var(--gold); }
+.ttr-sit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 0 10px;
+  border: none;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--on-brand-2);
+}
+.ttr-sit:hover { color: var(--gold); }
+.ttr-sit:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.ttr-sit-plus { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 15px; line-height: 1; }
+.ttr-mini-card { width: 8px; height: 11px; border-radius: 2px; background: var(--rail-back); box-shadow: 0 0 0 1px var(--card-back-line); }
+/* Away: the plate is outlined in dashes (and, when it's you, it's a button that brings you back). */
+.ttr-players .plate.away { outline: 2px dashed var(--text-muted); outline-offset: 2px; }
+.tag.ttr-away-tag { color: var(--card-face); background: var(--danger); }
+.ttr-players .plate.ttr-plate-back { cursor: pointer; outline-color: var(--accent); animation: ttr-come-back 1.8s ease-in-out infinite; }
+.ttr-players .plate.ttr-plate-back:hover { box-shadow: 0 0 0 3px var(--accent), var(--shadow-md); }
+.ttr-back-line.status { color: var(--gold); letter-spacing: 0.02em; }
+@keyframes ttr-come-back { 50% { outline-offset: 5px; } }
 .ttr-mini-ticket { width: 12px; height: 8px; border-radius: 2px; background: var(--card-face); box-shadow: 0 0 0 1px var(--card-edge); }
 
+/* Stacked (a phone, a narrow window): the players in a grid, each a compact card: name, then counts and points, then what they're up to. */
+@container (max-width: 879px) {
+  /* Every row as tall as the tallest tile, so a seated player and an open seat line up. */
+  .ttr-players { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); grid-auto-rows: 1fr; gap: 8px; }
+  .ttr-players > * { min-width: 0; }
+  .ttr .ttr-plate-hover { display: block; }
+  .ttr-players .plate {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name name" "stats pts" "foot foot";
+    align-items: center;
+    gap: 5px 8px;
+    width: 100%;
+    height: 100%;
+    padding: 8px 10px 9px;
+    text-align: left;
+  }
+  .ttr-players .plate-name { grid-area: name; flex-wrap: nowrap; justify-content: flex-start; min-width: 0; }
+  .ttr-players .plate-name .name { min-width: 0; flex: 0 1 auto; }
+  .ttr-players .plate-name .tag { flex-shrink: 0; }
+  .ttr-players .plate > .plate-line { grid-column: 1 / -1; justify-content: flex-start; }
+  .ttr-players .ttr-plate-line { display: contents; }
+  .ttr-players .ttr-stats { grid-area: stats; justify-content: flex-start; gap: 8px; min-width: 0; }
+  .ttr-players .ttr-points { grid-area: pts; }
+  .ttr-players .ttr-points .num { font-size: 15px; }
+  .ttr-players .ttr-plate-foot { grid-area: foot; }
+  .ttr-players .ttr-plate-foot .plate-line { justify-content: flex-start; }
+  .ttr-seat-open { width: 100%; height: 100%; min-height: 44px; }
+}
+
+/* A plate explains itself: pressing it (or hovering, with a mouse) opens a bubble. */
+.ttr-plate-hover.pressable { cursor: pointer; border-radius: var(--radius); }
+.ttr-plate-hover.pressable:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.popover.ttr-peek { width: min(310px, calc(100vw - 24px)); padding: 14px 16px; }
+.ttr-peek-body { display: flex; flex-direction: column; gap: 10px; }
+.ttr-peek-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 800; }
+.ttr-peek-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.4; color: var(--text-2); }
+.ttr-peek-list li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }
+.ttr-peek-list strong { color: var(--text); }
+.ttr-peek-icon { display: inline-flex; justify-content: center; align-items: center; height: 1.4em; }
+.ttr-peek-icon.ttr-points .num { font-size: 15px; }
+.ttr-peek-away { margin: 0; padding: 8px 10px; border-radius: var(--radius-sm); font-size: 13px; background: var(--surface-2); color: var(--text-2); }
+
 /* ---------- news ---------- */
-.ttr-news { min-height: 64px; }
-.ttr-latest { font-weight: 700; }
+/* Always the same height, whatever happened: a status line and at most two lines of news. */
+.herald.ttr-news { height: 94px; min-height: 0; padding: 9px 14px; align-items: stretch; justify-content: flex-start; text-align: left; overflow: hidden; }
+.ttr-news .herald-text { width: 100%; min-width: 0; gap: 2px; }
+.ttr-news-status { display: flex; align-items: center; gap: 10px; min-height: 18px; font-size: 13px; line-height: 18px; }
+.ttr-news-turn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; color: var(--text-2); }
+.ttr-news-turn.mine { color: var(--gold-text); }
+.ttr-news-more { flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.ttr-news-more svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ttr-news:hover .ttr-news-more { color: var(--text); }
+/* The last two moves, a line each: the one before muted, the latest bold. A long one loses its words
+   (with "…"), never its cards; the notes ("4 points", "from the deck") are left to the history. */
+.ttr-news-line { display: flex; align-items: center; gap: 6px; min-width: 0; height: 26px; overflow: hidden; white-space: nowrap; font-size: 14px; color: var(--text-2); }
+.ttr-news-line.latest { font-weight: 700; color: var(--text); }
+.ttr-news-line .ttr-story-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ttr-news-line .ttr-story-cards { flex-shrink: 0; }
+.ttr-news-line .ttr-story-note { display: none; }
+
+/* Your move: the news and your tray get the gold ring the nameplates use, and flash red as your time runs out. */
+.ttr-turn { box-shadow: 0 0 0 3px var(--gold), 0 0 22px color-mix(in srgb, var(--gold) 45%, transparent), var(--shadow-md); animation: plate-turn 2.4s ease-in-out infinite; }
+.ttr .hurry-urgent, .ttr .ttr-players .plate.active.hurry-urgent { animation: ttr-hurry 0.9s ease-in-out infinite; }
+.ttr .hurry-racing, .ttr .ttr-players .plate.active.hurry-racing { animation: ttr-hurry 0.45s ease-in-out infinite; }
+@keyframes ttr-hurry {
+  0%, 100% { box-shadow: 0 0 0 3px var(--gold), 0 0 18px color-mix(in srgb, var(--gold) 40%, transparent), var(--shadow-md); }
+  50% { box-shadow: 0 0 0 4px var(--danger), 0 0 30px 4px color-mix(in srgb, var(--danger) 60%, transparent), var(--shadow-md); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ttr-turn, .ttr-players .plate.ttr-plate-back { animation: none; }
+  .ttr .hurry-urgent, .ttr .hurry-racing, .ttr .ttr-players .plate.active.hurry-urgent, .ttr .ttr-players .plate.active.hurry-racing { animation: none; box-shadow: 0 0 0 4px var(--danger), var(--shadow-md); }
+}
+
+/* You're away: said at the top of your tray, with the way back. */
+.ttr-away {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+
+/* The history: the whole width, with step away / leave at the top right, beside its heading. */
+.ttr .table-footer { position: relative; display: block; min-height: 38px; }
+.ttr .table-footer-log { min-width: 0; }
+.ttr .table-footer-actions { position: absolute; top: 0; right: 0; }
+/* The heading and the buttons share a row height, centered, so they line up. */
+.ttr .game-log > summary { min-height: 38px; }
+.ttr .table-footer-actions { min-height: 38px; align-items: center; }
+.ttr .game-log ol { margin-top: 14px; }
+.ttr-log { scroll-margin-top: 84px; }
 .ttr-story { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 6px; }
 .ttr-story-cards { display: inline-flex; gap: 4px; }
 .game-log li.ttr-story { display: flex; justify-content: flex-start; }
@@ -208,7 +335,35 @@
 .ttr-card.xs .ttr-card-glyph { width: 80%; }
 .ttr-card.dim { opacity: 0.5; }
 .ttr-card.empty { background: rgb(0 0 0 / 0.15); border-style: dashed; border-color: var(--line-strong); box-shadow: none; }
-.ttr-card.back { background: var(--card-back); }
+/* The back: night-blue pinstripes, a cream frame and track, a gold medallion with a locomotive. */
+.ttr-card.back { overflow: hidden; background: repeating-linear-gradient(135deg, var(--rail-back) 0 3px, var(--rail-back-2) 3px 6px); }
+.ttr-card.back.sm, .ttr-card.back.xs { background: repeating-linear-gradient(135deg, var(--rail-back) 0 2px, var(--rail-back-2) 2px 4px); }
+.ttr-back-art { display: block; width: 100%; height: 100%; }
+.ttr-back-frame { fill: none; stroke: var(--card-back-line); stroke-width: 1; opacity: 0.8; }
+.ttr-back-track path { fill: none; stroke: var(--card-back-line); }
+.ttr-back-track .rails { stroke-width: 1.3; opacity: 0.6; }
+.ttr-back-track .ties { stroke-width: 1.5; opacity: 0.28; }
+.ttr-back-medal { fill: var(--gold); stroke: var(--card-back-line); stroke-width: 1.4; }
+.ttr-back-medal-ring { fill: none; stroke: var(--rail-back); stroke-width: 0.7; opacity: 0.55; }
+.ttr-back-loco { fill: var(--rail-back); }
+/* Small: just the frame and the medallion. */
+.ttr-card.xs .ttr-back-track, .ttr-card.xs .ttr-back-medal-ring, .ttr-card.sm .ttr-back-medal-ring { display: none; }
+.ttr-card.xs .ttr-back-frame { stroke-width: 2.2; }
+.ttr-card.xs .ttr-back-medal { stroke-width: 2.5; }
+/* The deck: a stack of them. */
+.ttr-deck-stack { position: relative; display: inline-flex; }
+.ttr-deck-stack::before, .ttr-deck-stack::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+  background: var(--rail-back);
+  border: 2px solid var(--card-face);
+  box-shadow: 0 0 0 1px var(--card-edge);
+}
+.ttr-deck-stack::before { translate: 5px 4px; }
+.ttr-deck-stack::after { translate: 2.5px 2px; }
+.ttr-deck-stack .ttr-card { z-index: 1; }
 .ttr-card.c-red { background: var(--train-red); }
 .ttr-card.c-orange { background: var(--train-orange); }
 .ttr-card.c-yellow { background: var(--train-yellow); }
@@ -240,12 +395,15 @@
 .ttr-me { display: flex; flex-direction: column; gap: 14px; width: 100%; }
 .ttr-market { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .ttr-faceup { display: flex; gap: 8px; }
-.ttr-take { padding: 0; border: none; background: none; cursor: pointer; border-radius: var(--radius-card); color: inherit; font: inherit; }
+.ttr-take { display: inline-flex; align-items: center; padding: 0; border: none; background: none; cursor: pointer; border-radius: var(--radius-card); color: inherit; font: inherit; }
 .ttr-take:disabled, .ttr-take.unavailable { cursor: default; }
-.ttr-take:not(:disabled, .unavailable):hover .ttr-card, .ttr-take:not(:disabled, .unavailable):hover .ttr-ticket-back { translate: 0 -4px; }
+/* Lifted under the pointer, only where there's a real hover (on a phone a tap would leave it lifted). */
+@media (hover: hover) {
+  .ttr-take:not(:disabled, .unavailable):hover .ttr-card, .ttr-take:not(:disabled, .unavailable):hover .ttr-ticket-back { translate: 0 -4px; }
+}
 .ttr-take:is(:disabled, .unavailable) .ttr-card:not(.empty), .ttr-take:is(:disabled, .unavailable) .ttr-ticket-back { filter: saturate(0.6) brightness(0.85); }
 .ttr-take:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-.ttr-pile { display: inline-flex; align-items: center; gap: 8px; }
+.ttr-pile { display: inline-flex; align-items: center; gap: 12px; }
 .ttr-tickets-pile { display: inline-flex; align-items: center; gap: 8px; }
 .ttr-pile-label { display: flex; flex-direction: column; align-items: flex-start; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); }
 .ttr-pile-label .num { font-size: 18px; color: var(--text); letter-spacing: 0; }
@@ -257,11 +415,11 @@
   background: repeating-linear-gradient(135deg, var(--card-face) 0 6px, var(--map-land-2) 6px 12px);
   box-shadow: 0 0 0 1px var(--card-edge), var(--card-shadow);
 }
-.ttr-hint { color: var(--on-brand-2); font-size: 14px; min-height: 20px; }
+/* The tray's last line (what to do now, or what you drew blind): room for two lines (three beside the map) whatever it says, so the tray keeps its height. */
+.ttr-note { min-height: calc(2 * 1.45em); font-size: 14px; line-height: 1.45; color: var(--on-brand-2); }
 .ttr-hand { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
 .ttr-hand > .label { color: var(--on-brand-2); }
 .ttr-hand-cards { display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 8px 8px 0; }
-.ttr-drawn { font-size: 13px; }
 /* ---------- claiming: a bubble on the map ---------- */
 /* The rest of the board steps back while you choose how to pay. */
 .ttr-scenery, .ttr-play .ttr-cities { transition: filter 160ms ease, opacity 160ms ease; }
@@ -354,16 +512,36 @@
 .ttr-yours { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
 
 /* ---------- results ---------- */
-.ttr-score-tickets { display: flex; flex-wrap: wrap; gap: 2px 12px; }
-.ttr-score-tickets .done { color: var(--good); }
-.ttr-score-tickets .missed { color: var(--danger); }
-.ttr-score-tickets .done { color: var(--good); }
-.ttr-score-tickets .missed { color: var(--danger); }
+/* How a score adds up: routes, tickets, the longest railway (its bonus in gold). */
+.ttr-final { display: flex; flex-direction: column; gap: 8px; }
+.ttr-final-parts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ttr-part { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 8px; border-radius: var(--pill); font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--surface-2); white-space: nowrap; }
+.ttr-part b { font-size: 14px; color: var(--text); }
+.ttr-part.minus b { color: var(--danger); }
+.ttr-part.bonus { box-shadow: inset 0 0 0 1px var(--gold); }
+.ttr-part b.ttr-part-bonus { color: var(--gold-text); }
+/* The tickets, as small printed tickets with their points in a round badge: green made, red missed. */
+.ttr-final-tickets { display: flex; flex-wrap: wrap; gap: 5px 6px; }
+.ttr-mini-tix {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 3px 2px 8px;
+  border-radius: 5px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--ticket-ink);
+  background: var(--ticket-face);
+  border: 1px solid var(--ticket-edge);
+}
+.ttr-mini-tix .pts { min-width: 26px; padding: 1px 5px; border-radius: var(--pill); text-align: center; font-size: 11.5px; color: var(--card-face); }
+.ttr-mini-tix.done .pts { background: var(--good); }
+.ttr-mini-tix.missed { opacity: 0.72; }
+.ttr-mini-tix.missed .pts { background: var(--danger); }
 
 @media (max-width: 640px) {
-  .ttr-players { gap: 8px; }
-  .ttr-players .plate { width: calc(50% - 4px); }
-  .ttr-seat-open { width: calc(33% - 6px); height: 40px; }
   .ttr-board { padding: 6px; overflow-x: auto; }
   .ttr-map { min-width: 720px; }
   .ttr-card { width: 36px; height: 50px; }
@@ -371,3 +549,16 @@
 }
 
 /* ---------- cards in flight ---------- */
+
+/* ---------- the rules: points per route ---------- */
+.ttr-scoring { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.ttr-scoring h4 { margin-top: 6px; }
+.ttr-scoring ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ttr-scoring li { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+/* The route, as train cars on a track. */
+.ttr-scoring-cars { display: flex; gap: 3px; }
+.ttr-scoring-cars i { width: 15px; height: 9px; border-radius: 2px; background: var(--train-blue); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--map-ink), transparent 40%); }
+.ttr-scoring-len { display: flex; flex-direction: column; line-height: 1.25; }
+.ttr-scoring-len .muted { font-size: 12px; }
+.ttr-scoring-pts { font-size: 12px; color: var(--text-2); white-space: nowrap; text-align: right; }
+.ttr-scoring-pts .num { font-size: 18px; color: var(--gold-text); }

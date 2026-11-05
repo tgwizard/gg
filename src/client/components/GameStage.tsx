@@ -10,7 +10,7 @@ import { useServerNow } from "../useNow";
 import { Avatar, Button, busyWhy, PlayerName, play } from "../../ui";
 import type { Member } from "../../shared/protocol";
 import { GameCard, GameFacts, morphStyle, WipBadge } from "./GameCard";
-import { Popover } from "./Popover";
+import { Popover } from "../../ui/Popover";
 import { InTopbar } from "./TopbarSlot";
 import { useToast } from "./Toasts";
 
@@ -392,7 +392,7 @@ function HeaderPopover({ label, icon, wide, children }: { label: string; icon: R
         {icon}
       </button>
       {open && button.current && (
-        <Popover anchor={button.current} label={label} onClose={() => setOpen(false)} className={`header-pop ${wide ? "wide" : ""}`}>
+        <Popover anchor={button.current} label={label} onClose={() => setOpen(false)} className={`header-pop ${wide ? "wide" : ""}`} stayBelow>
           {children}
         </Popover>
       )}

@@ -52,13 +52,14 @@ locomotives showing and all five are replaced), 30 destination tickets, 100 rout
 Manual checks for after a change to this game (how to run them: [docs/QA.md](../../../docs/QA.md)).
 
 - [ ] Two to five sit down; *Start* deals 4 cards and offers 3 tickets to each. Hovering a ticket points out its cities on the map; *Keep* needs at least 2. Others only see "choosing tickets".
-- [ ] Draw two cards: face up or from the deck. A face-up locomotive ends the draw and can't be the second card. Three locomotives face up are replaced (the log says so). Only you see what you drew blind ("From the deck last turn").
+- [ ] Draw two cards: face up or from the deck. A face-up locomotive ends the draw and can't be the second card. Three locomotives face up are replaced (the log says so). Only you see what you drew blind ("From the deck last turn", at the bottom of the tray). A card you took doesn't stay raised or ringed afterwards.
+- [ ] The news under the map keeps its height whatever happened: whose move it is (and the last round), then the latest move, at most two lines. On your move it and your tray get the gold ring, flashing red in the last 10 s (not while you're away). Pressing it opens *What happened* (full width, newest first, *Load more* for older) and scrolls there. The tray's hint sits at its bottom and doesn't make it change height.
 - [ ] On your turn, routes you can pay for are outlined; clicking one opens a bubble by the route (the rest of the board dims) with every way to pay (color, with or without locomotives); Cancel, Escape or a click elsewhere on the map backs out. Claimed routes show the player's trains (taller, with windows), distinct from the printed board in both modes.
 - [ ] Double routes: with 2–3 players, claiming one track fades the other; with 4–5 the other stays open, but not to you.
 - [ ] *Tickets* draws 3; keep at least 1. Completed tickets turn green with a ✓.
 - [ ] Get someone to 2 or fewer trains: "last round" in chat and on the plates; each player gets one more turn, then the score table shows routes, tickets (each ✓/✗), the longest railway bonus and totals.
-- [ ] Let the clock run out: two cards are drawn for you and you're marked away; *I'm back* gives you the rest of your turn. The first tickets' clock (twice as long) keeps the cheapest two.
+- [ ] Let the clock run out: two cards are drawn for you and you're marked away (dashed plate, "away" for others; yours says "Away: tap to come back", and the tray says so at the top); *I'm back* or tapping your plate gives you the rest of your turn. The first tickets' clock (twice as long) keeps the cheapest two.
 - [ ] Hovering a player's nameplate fades everything but their trains; hovering a ticket joins its two cities with a dotted line.
 - [ ] Cards you take fly from the face-up row or the deck to your hand (not with reduced motion). The news and the log show the cards taken (face up in color, blind ones as backs, yours in color) and the cards paid for routes.
 - [ ] On a laptop screen (1440×900) the players, the map, the market, your cards and your tickets all fit without scrolling; narrower windows stack them under the map.
-- [ ] Phone: the map scrolls sideways; the market, your cards and tickets stay usable.
+- [ ] Phone (360 and 412 wide): the players are compact cards two to a row, nothing spilling out; the map scrolls sideways; the market, your cards and tickets stay usable; the deck lines up with the face-up cards. The final scores fit in their card (no columns cut off, ticket lines wrapping per ticket).

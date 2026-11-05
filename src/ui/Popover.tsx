@@ -8,7 +8,9 @@ import { createPortal } from "react-dom";
  * that's less than `100vh` (the browser's bars, the on-screen keyboard). It follows its
  * anchor as the page (or anything around it) scrolls, and closes once the anchor is
  * scrolled out of sight, unless you're typing in it (a phone's keyboard scrolls the page).
- * Clicking elsewhere closes it.
+ * Clicking elsewhere closes it. With `stayBelow` it never moves up over its anchor (a
+ * tall one scrolls inside instead), so the anchor stays in sight and closes it again;
+ * unless there's barely any room below, when it's placed as usual.
  */
 export function Popover({
   anchor,
@@ -17,6 +19,7 @@ export function Popover({
   align = "right",
   className = "",
   hover,
+  stayBelow,
   children,
 }: {
   anchor: HTMLElement;
@@ -26,6 +29,8 @@ export function Popover({
   className?: string;
   /** Hover handlers, for a popover that opens on hover (see `usePeek`). */
   hover?: PeekHover;
+  /** Always under the anchor, scrolling inside (header panels: their button stays tappable). */
+  stayBelow?: boolean;
   children: ReactNode;
 }) {
   const pop = useRef<HTMLDivElement>(null);
@@ -46,13 +51,16 @@ export function Popover({
       const offset = seen?.offsetTop ?? 0;
       const typing = el.contains(document.activeElement) && document.activeElement?.matches("input, textarea, select");
       if (!typing && (rect.bottom < offset || rect.top > offset + height)) return closeRef.current();
-      const maxHeight = height - 24;
-      const tall = Math.min(el.scrollHeight, maxHeight);
       // Lined up with the anchor's left or right edge, but never off either side of the window.
       const want = align === "left" ? rect.left : rect.right - el.offsetWidth;
+      const left = Math.max(12, Math.min(want, window.innerWidth - el.offsetWidth - 12));
+      const room = offset + height - 12 - below;
+      if (stayBelow && room >= 200) return setPlace({ top: below, left, maxHeight: room });
+      const maxHeight = height - 24;
+      const tall = Math.min(el.scrollHeight, maxHeight);
       setPlace({
         top: Math.max(offset + 12, Math.min(below, offset + height - tall - 12)),
-        left: Math.max(12, Math.min(want, window.innerWidth - el.offsetWidth - 12)),
+        left,
         maxHeight,
       });
     };
@@ -73,7 +81,7 @@ export function Popover({
       window.removeEventListener("resize", update);
       document.removeEventListener("scroll", update, { capture: true });
     };
-  }, [anchor, align]);
+  }, [anchor, align, stayBelow]);
   useEffect(() => {
     const close = (e: PointerEvent) => {
       const t = e.target as Node;

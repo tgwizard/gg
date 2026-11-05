@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { MODE_SHORTCUT, setSoundOn, toggleMode, useMode, useNarrow, useSoundOn } from "../../ui";
 import { ModeIcon } from "./ModeToggle";
-import { Popover, usePeek } from "./Popover";
+import { Popover, usePeek } from "../../ui/Popover";
 import { SettingsLink } from "./SettingsLink";
 import { SoundIcon, SoundToggle } from "./SoundToggle";
 

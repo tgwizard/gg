@@ -353,3 +353,8 @@ details.log li:nth-child(odd) { background: var(--surface-2); }
 .swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--pc); }
 .swatch[aria-checked="true"]::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--pc-ink); font-size: 13px; font-weight: 800; }
 .swatch.taken:not([aria-checked="true"])::after { content: ""; position: absolute; inset: 35%; border-radius: 50%; background: var(--pc-ink); opacity: 0.85; }
+
+/* ---------- popovers (Popover.tsx) ---------- */
+/* Rendered into <body> (outside the green bar, so it gets page colors); placed by JS. */
+/* Its height is capped from JS to what's visible; scrolling it never scrolls the page behind. */
+.popover { position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px)); overflow: auto; overscroll-behavior: contain; padding: 18px; }

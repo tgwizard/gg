@@ -1,11 +1,24 @@
 import type { ReactNode } from "react";
 import "./kit.css";
 
-/** "What just happened", announced in a strip under the table. */
-export function Herald({ children, testId, big, className }: { children: ReactNode; testId?: string; big?: boolean; className?: string }) {
-  return (
-    <div className={`herald ${big ? "big" : ""} ${className ?? ""}`} aria-live="polite" data-testid={testId}>
-      <div className="herald-text">{children}</div>
+/**
+ * "What just happened", announced in a strip under the table. With `onClick` it's a
+ * button (Coast to Coast opens its history from it).
+ */
+export function Herald({ children, testId, big, className, onClick, label }: { children: ReactNode; testId?: string; big?: boolean; className?: string; onClick?(): void; label?: string }) {
+  const classes = `herald ${big ? "big" : ""} ${className ?? ""}`;
+  const text = (
+    <div className="herald-text" aria-live="polite">
+      {children}
+    </div>
+  );
+  return onClick ? (
+    <button type="button" className={`${classes} herald-button`} onClick={onClick} aria-label={label} data-testid={testId}>
+      {text}
+    </button>
+  ) : (
+    <div className={classes} data-testid={testId}>
+      {text}
     </div>
   );
 }
@@ -15,9 +28,9 @@ export function Herald({ children, testId, big, className }: { children: ReactNo
  * `pinned` while your move is made in here: on a phone it then stays in sight at the
  * bottom of the screen, rather than below the table where you'd have to go looking.
  */
-export function ActionTray({ children, aside, testId, pinned }: { children?: ReactNode; aside?: ReactNode; testId?: string; pinned?: boolean }) {
+export function ActionTray({ children, aside, testId, pinned, className }: { children?: ReactNode; aside?: ReactNode; testId?: string; pinned?: boolean; className?: string }) {
   return (
-    <div className={`action-tray box on-brand${pinned ? " pinned" : ""}`} data-testid={testId}>
+    <div className={`action-tray box on-brand${pinned ? " pinned" : ""}${className ? ` ${className}` : ""}`} data-testid={testId}>
       <div className="action-tray-main">{children}</div>
       {aside && <div className="action-tray-aside">{aside}</div>}
     </div>
@@ -34,12 +47,13 @@ export function TableFooter({ log, actions }: { log?: ReactNode; actions?: React
   );
 }
 
-/** A collapsible history. */
-export function GameLog({ title, children }: { title: string; children: ReactNode }) {
+/** A collapsible history; controlled when `open` is given. `footer` goes under the list (a "Load more"). */
+export function GameLog({ title, children, open, onToggle, footer }: { title: string; children: ReactNode; open?: boolean; onToggle?(open: boolean): void; footer?: ReactNode }) {
   return (
-    <details className="log game-log">
+    <details className="log game-log" open={open} onToggle={onToggle && ((e) => onToggle(e.currentTarget.open))}>
       <summary>{title}</summary>
       <ol>{children}</ol>
+      {footer && <div className="game-log-footer">{footer}</div>}
     </details>
   );
 }

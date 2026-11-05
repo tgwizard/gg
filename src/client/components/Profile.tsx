@@ -3,7 +3,7 @@ import { PLAYER_COLORS } from "../../shared/colors";
 import { MAX_NAME_LENGTH } from "../../shared/protocol";
 import { Avatar, Button, playerStyle, useMedia } from "../../ui";
 import { noAutofill } from "../noAutofill";
-import { Popover } from "./Popover";
+import { Popover } from "../../ui/Popover";
 import { SettingsLink } from "./SettingsLink";
 
 /**

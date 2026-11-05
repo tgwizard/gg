@@ -1,21 +1,25 @@
-import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Button, busyWhy, play, playerStyle, usePlayerColors } from "../../../ui";
+import { type MouseEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Button, busyWhy, play, PlayerName, playerStyle, Popover, urgency, usePeek, usePlayerColors } from "../../../ui";
+import { reducedMotion } from "../../kit/ui/Flights";
 import { Flights, useFlights, useOnChange } from "../../kit/ui/Flights";
 import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
 import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
-import { AUTO_PLAY_DELAY_MS, type Hand, type TicketView, type TtrEvent, type TtrPlayerView, type TtrView } from "../engine";
+import { AUTO_PLAY_DELAY_MS, type Hand, LONGEST_BONUS, type TicketView, type TtrEvent, type TtrPlayerView, type TtrView } from "../engine";
 import { routeOpen } from "../graph";
 import { CARD_COLORS, type CardColor, cityName, ROUTE_POINTS, ROUTES, type Route, routeById, routeName, type Ticket, ticketById, TRAIN_COLORS } from "../map";
 import type { TtrOp } from "../index";
 import { TRACKS, VIEWBOX } from "./geometry";
 import { TicketMap } from "./TicketMap";
-import { cardName, DeckPile, TrainCard } from "./TrainCards";
+import { CardBack, cardName, DeckPile, TrainCard } from "./TrainCards";
 import "./ticket.css";
 
 type Props = GameUIProps<TtrView, TtrOp>;
+
+/** How much history shows at first, and how much more each "Load more" brings. */
+const LOG_PAGE = 10;
 
 interface Payment {
   color: CardColor;
@@ -43,6 +47,9 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   const [keepSel, setKeepSel] = useState<number[]>([]);
   const [hovered, setHovered] = useState<Ticket | null>(null);
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
+  const [logShown, setLogShown] = useState(LOG_PAGE);
+  const logRef = useRef<HTMLDivElement>(null);
   const flights = useCardFlights(view.game, view.you.hand);
 
   const mine = view.players.find((p) => p.playerId === me && !p.left);
@@ -65,6 +72,14 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
 
   const offered = view.you.offered;
   const keeping = offered ? keepSel.filter((id) => offered.some((t) => t.id === id)) : [];
+  const mySeat = view.you.seat === null ? null : view.seats[view.you.seat];
+  const away = !!mySeat?.sittingOut && view.you.inGame && (view.phase === "playing" || view.phase === "choosing");
+  // Your move (your turn, or your first tickets): the news and the tray light up, and flash as the clock runs out.
+  const myMove = myTurn || (view.phase === "choosing" && !!offered);
+  const deadline = view.phase === "choosing" ? view.setupDeadline : view.turnDeadline;
+  // Not while you're away: the game moves for you then.
+  const hurry = myMove && !away && deadline !== null ? urgency(deadline - serverNow) : null;
+  const turnClass = myMove ? `ttr-turn${hurry ? ` hurry-${hurry}` : ""}` : "";
 
   const send = async (op: TtrOp) => {
     setBusy(true);
@@ -82,6 +97,11 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   useOnChange(lastClaim?.type === "claim" ? `${view.game}:${lastClaim.route}` : null, () => play("claim"));
   const inGame = view.phase !== "lobby";
   const lines = summarize(view.log);
+  /** The news box opens the history and goes there. */
+  const openLog = () => {
+    setLogOpen(true);
+    requestAnimationFrame(() => logRef.current?.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" }));
+  };
   // Your own latest draw: the cards you drew blind are yours to see.
   const myLast = lines.findLast((l) => l.type === "cards" && l.who === me);
   const story = (line: Line): ReactNode =>
@@ -90,7 +110,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
     ) : line.type === "claim" ? (
       <ClaimStory e={line} nameOf={nameOf} />
     ) : (
-      describe(line, nameOf)
+      <span className="ttr-story-text">{describe(line, nameOf)}</span>
     );
 
   return (
@@ -127,16 +147,26 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
 
         {/* Your side of the table: beside the map when there's room, under it otherwise. */}
         <div className="ttr-side">
-          <Players view={view} me={me} members={members} connected={connected} busy={busy} send={send} serverNow={serverNow} onHover={setHoveredPlayer} />
+          <Players view={view} me={me} members={members} connected={connected} busy={busy} send={send} serverNow={serverNow} onHover={setHoveredPlayer} hurry={hurry} />
           {inGame ? (
-            <News view={view} lines={lines.slice(-2)} story={story} />
+            <News view={view} myTurn={myTurn} away={away} nameOf={plainName} recent={lines.slice(-2)} story={story} className={turnClass} onOpen={openLog} />
           ) : (
             <Herald testId="ttr-news">
               <span>{view.seats.filter(Boolean).length < 2 ? "Take a seat. Two to five can play." : "Start when everyone's seated."}</span>
             </Herald>
           )}
 
-          <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="ttr-tray">
+          <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="ttr-tray" className={turnClass}>
+            {away && (
+              <div className="ttr-away" data-testid="ttr-away">
+                <span>
+                  <strong>You're away.</strong> Your turns are played for you (two cards from the deck). Tap your name above, or:
+                </span>
+                <Button className="btn primary small" why={why} onClick={() => send({ type: "sitIn" })}>
+                  I'm back
+                </Button>
+              </div>
+            )}
             {offered ? (
               <TicketChoice
                 offered={offered}
@@ -153,22 +183,24 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
             ) : mine && hand && view.phase === "playing" ? (
               <div className="ttr-me">
                 <Market view={view} turnWhy={turnWhy} why={why} send={send} onTake={flights.takeFrom} />
-                {
-                  <div className="ttr-hint" data-testid="ttr-hint">
-                    {route
-                      ? `Choose how to pay for ${routeName(route)}, on the map.`
-                      : myTurn
-                        ? view.stage === "second"
+                <HandView hand={hand} />
+                {/* Last in the tray, in a space of its own that's always there, so nothing moves as it changes:
+                    what to do now on your turn (whose turn it is otherwise is in the news), else what you drew blind. */}
+                <div className="ttr-note">
+                  {myTurn ? (
+                    <span className="ttr-hint" data-testid="ttr-hint">
+                      {route
+                        ? `Choose how to pay for ${routeName(route)}, on the map.`
+                        : view.stage === "second"
                           ? "Take one more card (not a face-up locomotive)."
                           : claimable.size
-                            ? "Draw cards, take tickets, or click a highlighted route on the map to claim it."
-                            : "Draw cards or take tickets."
-                        : view.phase === "playing" && current
-                          ? `${nameOf(current.playerId)} ${current.playerId === me ? "are" : "is"} playing…`
-                          : null}
-                  </div>
-                }
-                <HandView hand={hand} drawn={myTurn && view.stage !== "start" ? [] : view.you.drawn} />
+                            ? "Draw cards, take tickets, or tap a highlighted route to claim it."
+                            : "Draw cards or take tickets."}
+                    </span>
+                  ) : (
+                    view.you.drawn.length > 0 && <span className="ttr-drawn">From the deck last turn: {view.you.drawn.map((c) => cardName(c)).join(", ")}</span>
+                  )}
+                </div>
               </div>
             ) : (
               <Status view={view} />
@@ -181,13 +213,30 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
         <TableFooter
           log={
             view.log.length > 0 && (
-              <GameLog title="What happened">
-                {lines.map((line, i) => (
-                  <li key={i} className="ttr-story">
-                    {story(line)}
-                  </li>
-                ))}
-              </GameLog>
+              // Most recent first, a page at a time.
+              <div ref={logRef} className="ttr-log">
+                <GameLog
+                  title="What happened"
+                  open={logOpen}
+                  onToggle={setLogOpen}
+                  footer={
+                    lines.length > logShown && (
+                      <button type="button" className="btn ghost small" onClick={() => setLogShown((n) => n + LOG_PAGE)} data-testid="ttr-log-more">
+                        Load more
+                      </button>
+                    )
+                  }
+                >
+                  {lines
+                    .map((line, i) => (
+                      <li key={i} className="ttr-story">
+                        {story(line)}
+                      </li>
+                    ))
+                    .reverse()
+                    .slice(0, logShown)}
+                </GameLog>
+              </div>
             )
           }
           actions={<SeatActions view={view} connected={connected} busy={busy} send={send} />}
@@ -244,7 +293,14 @@ function Players({
   send,
   serverNow,
   onHover,
-}: Pick<Props, "view" | "me" | "members" | "connected" | "serverNow"> & { busy: boolean; send(op: TtrOp): void; onHover(playerId: string | null): void }) {
+  hurry,
+}: Pick<Props, "view" | "me" | "members" | "connected" | "serverNow"> & {
+  busy: boolean;
+  send(op: TtrOp): void;
+  onHover(playerId: string | null): void;
+  /** Your clock is running out. */
+  hurry: "urgent" | "racing" | null;
+}) {
   const inGame = view.phase !== "lobby";
   return (
     <div className="ttr-players">
@@ -252,8 +308,7 @@ function Players({
         const p = inGame ? view.players.find((x) => x.seat === i && !x.left) : undefined;
         if (p)
           return (
-            // Hovering a player shows their railway on the map.
-            <div key={i} className="ttr-plate-hover" onMouseEnter={() => onHover(p.playerId)} onMouseLeave={() => onHover(null)}>
+            <PlateWithInfo key={i} p={p} view={view} me={me} name={members.get(p.playerId)?.name ?? "Player"} onHover={onHover}>
               <InGamePlate
                 p={p}
                 view={view}
@@ -261,8 +316,10 @@ function Players({
                 name={members.get(p.playerId)?.name ?? "Player"}
                 online={members.get(p.playerId)?.online ?? false}
                 serverNow={serverNow}
+                hurry={p.playerId === me ? hurry : null}
+                onBack={p.playerId === me ? () => send({ type: "sitIn" }) : undefined}
               />
-            </div>
+            </PlateWithInfo>
           );
         if (seat) {
           return (
@@ -287,7 +344,11 @@ function Players({
         return (
           <div key={i} className="seat-open ttr-seat-open" data-testid={`ttr-seat-${i}`}>
             {view.you.seat === null ? (
-              <Button className="btn small" why={busyWhy({ busy, connected })} onClick={() => send({ type: "sit", seat: i })}>
+              // The whole seat is the button.
+              <Button className="ttr-sit" why={busyWhy({ busy, connected })} onClick={() => send({ type: "sit", seat: i })}>
+                <span className="ttr-sit-plus" aria-hidden>
+                  +
+                </span>
                 Sit here
               </Button>
             ) : (
@@ -300,6 +361,114 @@ function Players({
   );
 }
 
+/** You're away, and pressing your plate brings you back (rather than explaining it). */
+const comesBack = (p: TtrPlayerView, view: TtrView, me: string) => p.playerId === me && view.phase !== "over" && !!view.seats[p.seat]?.sittingOut;
+
+/**
+ * A player's plate, which explains itself: hovering it (with a mouse) shows what its
+ * numbers mean in a bubble, and pressing it keeps the bubble open, which on a phone is
+ * the only way. Hovering also shows their railway on the map.
+ */
+function PlateWithInfo({ p, view, me, name, onHover, children }: { p: TtrPlayerView; view: TtrView; me: string; name: string; onHover(playerId: string | null): void; children: ReactNode }) {
+  const peek = usePeek();
+  const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
+  const pressable = !comesBack(p, view, me);
+  return (
+    <div
+      ref={setAnchor}
+      className={`ttr-plate-hover${pressable ? " pressable" : ""}`}
+      onMouseEnter={() => onHover(p.playerId)}
+      onMouseLeave={() => onHover(null)}
+      onPointerEnter={peek.hover.onPointerEnter}
+      onPointerLeave={peek.hover.onPointerLeave}
+      {...(pressable && {
+        role: "button",
+        tabIndex: 0,
+        "aria-expanded": peek.open,
+        "aria-label": `${name}: what the numbers mean`,
+        // Only presses on the plate itself: the bubble is portaled, but its clicks still bubble up here through React.
+        onClick: (e) => anchor?.contains(e.target as Node) && peek.toggle(),
+        onKeyDown: (e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          peek.toggle();
+        },
+      })}
+    >
+      {children}
+      {peek.open && anchor && (
+        <Popover anchor={anchor} label={`${name}: what the numbers mean`} onClose={peek.close} align="left" className="ttr-peek" hover={peek.hover}>
+          <PlateInfo p={p} view={view} me={me} name={name} />
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+/** What a plate's numbers mean, said for this player. */
+function PlateInfo({ p, view, me, name }: { p: TtrPlayerView; view: TtrView; me: string; name: string }) {
+  const color = usePlayerColors()(p.playerId);
+  const you = p.playerId === me;
+  const score = view.phase === "over" ? view.result?.scores.find((x) => x.playerId === p.playerId) : undefined;
+  const done = you ? view.you.tickets.filter((t) => t.done).length : null;
+  const away = view.seats[p.seat]?.playerId === p.playerId && !!view.seats[p.seat]?.sittingOut;
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  return (
+    <div className="ttr-peek-body">
+      <p className="ttr-peek-title">
+        <PlayerName name={name} color={color} />
+        {you && <span className="tag accent">you</span>}
+        {away && <span className="tag ttr-away-tag">away</span>}
+      </p>
+      <ul className="ttr-peek-list">
+        <li>
+          <span className="ttr-peek-icon">
+            <TrainSwatch color={color} />
+          </span>
+          <span>
+            <strong>{plural(p.trains, "train", "trains")}</strong> left to put on the map.{" "}
+            {view.finalTurns ? "The last round is on." : "At 2 or fewer, the last round starts."}
+          </span>
+        </li>
+        <li>
+          <span className="ttr-peek-icon">
+            <span className="ttr-mini-card" />
+          </span>
+          <span>
+            <strong>{plural(p.cards, "train card", "train cards")}</strong> in hand{you ? "" : " (only they see which)"}. Cards of one color claim a route.
+          </span>
+        </li>
+        <li>
+          <span className="ttr-peek-icon">
+            <span className="ttr-mini-ticket" />
+          </span>
+          <span>
+            <strong>{plural(p.tickets, "ticket", "tickets")}</strong>
+            {done !== null && p.tickets > 0 ? `, ${done} done` : ""}. Joining a ticket's two cities scores its points at the end; one not joined loses them.
+          </span>
+        </li>
+        <li>
+          <span className="ttr-peek-icon ttr-points">
+            <span className="num">{score ? score.total : p.points}</span>
+          </span>
+          <span>
+            {score ? (
+              <>
+                <strong>{plural(score.total, "point", "points")}</strong> in the end: routes, tickets and the longest railway.
+              </>
+            ) : (
+              <>
+                <strong>{plural(p.points, "point", "points")}</strong> from routes so far. Tickets, and +{LONGEST_BONUS} for the longest railway, are added at the end.
+              </>
+            )}
+          </span>
+        </li>
+      </ul>
+      {away && <p className="ttr-peek-away">{you ? "You're away: your turns are played for you. Tap your plate to come back." : "Away: their turns are played for them."}</p>}
+    </div>
+  );
+}
+
 function InGamePlate({
   p,
   view,
@@ -307,6 +476,8 @@ function InGamePlate({
   name,
   online,
   serverNow,
+  hurry,
+  onBack,
 }: {
   p: TtrPlayerView;
   view: TtrView;
@@ -314,6 +485,9 @@ function InGamePlate({
   name: string;
   online: boolean;
   serverNow: number;
+  hurry: "urgent" | "racing" | null;
+  /** Coming back from being away, by tapping your own plate. */
+  onBack?(): void;
 }) {
   const turn = view.turn === p.seat && view.phase === "playing";
   const seat = view.seats[p.seat];
@@ -321,18 +495,23 @@ function InGamePlate({
   const won = view.phase === "over" && !!view.result?.winners.includes(p.playerId);
   const score = view.phase === "over" ? view.result?.scores.find((x) => x.playerId === p.playerId) : undefined;
   const color = usePlayerColors()(p.playerId);
+  const you = p.playerId === me;
+  // Away and it's you: the plate is a button that brings you back.
+  const back = comesBack(p, view, me) ? onBack : undefined;
   return (
     <PlayerPlate
       playerId={p.playerId}
       name={name}
-      you={p.playerId === me}
+      you={you}
       online={online}
       active={turn || (view.phase === "choosing" && p.choosing)}
-      dim={away}
+      dim={away && !you}
       winner={won}
-      tags={away && <span className="tag">away</span>}
+      tags={away && !back && <span className="tag ttr-away-tag">away</span>}
       testId={`ttr-seat-${p.seat}`}
-      className="ttr-plate"
+      className={`ttr-plate${away ? " away" : ""}${back ? " ttr-plate-back" : ""}${hurry ? ` hurry-${hurry}` : ""}`}
+      selectable={!!back}
+      onClick={back}
     >
       <div className="ttr-plate-line">
         <div className="ttr-stats">
@@ -362,7 +541,9 @@ function InGamePlate({
       </div>
       {/* One line for whatever's going on, kept even when empty so every plate is the same size. */}
       <div className="ttr-plate-foot">
-        {turn && view.turnDeadline !== null ? (
+        {back ? (
+          <div className="plate-line status ttr-back-line">Away: tap to come back</div>
+        ) : turn && view.turnDeadline !== null ? (
           <TurnTimer deadline={view.turnDeadline} totalMs={away ? AUTO_PLAY_DELAY_MS : view.config.turnSeconds * 1000} serverNow={serverNow} />
         ) : view.phase === "choosing" && p.choosing ? (
           <div className="plate-line status">choosing tickets</div>
@@ -410,6 +591,7 @@ function Market({
             why={!c ? "There's no card here." : (turnWhy ?? stageWhy ?? (second && c === "loco" ? "A face-up locomotive counts as two cards: take a different one." : why))}
             onClick={(e) => {
               onTake(e.currentTarget);
+              blurAfterPointer(e);
               send({ type: "draw", from: i });
             }}
             aria-label={c ? `Take the face-up ${cardName(c)}` : "Empty"}
@@ -424,6 +606,7 @@ function Market({
         why={turnWhy ?? stageWhy ?? (deckLeft === 0 ? "The deck is empty." : why)}
         onClick={(e) => {
           onTake(e.currentTarget);
+          blurAfterPointer(e);
           send({ type: "draw", from: "deck" });
         }}
         data-testid="ttr-deck"
@@ -433,7 +616,10 @@ function Market({
       <Button
         className="ttr-take ttr-tickets-pile"
         why={turnWhy ?? ticketsWhy ?? (view.ticketCount === 0 ? "There are no tickets left." : why)}
-        onClick={() => send({ type: "tickets" })}
+        onClick={(e) => {
+          blurAfterPointer(e);
+          send({ type: "tickets" });
+        }}
         data-testid="ttr-draw-tickets"
       >
         <span className="ttr-ticket-back" />
@@ -445,7 +631,15 @@ function Market({
   );
 }
 
-function HandView({ hand, drawn }: { hand: Hand; drawn: CardColor[] }) {
+/**
+ * A face-up slot stays the same button while its card changes, so after a tap or click
+ * it shouldn't stay focused (a key pressed later would ring it). Keyboard presses keep focus.
+ */
+function blurAfterPointer(e: MouseEvent<HTMLElement>) {
+  if (e.detail > 0) e.currentTarget.blur();
+}
+
+function HandView({ hand }: { hand: Hand }) {
   const held = CARD_COLORS.filter((c) => hand[c] > 0);
   return (
     <div className="ttr-hand" data-testid="ttr-hand">
@@ -453,7 +647,6 @@ function HandView({ hand, drawn }: { hand: Hand; drawn: CardColor[] }) {
       <div className="ttr-hand-cards">
         {held.length ? held.map((c) => <TrainCard key={c} color={c} count={hand[c]} />) : <span className="muted">No cards.</span>}
       </div>
-      {drawn.length > 0 && <span className="ttr-drawn muted">From the deck last turn: {drawn.map((c) => cardName(c)).join(", ")}</span>}
     </div>
   );
 }
@@ -645,24 +838,76 @@ function describe(e: Line, nameOf: (id: string) => string): string {
   }
 }
 
-/** The last two things that happened, with the cards in them. */
-function News({ view, lines, story }: { view: TtrView; lines: Line[]; story(line: Line): ReactNode }) {
+/**
+ * The news under the map, always the same height: whose move it is (and the last round),
+ * then the last two things that happened, with their cards, a line each (the latest in
+ * bold, underneath; a long one is cut short, and the history has it whole). Pressing it
+ * opens the whole history.
+ */
+function News({
+  view,
+  myTurn,
+  away,
+  nameOf,
+  recent,
+  story,
+  className,
+  onOpen,
+}: {
+  view: TtrView;
+  myTurn: boolean;
+  away: boolean;
+  nameOf(id: string): string;
+  /** The last two lines of the log, oldest first. */
+  recent: Line[];
+  story(line: Line): ReactNode;
+  className: string;
+  onOpen(): void;
+}) {
+  const current = view.players.find((p) => p.seat === view.turn && !p.left);
+  const status =
+    view.phase === "choosing"
+      ? view.you.offered
+        ? "Choose your tickets"
+        : "Everyone's choosing their tickets…"
+      : view.phase === "over"
+        ? "Game over"
+        : myTurn
+          ? away
+            ? "Your turn (you're away)"
+            : "Your turn"
+          : current
+            ? `${nameOf(current.playerId)} ${view.stage === "tickets" ? "is choosing tickets" : "is playing"}…`
+            : null;
   return (
-    <Herald testId="ttr-news" className="ttr-news">
-      {view.phase === "choosing" ? (
-        <span>Game {view.game}: everyone's choosing their tickets.</span>
-      ) : lines.length ? (
-        <>
-          {lines.length > 1 && <span className="ttr-story muted">{story(lines[0]!)}</span>}
-          <span className="ttr-story ttr-latest">{story(lines.at(-1)!)}</span>
-        </>
-      ) : (
-        <span>Game {view.game} is on. Good luck!</span>
-      )}
-      {view.finalTurns && (
-        <span className="ttr-last-round">
-          Last round: {view.finalTurns.length} {view.finalTurns.length === 1 ? "turn" : "turns"} to go.
+    <Herald testId="ttr-news" className={`ttr-news ${className}`} onClick={onOpen} label="What happened: show the history">
+      <span className="ttr-news-status">
+        <span className={`ttr-news-turn${myTurn || (view.phase === "choosing" && view.you.offered) ? " mine" : ""}`} data-testid="ttr-status">
+          {status}
+          {view.finalTurns && (
+            <span className="ttr-last-round">
+              {" "}
+              · Last round: {view.finalTurns.length} {view.finalTurns.length === 1 ? "turn" : "turns"} to go
+            </span>
+          )}
         </span>
+        <span className="ttr-news-more" aria-hidden>
+          History
+          <svg viewBox="0 0 12 12">
+            <path d="M3 4.5 6 7.5 9 4.5" />
+          </svg>
+        </span>
+      </span>
+      {view.phase === "choosing" || !recent.length ? (
+        <span className="ttr-news-line latest">
+          {view.phase === "choosing" ? `Game ${view.game}: everyone picks their first tickets at once.` : `Game ${view.game} is on. Good luck!`}
+        </span>
+      ) : (
+        recent.map((line, i) => (
+          <span key={i} className={`ttr-news-line${i === recent.length - 1 ? " latest" : ""}`}>
+            {story(line)}
+          </span>
+        ))
       )}
     </Herald>
   );
@@ -676,11 +921,11 @@ function CardsStory({ line, nameOf, blind }: { line: Extract<Line, { type: "card
   let k = 0;
   return (
     <>
-      {nameOf(line.who)} took
+      <span className="ttr-story-text">{nameOf(line.who)} took</span>
       <span className="ttr-story-cards">
         {line.cards.map((c, i) => {
           const card = c ?? seen[k++] ?? null;
-          return card ? <TrainCard key={i} color={card} size="xs" /> : <span key={i} className="ttr-card back xs" title="From the deck" />;
+          return card ? <TrainCard key={i} color={card} size="xs" /> : <CardBack key={i} size="xs" title="From the deck" />;
         })}
       </span>
       {hidden > 0 && (
@@ -696,7 +941,9 @@ function ClaimStory({ e, nameOf }: { e: Extract<Line, { type: "claim" }>; nameOf
   const cards: CardColor[] = [...Array<CardColor>(r.length - e.locos).fill(e.color), ...Array<CardColor>(e.locos).fill("loco")];
   return (
     <>
-      {nameOf(e.who)} claimed {routeName(r)} with
+      <span className="ttr-story-text">
+        {nameOf(e.who)} claimed {routeName(r)} with
+      </span>
       <span className="ttr-story-cards">
         {cards.map((c, i) => (
           <TrainCard key={i} color={c} size="xs" />
@@ -732,26 +979,14 @@ function Result({ view, me, name, start, why }: { view: TtrView; me: string; nam
           </>
         )
       }
-      columns={["Routes", "Tickets", "Longest", "Total"]}
+      columns={["Total"]}
       rows={ranked.map((s) => ({
         playerId: s.playerId,
         name: name(s.playerId),
         winner: winners.includes(s.playerId),
         left: s.left,
-        cells: [s.routePoints, s.ticketPoints > 0 ? `+${s.ticketPoints}` : s.ticketPoints, s.bonus ? `${s.longest} (+${s.bonus})` : s.longest, s.total],
-        detail: s.tickets.length > 0 && (
-          <span className="ttr-score-tickets">
-            {s.tickets.map((t) => {
-              const ticket = ticketById.get(t.id)!;
-              return (
-                <span key={t.id} className={t.done ? "done" : "missed"}>
-                  {t.done ? "✓" : "✗"} {cityName(ticket.a)}–{cityName(ticket.b)} {t.done ? "+" : "−"}
-                  {ticket.points}
-                </span>
-              );
-            })}
-          </span>
-        ),
+        cells: [s.total],
+        detail: <FinalScore s={s} />,
       }))}
       actions={
         start && (
@@ -761,6 +996,44 @@ function Result({ view, me, name, start, why }: { view: TtrView; me: string; nam
         )
       }
     />
+  );
+}
+
+/** How a final score adds up (routes, tickets, the longest railway), and the tickets, as little tickets. */
+function FinalScore({ s }: { s: NonNullable<TtrView["result"]>["scores"][number] }) {
+  const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
+  // Finished tickets first, then the missed ones; biggest first within each.
+  const tickets = [...s.tickets].sort((a, b) => Number(b.done) - Number(a.done) || ticketById.get(b.id)!.points - ticketById.get(a.id)!.points);
+  return (
+    <span className="ttr-final">
+      <span className="ttr-final-parts">
+        <span className="ttr-part">
+          Routes <b className="num">{s.routePoints}</b>
+        </span>
+        <span className={`ttr-part${s.ticketPoints < 0 ? " minus" : ""}`}>
+          Tickets <b className="num">{signed(s.ticketPoints)}</b>
+        </span>
+        <span className={`ttr-part${s.bonus ? " bonus" : ""}`} title={s.bonus ? "The longest railway" : undefined}>
+          Longest <b className="num">{s.longest}</b>
+          {s.bonus > 0 && <b className="num ttr-part-bonus">+{s.bonus}</b>}
+        </span>
+      </span>
+      {tickets.length > 0 && (
+        <span className="ttr-final-tickets">
+          {tickets.map((t) => {
+            const ticket = ticketById.get(t.id)!;
+            return (
+              <span key={t.id} className={`ttr-mini-tix ${t.done ? "done" : "missed"}`} title={t.done ? "Completed" : "Not completed"}>
+                <span className="cities">
+                  {cityName(ticket.a)}–{cityName(ticket.b)}
+                </span>
+                <span className="pts num">{signed(t.done ? ticket.points : -ticket.points)}</span>
+              </span>
+            );
+          })}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -789,7 +1062,8 @@ function Controls({ view, connected, busy, send }: { view: TtrView; connected: b
           {view.game === 0 ? "Start" : "Play again"}
         </Button>
       )}
-      {s.sittingOut && (
+      {/* Away from a game that's on: the notice at the top of the tray has "I'm back". */}
+      {s.sittingOut && !(view.you.inGame && (view.phase === "playing" || view.phase === "choosing")) && (
         <Button className="btn" why={why} onClick={() => send({ type: "sitIn" })}>
           I'm back
         </Button>

@@ -543,10 +543,6 @@ button.game-card:hover { translate: 0 -2px; --box-bg: var(--surface-hover); }
 .profile-preview .name { font-size: 1.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-menu { position: relative; }
 
-/* ---------- popovers (components/Popover.tsx) ---------- */
-/* Rendered into <body> (outside the green bar, so it gets page colors); placed by JS. */
-/* Its height is capped from JS to what's visible; scrolling it never scrolls the page behind. */
-.popover { position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px)); overflow: auto; overscroll-behavior: contain; padding: 18px; }
 
 /* ---------- peeks: details behind a top-bar icon ---------- */
 .popover.peek-pop { width: min(300px, calc(100vw - 24px)); padding: 14px 16px; }

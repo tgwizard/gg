@@ -84,6 +84,9 @@
   --train-black: #3b3631;
   --train-gray: #aaa295;
   --train-loco: conic-gradient(from 200deg, #c8423a, #e58a2f, #ecc544, #5c9a4b, #3f7fbf, #d97aa6, #c8423a);
+  /* Coast to Coast's card backs: night-blue with pinstripes, a cream track and a gold medallion. */
+  --rail-back: #223352;
+  --rail-back-2: #2b4064;
   /* a chess board: maple and walnut squares, and what's drawn on them */
   --board-light: #f0dcb6;
   --board-dark: #b5855a;

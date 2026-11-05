@@ -200,7 +200,7 @@ display type and Nunito for everything else.
 - Artwork lives in `public/icons/` (generated illustrations for gg and each game;
   a game's `GameUI.icon` points at its own).
 - Small panels behind a button (your profile, a member, inviting a bot, the game's rules
-  and settings, the connection) are all `components/Popover.tsx`: kept within what's
+  and settings, the connection) are all `Popover` (`src/ui/Popover.tsx`, games use it too): kept within what's
   visible (on a phone, above the browser's bars and the keyboard), scrolling inside
   without scrolling the page, following their button as the page scrolls (and closed once
   it's out of sight, unless you're typing in one), and closed by clicking elsewhere or Escape.
@@ -285,7 +285,8 @@ can once none of its players are online).
   middle), `PlayerPlate` (nameplate, with an optional `badge` on its corner, like poker's dealer button), `Cards` (faces, backs, slots, fans),
   `Chips`/`Pot`/`DealerButton`, `TurnTimer`, `TimerField` (a set-up's seconds with
   a "Disable timer" button), `Herald`/`ActionTray`/`GameLog`
-  for the strip, tray and history under the table (an `ActionTray` that's `pinned`, while
+  for the strip, tray and history under the table (a `Herald` with `onClick` is a button, as Coast to Coast's
+  opens its history; a `GameLog` can be controlled with `open`/`onToggle` and take a `footer`) (an `ActionTray` that's `pinned`, while
   your move is made in it, sticks to the bottom of the screen when the game is taller than
   the window, as it usually is on a phone: what you can do is never below the fold; games
   whose move is made on the board, like Cannons' aiming, leave it unpinned), and `useSend` (`sendOp` plus a `busy`

@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { formatTime } from "../format";
 import type { RoomClient, RoomSnapshot } from "../net/RoomClient";
 import { useServerNow } from "../useNow";
-import { Popover, usePeek } from "./Popover";
+import { Popover, usePeek } from "../../ui/Popover";
 
 const LABELS: Record<RoomSnapshot["status"], string> = {
   connecting: "Connecting",

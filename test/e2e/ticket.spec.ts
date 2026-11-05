@@ -42,8 +42,8 @@ test("Coast to Coast: choose tickets in private, draw cards and claim a route", 
   // Blind draws are card backs to the other player, and the real cards to the one who drew them.
   await expect(second.getByTestId("ttr-news").locator(".ttr-card.back")).toHaveCount(2);
   await expect(first.getByTestId("ttr-news").locator(".ttr-card.back")).toHaveCount(0);
-  await expect(first.getByTestId("ttr-hand")).toContainText("From the deck last turn");
-  await expect(second.getByTestId("ttr-hand")).not.toContainText("From the deck last turn");
+  await expect(first.getByTestId("ttr-tray")).toContainText("From the deck last turn");
+  await expect(second.getByTestId("ttr-tray")).not.toContainText("From the deck last turn");
 
   // The second player keeps drawing until a route can be claimed, then claims it.
   await expect(second.getByTestId("ttr-deck")).toBeEnabled();

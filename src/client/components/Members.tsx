@@ -8,7 +8,7 @@ import { saveColor, saveName } from "../identity";
 import { ownedIn } from "../local";
 import type { RoomSnapshot } from "../net/RoomClient";
 import { BotForm, botCaption } from "./BotForm";
-import { Popover } from "./Popover";
+import { Popover } from "../../ui/Popover";
 import { ProfileForm } from "./Profile";
 import { SettingsLink } from "./SettingsLink";
 
