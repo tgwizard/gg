@@ -44,6 +44,14 @@ locomotives showing and all five are replaced), 30 destination tickets, 100 rout
   curved where the printed board curves them, with label offsets per city. Train
   colors and the board's land and water are tokens (`--train-*`, `--map-*`).
 
+- **Zooming** (`ui/ZoomableBoard.tsx`): pinch with two fingers (one still scrolls the page, or pans a
+  zoomed map), + and −, or a trackpad pinch (ctrl + wheel), from the whole map (1×) to 3×, about the
+  point under your fingers. During a pinch the map is only scaled (a CSS transform); when the fingers
+  lift it's drawn at its new size, so it stays sharp without redrawing the shading every frame. It starts
+  at the whole map, and the board keeps the map's shape and size at any zoom (a zoomed map moves inside
+  it). To try pinching in Chrome: DevTools, the device
+  toolbar (⌘⇧M), reload, then Shift + drag on the map.
+
 - **The built-in bot** keeps its cheapest tickets and claims routes on the cheapest path to
   them.
 
@@ -62,4 +70,5 @@ Manual checks for after a change to this game (how to run them: [docs/QA.md](../
 - [ ] Hovering a player's nameplate fades everything but their trains; hovering a ticket joins its two cities with a dotted line.
 - [ ] Cards you take fly from the face-up row or the deck to your hand (not with reduced motion). The news and the log show the cards taken (face up in color, blind ones as backs, yours in color) and the cards paid for routes.
 - [ ] On a laptop screen (1440×900) the players, the map, the market, your cards and your tickets all fit without scrolling; narrower windows stack them under the map.
+- [ ] Zoom: pinching the map zooms about your fingers (the page itself doesn't zoom), one finger scrolls the page (or pans a zoomed map), + and − step it (− greyed at the whole map, + at 3×), and claiming a route works zoomed in. On a laptop, a trackpad pinch zooms about the pointer.
 - [ ] Phone (360 and 412 wide): the players are compact cards two to a row, nothing spilling out; the map scrolls sideways; the market, your cards and tickets stay usable; the deck lines up with the face-up cards. The final scores fit in their card (no columns cut off, ticket lines wrapping per ticket).

@@ -230,6 +230,34 @@
   box-shadow: var(--table-shadow);
 }
 .ttr-map { position: relative; user-select: none; }
+
+/* ---------- zooming the map ---------- */
+.ttr-zoom-frame { position: relative; }
+/* Pinches are ours here (the page itself doesn't zoom); one finger still scrolls. */
+/* The board keeps the map's shape and size at any zoom; a zoomed map moves inside it. */
+.ttr-zoom { aspect-ratio: var(--map-aspect); overflow: auto; border-radius: 10px; touch-action: pan-x pan-y; scrollbar-width: thin; }
+.ttr-zoom-inner { min-width: 100%; }
+.ttr-zoom-buttons { position: absolute; top: 8px; right: 8px; z-index: 6; display: flex; flex-direction: column; gap: 6px; }
+.ttr-zoom-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+.ttr-zoom-btn:hover:not(.unavailable) { background: var(--surface-2); }
+.ttr-zoom-btn.unavailable { opacity: 0.5; cursor: default; }
+.ttr-zoom-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .ttr-play { position: relative; display: block; width: 100%; height: auto; }
 /* The board under the tracks never changes: its own layer, so hovering a route doesn't redraw the shading. */
 .ttr-scenery { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform; }
@@ -427,27 +455,9 @@
 .ttr-map.picking .ttr-track:not(.selected) { opacity: 0.25; }
 .ttr-map.picking .ttr-cities { opacity: 0.55; }
 .ttr-map.picking .ttr-track.selected .ttr-car { stroke: var(--gold); stroke-width: 3; opacity: 1; }
-.ttr-claim-catch { position: absolute; inset: 0; z-index: 4; }
-.ttr-claim-pop {
-  --tx: -50%;
-  --ty: calc(-100% - 22px);
-  position: absolute;
-  z-index: 5;
-  translate: var(--tx) var(--ty);
-  width: max-content;
-  max-width: min(440px, 92%);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
-  box-shadow: 0 14px 36px rgb(0 0 0 / 0.4), var(--shadow-md);
-  animation: ttr-pop 140ms ease-out;
-}
-.ttr-claim-pop.below { --ty: 22px; }
-.ttr-claim-pop.start { --tx: -28px; }
-.ttr-claim-pop.end { --tx: calc(-100% + 28px); }
+/* The bubble itself is the shared popover (over the page, so the map can't clip it). */
+.popover.ttr-claim { width: max-content; max-width: min(440px, calc(100vw - 24px)); padding: 14px 16px; box-shadow: 0 14px 36px rgb(0 0 0 / 0.4), var(--shadow-md); animation: ttr-pop 140ms ease-out; }
+.ttr-claim-body { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 @keyframes ttr-pop { from { opacity: 0; scale: 0.94; } }
 .ttr-claim-head { display: flex; flex-direction: column; gap: 2px; align-items: center; }
 .ttr-claim-head strong { font-family: var(--font-display); font-size: 18px; }
@@ -542,8 +552,7 @@
 .ttr-mini-tix.missed .pts { background: var(--danger); }
 
 @media (max-width: 640px) {
-  .ttr-board { padding: 6px; overflow-x: auto; }
-  .ttr-map { min-width: 720px; }
+  .ttr-board { padding: 6px; }
   .ttr-card { width: 36px; height: 50px; }
   .ttr-faceup { gap: 6px; }
 }

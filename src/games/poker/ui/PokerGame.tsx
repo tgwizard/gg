@@ -297,7 +297,7 @@ function ActionBar({ view, connected, sendOp, nameOf, narrow }: { view: PokerVie
     const amount = clamp(raiseTo);
     const allIn = amount >= max;
     const fold = (
-      <Button className="btn danger" why={why} onClick={() => run({ type: "fold" })}>
+      <Button className="btn" why={why} onClick={() => run({ type: "fold" })}>
         Fold
       </Button>
     );

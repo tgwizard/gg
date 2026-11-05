@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, busyWhy, play, PlayerName, playerStyle, Popover, urgency, usePeek, usePlayerColors } from "../../../ui";
 import { reducedMotion } from "../../kit/ui/Flights";
 import { Flights, useFlights, useOnChange } from "../../kit/ui/Flights";
@@ -11,8 +11,9 @@ import { AUTO_PLAY_DELAY_MS, type Hand, LONGEST_BONUS, type TicketView, type Ttr
 import { routeOpen } from "../graph";
 import { CARD_COLORS, type CardColor, cityName, ROUTE_POINTS, ROUTES, type Route, routeById, routeName, type Ticket, ticketById, TRAIN_COLORS } from "../map";
 import type { TtrOp } from "../index";
-import { TRACKS, VIEWBOX } from "./geometry";
+import { VIEWBOX } from "./geometry";
 import { TicketMap } from "./TicketMap";
+import { ZoomableBoard } from "./ZoomableBoard";
 import { CardBack, cardName, DeckPile, TrainCard } from "./TrainCards";
 import "./ticket.css";
 
@@ -117,30 +118,32 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
     <div className="ttr">
       <div className="ttr-grid">
         <div className="ttr-board">
-          <TicketMap
-            claims={view.claims}
-            bothTracks={view.bothTracks}
-            colorOf={colorOf}
-            nameOf={plainName}
-            claimable={claimable}
-            selected={route?.id ?? null}
-            onSelect={(id) => setPicked(id === picked ? null : id)}
-            marked={marked}
-            focus={hovered ? [hovered.a, hovered.b] : undefined}
-            recent={lastClaim?.type === "claim" ? lastClaim.route : null}
-            owner={hoveredPlayer}
-            picking={!!route}
-          >
-            {route && hand && (
-              <ClaimPopover
-                route={route}
-                hand={hand}
-                why={why}
-                onPay={(p) => send({ type: "claim", route: route.id, color: p.color, locos: p.locos })}
-                onCancel={() => setPicked(null)}
-              />
-            )}
-          </TicketMap>
+          <ZoomableBoard aspect={VIEWBOX.w / VIEWBOX.h}>
+            <TicketMap
+              claims={view.claims}
+              bothTracks={view.bothTracks}
+              colorOf={colorOf}
+              nameOf={plainName}
+              claimable={claimable}
+              selected={route?.id ?? null}
+              onSelect={(id) => setPicked(id === picked ? null : id)}
+              marked={marked}
+              focus={hovered ? [hovered.a, hovered.b] : undefined}
+              recent={lastClaim?.type === "claim" ? lastClaim.route : null}
+              owner={hoveredPlayer}
+              picking={!!route}
+            >
+              {route && hand && (
+                <ClaimPopover
+                  route={route}
+                  hand={hand}
+                  why={why}
+                  onPay={(p) => send({ type: "claim", route: route.id, color: p.color, locos: p.locos })}
+                  onCancel={() => setPicked(null)}
+                />
+              )}
+            </TicketMap>
+          </ZoomableBoard>
         </div>
 
         <Result view={view} me={me} name={plainName} start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null} why={why} />
@@ -652,32 +655,19 @@ function HandView({ hand }: { hand: Hand }) {
 }
 
 /**
- * Choosing how to pay for a route: a bubble on the map by the route, with the rest of
- * the board dimmed. Escape, Cancel or a click elsewhere on the map backs out.
+ * Choosing how to pay for a route: a bubble by the route (the shared popover, so a zoomed or
+ * small map doesn't clip it), with the rest of the board dimmed. Escape, Cancel or a press
+ * anywhere else backs out.
  */
 function ClaimPopover({ route, hand, why, onPay, onCancel }: { route: Route; hand: Hand; why: string | null; onPay(p: Payment): void; onCancel(): void }) {
   const options = payments(hand, route);
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, [onCancel]);
-  const { mid } = TRACKS.get(route.id)!;
-  const x = ((mid.x - VIEWBOX.x) / VIEWBOX.w) * 100;
-  const y = ((mid.y - VIEWBOX.y) / VIEWBOX.h) * 100;
-  // Above the route, unless that's off the top; kept inside the board at the sides.
-  const place = `${y < 45 ? "below" : "above"} ${x < 22 ? "start" : x > 78 ? "end" : "center"}`;
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => setAnchor(document.querySelector<HTMLElement>(`.ttr-map [data-route="${route.id}"]`)), [route.id]);
   const points = ROUTE_POINTS[route.length]!;
+  if (!anchor) return null;
   return (
-    <>
-      <div className="ttr-claim-catch" onClick={onCancel} />
-      <div
-        className={`ttr-claim-pop box ${place}`}
-        style={{ left: `${x}%`, top: `${y}%` }}
-        role="dialog"
-        aria-label={`Claim ${routeName(route)}`}
-        data-testid="ttr-claim"
-      >
+    <Popover anchor={anchor} label={`Claim ${routeName(route)}`} onClose={onCancel} align="left" className="ttr-claim">
+      <div className="ttr-claim-body" data-testid="ttr-claim">
         <div className="ttr-claim-head">
           <strong>{routeName(route)}</strong>
           <span className="muted">
@@ -703,7 +693,7 @@ function ClaimPopover({ route, hand, why, onPay, onCancel }: { route: Route; han
           Cancel
         </button>
       </div>
-    </>
+    </Popover>
   );
 }
 
