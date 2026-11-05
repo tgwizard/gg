@@ -1,10 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 import { createRoom, joinRoom, newPlayer } from "./helpers";
 
-/** Once it's their move, put a disc on `square`. */
+/** Once it's their move, and `square` is a move on the board they see, put a disc on it. */
 async function play(page: Page, square: string) {
   await expect(page.getByTestId("othello-status")).toHaveText("Your move.");
-  await page.getByTestId(`othello-sq-${square}`).click();
+  const target = page.getByTestId(`othello-sq-${square}`);
+  await expect(target).toHaveClass(/\blegal\b/);
+  await target.click();
 }
 
 test("Othello: sit, play and flip, resign, then swap colors", async ({ browser }) => {
