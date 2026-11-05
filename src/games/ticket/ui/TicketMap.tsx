@@ -1,4 +1,4 @@
-import { memo, type ReactNode, useId } from "react";
+import { type CSSProperties, memo, type ReactNode, useId } from "react";
 import { playerStyle } from "../../../ui";
 import type { Claims } from "../graph";
 import { CITIES, cityById, ROUTES, type Route, routeName } from "../map";
@@ -22,6 +22,8 @@ export interface MapProps {
   focus?: readonly string[];
   /** Routes to point out (the latest claim). */
   recent?: string | null;
+  /** A route being laid down, car by car from its first city (just claimed). */
+  laying?: string | null;
   /** A player whose railway to point out (their nameplate is hovered). */
   owner?: string | null;
   /** A route is being claimed: everything else steps back. */
@@ -92,7 +94,7 @@ function TicketLine({ a, b }: { a: string; b: string }) {
   );
 }
 
-function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected, onSelect, recent, owner: shown }: MapProps & { route: Route }) {
+function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected, onSelect, recent, laying, owner: shown }: MapProps & { route: Route }) {
   const shape = TRACKS.get(route.id)!;
   const owner = claims[route.id];
   const canClaim = !!claimable?.has(route.id);
@@ -105,13 +107,14 @@ function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected
     canClaim && "claimable",
     selected === route.id && "selected",
     recent === route.id && "recent",
+    owner && laying === route.id && "laying",
     !!shown && owner === shown && "shown",
   ];
   const title = `${routeName(route)}: ${route.length} ${route.color}${owner ? `, ${nameOf(owner)}'s` : closed ? " (closed)" : ""}`;
   return (
     <g
       className={classes.filter(Boolean).join(" ")}
-      style={owner ? playerStyle(colorOf(owner)) : undefined}
+      style={owner ? ({ ...playerStyle(colorOf(owner)), "--n": route.length } as CSSProperties) : undefined}
       onClick={canClaim ? () => onSelect?.(route.id) : undefined}
       data-route={route.id}
       data-testid={canClaim ? "ttr-claimable" : undefined}
@@ -124,8 +127,12 @@ function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected
         const h = owner ? CAR_HEIGHT + 2 : CAR_HEIGHT;
         return (
           <g key={i} transform={`translate(${car.x} ${car.y}) rotate(${car.angle})`}>
-            <rect className="ttr-car" x={-car.length / 2} y={-h / 2} width={car.length} height={h} rx={2} />
-            {owner && <rect className="ttr-car-windows" x={-car.length / 2 + 3} y={-1.75} width={car.length - 6} height={3.5} rx={1} />}
+            {owner && <ellipse className="ttr-thud" style={{ "--i": i } as CSSProperties} rx={car.length * 0.6} ry={h} />}
+            {/* Cars run from the route's first city (route.a), so --i is how far down the chain this one is. */}
+            <g className="ttr-link" style={owner ? ({ "--i": i } as CSSProperties) : undefined}>
+              <rect className="ttr-car" x={-car.length / 2} y={-h / 2} width={car.length} height={h} rx={2} />
+              {owner && <rect className="ttr-car-windows" x={-car.length / 2 + 3} y={-1.75} width={car.length - 6} height={3.5} rx={1} />}
+            </g>
           </g>
         );
       })}

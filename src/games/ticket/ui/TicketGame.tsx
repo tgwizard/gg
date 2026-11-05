@@ -1,7 +1,6 @@
-import { type MouseEvent, type ReactNode, type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent, type ReactNode, type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, busyWhy, play, PlayerName, playerStyle, Popover, urgency, usePeek, usePlayerColors } from "../../../ui";
-import { reducedMotion } from "../../kit/ui/Flights";
-import { Flights, useFlights, useOnChange } from "../../kit/ui/Flights";
+import { Flights, rectOf, reducedMotion, useFlights, useOnChange } from "../../kit/ui/Flights";
 import { GameOver } from "../../kit/ui/GameOver";
 import { ActionTray, GameLog, Herald, TableFooter } from "../../kit/ui/GameParts";
 import { PlayerPlate } from "../../kit/ui/PlayerPlate";
@@ -51,7 +50,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   const [logOpen, setLogOpen] = useState(false);
   const [logShown, setLogShown] = useState(LOG_PAGE);
   const logRef = useRef<HTMLDivElement>(null);
-  const flights = useCardFlights(view.game, view.you.hand);
+  const flights = useCardFlights(view, me);
   const root = useRef<HTMLDivElement>(null);
   const layout = useLayout(root);
 
@@ -97,7 +96,19 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
 
   const marked = useMemo(() => new Set(view.you.tickets.filter((t) => !t.done).flatMap((t) => [t.a, t.b])), [view.you.tickets]);
   const lastClaim = [...view.log].reverse().find((e) => e.type === "claim");
-  useOnChange(lastClaim?.type === "claim" ? `${view.game}:${lastClaim.route}` : null, () => play("claim"));
+  // A new claim is laid down car by car (`TicketMap`'s `laying`), and clanks as the first cars land.
+  const [laying, setLaying] = useState<string | null>(null);
+  const layDone = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(layDone.current), []);
+  useOnChange(lastClaim?.type === "claim" ? `${view.game}:${lastClaim.route}` : null, () => {
+    if (lastClaim?.type !== "claim") return;
+    play("claim", reducedMotion() ? 0 : 0.2);
+    if (reducedMotion()) return;
+    setLaying(lastClaim.route);
+    clearTimeout(layDone.current);
+    // Long enough for the cars, and the gold glow that follows them.
+    layDone.current = setTimeout(() => setLaying(null), 4000);
+  });
   const inGame = view.phase !== "lobby";
   const lines = summarize(view.log);
   /** The news box opens the history and goes there. */
@@ -132,6 +143,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
               marked={marked}
               focus={hovered ? [hovered.a, hovered.b] : undefined}
               recent={lastClaim?.type === "claim" ? lastClaim.route : null}
+              laying={laying}
               owner={hoveredPlayer}
               picking={!!route}
             >
@@ -288,38 +300,90 @@ function useLayout(root: RefObject<HTMLDivElement | null>): "beside" | "middle" 
 }
 
 /**
- * Cards you take fly from where they were (a face-up slot, or the deck) to your hand.
- * Watches your hand: whatever it gains (in the same game) is a card you took.
+ * Cards on the move. Yours fly from where they were (a face-up slot, or the deck) to your
+ * hand: whatever your hand gains (in the same game) is a card you took. Someone else's fly
+ * to the news under the map, where their move shows up: whatever their card count gains is
+ * the end of their latest draw in the log, from the face-up slot that changed (or the deck).
  */
-function useCardFlights(game: number, hand: Hand | null) {
+function useCardFlights(view: TtrView, me: string) {
   const { flights, launch, land } = useFlights();
   const from = useRef<{ rect: DOMRect; at: number } | null>(null);
-  const before = useRef<{ game: number; hand: Hand } | null>(null);
+  const before = useRef<{ game: number; hand: Hand | null; faceUp: (CardColor | null)[]; cards: Map<string, number> } | null>(null);
+  const { game, players, faceUp, log } = view;
+  const hand = view.you.hand;
 
   useLayoutEffect(() => {
     const prev = before.current;
-    before.current = hand ? { game, hand } : null;
-    if (!hand || !prev || prev.game !== game) return;
-    const gained = CARD_COLORS.flatMap((c) => Array<CardColor>(Math.max(0, hand[c] - prev.hand[c])).fill(c));
-    // Only draws (one or two cards); a new deal or anything bigger isn't animated.
-    if (!gained.length || gained.length > 2) return;
-    const deck = document.querySelector('[data-testid="ttr-deck"]');
-    const start = from.current && Date.now() - from.current.at < 5000 ? from.current.rect : deck?.getBoundingClientRect();
-    from.current = null;
-    if (!start) return;
-    launch(
-      gained.map((color, i) => {
-        const to = document.querySelector(`[data-testid="ttr-hand"] [data-color="${color}"]`)?.getBoundingClientRect();
-        return to ? { node: <TrainCard color={color} />, from: start, to, delay: i * 0.12, duration: 0.62, sound: "card" as const } : null;
-      }),
-    );
-  }, [game, hand]);
+    before.current = { game, hand, faceUp, cards: new Map(players.map((p) => [p.playerId, p.cards])) };
+    if (!prev || prev.game !== game) return;
+
+    if (hand && prev.hand) {
+      const gained = CARD_COLORS.flatMap((c) => Array<CardColor>(Math.max(0, hand[c] - prev.hand![c])).fill(c));
+      // Only draws (one or two cards); a new deal or anything bigger isn't animated.
+      const deck = document.querySelector('[data-testid="ttr-deck"]');
+      const start = from.current && Date.now() - from.current.at < 5000 ? from.current.rect : deck?.getBoundingClientRect();
+      if (gained.length) from.current = null;
+      if (gained.length && gained.length <= 2 && start) {
+        launch(
+          gained.map((color, i) => {
+            const to = document.querySelector(`[data-testid="ttr-hand"] [data-color="${color}"]`)?.getBoundingClientRect();
+            return to ? { node: <TrainCard color={color} />, from: start, to, delay: i * 0.12, duration: 0.62, sound: "card" as const } : null;
+          }),
+        );
+      }
+    }
+
+    const lines = summarize(log);
+    for (const p of players) {
+      if (p.playerId === me || p.left) continue;
+      const more = p.cards - (prev.cards.get(p.playerId) ?? p.cards);
+      const line = lines.at(-1);
+      if (more < 1 || more > 2 || line?.type !== "cards" || line.who !== p.playerId) continue;
+      const shown = [...document.querySelectorAll('[data-testid="ttr-news"] .ttr-news-line.latest .ttr-story-cards > .ttr-card')];
+      const taken = line.cards.slice(-more);
+      const used = new Set<number>();
+      launch(
+        taken.map((card, i) => {
+          const target = shown[shown.length - more + i];
+          const start = card ? faceUpRect(prev.faceUp, faceUp, card, used) : rectOf('[data-testid="ttr-deck"] .ttr-card');
+          if (!target || !start) return null;
+          const to = target.getBoundingClientRect();
+          const delay = i * 0.12;
+          const duration = 0.6;
+          // The card in the news shows up as this one lands on it.
+          if (!reducedMotion()) target.animate({ opacity: [0, 0] }, { duration: (delay + duration * 0.9) * 1000 });
+          return {
+            node: (
+              <span className="ttr-fly-card" style={{ width: start.width, height: start.height }}>
+                {card ? <TrainCard color={card} /> : <CardBack />}
+              </span>
+            ),
+            from: start,
+            to,
+            scale: [1, to.width / start.width] as [number, number],
+            delay,
+            duration,
+            sound: "card" as const,
+          };
+        }),
+      );
+    }
+  }, [game, hand, players]);
 
   return {
     flights,
     takeFrom: (el: Element) => (from.current = { rect: el.getBoundingClientRect(), at: Date.now() }),
     land,
   };
+}
+
+/** Where a face-up card someone took was: the slot that had it and changed (a refill can bring the same color back, so else any slot that had it). */
+function faceUpRect(was: (CardColor | null)[], now: (CardColor | null)[], card: CardColor, used: Set<number>): DOMRect | null {
+  const had = was.flatMap((c, i) => (c === card && !used.has(i) ? [i] : []));
+  const slot = had.find((i) => now[i] !== card) ?? had[0];
+  if (slot === undefined) return null;
+  used.add(slot);
+  return rectOf(`[data-testid="ttr-faceup-${slot}"] .ttr-card`);
 }
 
 // --- players ------------------------------------------------------------------

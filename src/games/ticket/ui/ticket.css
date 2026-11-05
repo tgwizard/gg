@@ -334,6 +334,33 @@
 .ttr-track-hit { fill: none; stroke: transparent; stroke-width: 16; }
 .ttr-track.recent .ttr-car { animation: ttr-recent 1.2s ease-in-out 2; }
 @keyframes ttr-recent { 50% { filter: drop-shadow(0 0 4px var(--gold)); } }
+/*
+ * A route just claimed is laid down like a heavy chain from its first city: each car swings
+ * in from above (bigger, its shadow far below), drops, hits with a squash and a puff, and
+ * the next one follows. --i is the car's place from the first city, --n the route's length.
+ */
+.ttr-link { transform-box: fill-box; transform-origin: 0% 50%; }
+.ttr-track.laying .ttr-link { animation: ttr-link 330ms both; animation-delay: calc(var(--i) * 85ms); }
+.ttr-track.laying .ttr-track-glow { animation: ttr-glow-in 300ms ease-out both; animation-delay: calc(var(--n) * 85ms + 200ms); }
+.ttr-track.laying .ttr-car { animation-delay: calc(var(--n) * 85ms + 330ms); }
+.ttr-thud { fill: none; stroke: var(--map-ink); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: 50% 50%; pointer-events: none; }
+.ttr-track.laying .ttr-thud { animation: ttr-thud 380ms ease-out forwards; animation-delay: calc(var(--i) * 85ms + 200ms); }
+@keyframes ttr-link {
+  0% { opacity: 0; transform: rotate(-30deg) scale(1.5); filter: drop-shadow(0 9px 4px rgb(0 0 0 / 0.3)); animation-timing-function: cubic-bezier(0.55, 0, 0.95, 0.45); }
+  20% { opacity: 1; }
+  60% { transform: rotate(2deg) scale(1); filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0)); animation-timing-function: ease-out; }
+  72% { transform: scale(1.07, 0.84); }
+  86% { transform: scale(0.98, 1.04); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes ttr-glow-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ttr-track.laying .ttr-link, .ttr-track.laying .ttr-thud, .ttr-track.laying .ttr-track-glow { animation: none; }
+}
+@keyframes ttr-thud {
+  0% { opacity: 0.45; transform: scale(0.7, 0.5); }
+  100% { opacity: 0; transform: scale(1.5, 1.1); }
+}
 
 .ttr-city-dot { fill: var(--accent); stroke: var(--map-ink); stroke-width: 1.8; }
 .ttr-city-core { fill: var(--map-halo); pointer-events: none; }
@@ -442,6 +469,9 @@
 .ttr-me { display: flex; flex-direction: column; gap: 14px; width: 100%; }
 .ttr-market { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .ttr-faceup { display: flex; gap: 8px; }
+/* A card flying to the news: drawn at the size it left from, scaled down on the way. */
+.ttr-fly-card { display: block; }
+.ttr-fly-card > .ttr-card { width: 100%; height: 100%; }
 .ttr-take { display: inline-flex; align-items: center; padding: 0; border: none; background: none; cursor: pointer; border-radius: var(--radius-card); color: inherit; font: inherit; }
 .ttr-take:disabled, .ttr-take.unavailable { cursor: default; }
 /* Lifted under the pointer, only where there's a real hover (on a phone a tap would leave it lifted). */
