@@ -11,7 +11,8 @@ import { chance, easy } from "../kit/bot";
 import type { GameBot } from "../types";
 import type { TtrView } from "./engine";
 import { cheapestPath } from "./graph";
-import { routeById, ticketById, type Route, type TrainColor } from "./map";
+import type { Route, TrainColor } from "./map";
+import { mapById } from "./maps";
 import type { TtrOp } from "./index";
 
 export const ticketBot: GameBot<TtrView, TtrOp> = {
@@ -20,13 +21,14 @@ export const ticketBot: GameBot<TtrView, TtrOp> = {
     const me = view.players.find((p) => p.seat === view.you.seat && !p.left);
     if (!me || !ops.length) return null;
     const pick = <T>(xs: T[]) => xs[rand(xs.length)]!;
-    const plan = (a: string, b: string) => cheapestPath(view.claims, me.playerId, view.bothTracks, a, b);
+    const map = mapById(view.config.map);
+    const plan = (a: string, b: string) => cheapestPath(map, view.claims, me.playerId, view.bothTracks, a, b);
 
     const keeps = ops.filter((op) => op.type === "keep");
     if (keeps.length) {
       // As few tickets as allowed, the cheapest to finish.
       const cost = (id: number) => {
-        const t = ticketById.get(id)!;
+        const t = map.ticketById.get(id)!;
         return plan(t.a, t.b)?.cost ?? 99;
       };
       const fewest = Math.min(...keeps.map((op) => op.tickets.length));
@@ -39,7 +41,7 @@ export const ticketBot: GameBot<TtrView, TtrOp> = {
     const needed: Route[] = view.you.tickets.filter((t) => !t.done).flatMap((t) => plan(t.a, t.b)?.routes ?? []);
     const neededIds = new Set(needed.map((r) => r.id));
     const claims = ops.filter((op) => op.type === "claim");
-    const length = (op: Extract<TtrOp, { type: "claim" }>) => routeById.get(op.route)!.length;
+    const length = (op: Extract<TtrOp, { type: "claim" }>) => map.routeById.get(op.route)!.length;
     const useful = claims.filter((op) => neededIds.has(op.route));
     if (useful.length && soft) return pick(useful);
     if (useful.length) {

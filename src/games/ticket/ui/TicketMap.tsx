@@ -1,13 +1,14 @@
 import { type CSSProperties, memo, type ReactNode, useId } from "react";
 import { playerStyle } from "../../../ui";
 import type { Claims } from "../graph";
-import { CITIES, cityById, ROUTES, type Route, routeName } from "../map";
-import { BORDERS, LAKES, LAND } from "./geography";
-import { LABELS, TRACKS, VIEWBOX } from "./geometry";
+import type { Route, TtrMap } from "../map";
+import { type Board, boardFor } from "./boards";
+import { labelsFor, tracksFor } from "./geometry";
 
 const CAR_HEIGHT = 10;
 
 export interface MapProps {
+  map: TtrMap;
   claims: Claims;
   bothTracks: boolean;
   /** A route's claimer → their player color index. */
@@ -34,26 +35,38 @@ export interface MapProps {
 
 /** The board: water, cities, and every route's track, with trains on the claimed ones. */
 export const TicketMap = memo(function TicketMap(props: MapProps) {
-  const { x, y, w, h } = VIEWBOX;
+  const { map } = props;
+  const board = boardFor(map.id);
+  const { x, y, w, h } = board.viewbox;
+  const labels = labelsFor(map, board.labels, board.viewbox);
+  const loco = `${useId().replace(/:/g, "")}-loco`;
   // Two layers: the printed board (drawn once, with costly shading) under the live tracks and cities.
   return (
     <div className={`ttr-map${props.picking ? " picking" : ""}`} data-testid="ttr-map">
-      <Scenery />
+      <Scenery board={board} />
       <svg
         role="img"
         aria-label="The map of North America"
         className={`ttr-play${props.focus?.length ? " focusing" : ""}${props.owner ? " owner-focus" : ""}`}
         viewBox={`${x} ${y} ${w} ${h}`}
       >
+        <defs>
+          {/* A ferry's locomotive spaces: the locomotive card's rainbow. */}
+          <linearGradient id={loco} x1="0" x2="1" y1="0" y2="0">
+            {["red", "orange", "yellow", "green", "blue", "pink"].map((c, i) => (
+              <stop key={c} offset={i / 5} className={`ttr-loco-stop c-${c}`} />
+            ))}
+          </linearGradient>
+        </defs>
         <g className="ttr-tracks">
-          {ROUTES.map((r) => (
-            <Track key={r.id} route={r} {...props} />
+          {map.routes.map((r) => (
+            <Track key={r.id} route={r} loco={loco} {...props} />
           ))}
         </g>
-        {props.focus?.length === 2 && <TicketLine a={props.focus[0]!} b={props.focus[1]!} />}
+        {props.focus?.length === 2 && <TicketLine map={map} board={board} a={props.focus[0]!} b={props.focus[1]!} />}
         <g className="ttr-cities">
-          {CITIES.map((c) => {
-            const [dx, dy, anchor] = LABELS[c.id] ?? [0, 20, "middle"];
+          {map.cities.map((c) => {
+            const [dx, dy, anchor] = labels[c.id]!;
             const focused = props.focus?.includes(c.id);
             return (
               <g key={c.id} className={`ttr-city${props.marked?.has(c.id) ? " marked" : ""}${focused ? " focus" : ""}`}>
@@ -74,15 +87,16 @@ export const TicketMap = memo(function TicketMap(props: MapProps) {
 });
 
 /** A ticket being looked at: a dotted line arcing from one of its cities to the other. */
-function TicketLine({ a, b }: { a: string; b: string }) {
-  const p = cityById.get(a)!;
-  const q = cityById.get(b)!;
+function TicketLine({ map, board, a, b }: { map: TtrMap; board: Board; a: string; b: string }) {
+  const p = map.cityById.get(a)!;
+  const q = map.cityById.get(b)!;
   const len = Math.hypot(q.x - p.x, q.y - p.y);
   const bow = 0.18 * len;
   // Bow it toward the middle of the board, so it never leaves the map.
   const [mx, my] = [(p.x + q.x) / 2, (p.y + q.y) / 2];
   const [nx, ny] = [(q.y - p.y) / len, -(q.x - p.x) / len];
-  const middle = { x: VIEWBOX.x + VIEWBOX.w / 2, y: VIEWBOX.y + VIEWBOX.h / 2 };
+  const { viewbox } = board;
+  const middle = { x: viewbox.x + viewbox.w / 2, y: viewbox.y + viewbox.h / 2 };
   const sign = nx * (middle.x - mx) + ny * (middle.y - my) >= 0 ? 1 : -1;
   const [cx, cy] = [mx + sign * nx * bow, my + sign * ny * bow];
   const d = `M${p.x},${p.y} Q${cx},${cy} ${q.x},${q.y}`;
@@ -94,8 +108,8 @@ function TicketLine({ a, b }: { a: string; b: string }) {
   );
 }
 
-function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected, onSelect, recent, laying, owner: shown }: MapProps & { route: Route }) {
-  const shape = TRACKS.get(route.id)!;
+function Track({ map, route, loco, claims, bothTracks, colorOf, nameOf, claimable, selected, onSelect, recent, laying, owner: shown }: MapProps & { route: Route; loco: string }) {
+  const shape = tracksFor(map).get(route.id)!;
   const owner = claims[route.id];
   const canClaim = !!claimable?.has(route.id);
   // With 2–3 players, the other track of a claimed double route is out of the game.
@@ -103,6 +117,7 @@ function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected
   const classes = [
     "ttr-track",
     owner ? "claimed" : `free c-${route.color}`,
+    route.ferry > 0 && "ferry",
     closed && "closed",
     canClaim && "claimable",
     selected === route.id && "selected",
@@ -110,7 +125,7 @@ function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected
     owner && laying === route.id && "laying",
     !!shown && owner === shown && "shown",
   ];
-  const title = `${routeName(route)}: ${route.length} ${route.color}${owner ? `, ${nameOf(owner)}'s` : closed ? " (closed)" : ""}`;
+  const title = `${map.routeName(route)}: ${route.length} ${route.ferry ? `ferry (${route.ferry} ${route.ferry === 1 ? "locomotive" : "locomotives"})` : route.color}${owner ? `, ${nameOf(owner)}'s` : closed ? " (closed)" : ""}`;
   return (
     <g
       className={classes.filter(Boolean).join(" ")}
@@ -125,12 +140,16 @@ function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected
       {shape.cars.map((car, i) => {
         // A claimed car is a train piece: a little taller than the printed space, with windows.
         const h = owner ? CAR_HEIGHT + 2 : CAR_HEIGHT;
+        // A ferry's locomotive spaces are the middle ones.
+        const first = Math.floor((route.length - route.ferry) / 2);
+        const locoSpace = !owner && i >= first && i < first + route.ferry;
         return (
           <g key={i} transform={`translate(${car.x} ${car.y}) rotate(${car.angle})`}>
             {owner && <ellipse className="ttr-thud" style={{ "--i": i } as CSSProperties} rx={car.length * 0.6} ry={h} />}
             {/* Cars run from the route's first city (route.a), so --i is how far down the chain this one is. */}
             <g className="ttr-link" style={owner ? ({ "--i": i } as CSSProperties) : undefined}>
-              <rect className="ttr-car" x={-car.length / 2} y={-h / 2} width={car.length} height={h} rx={2} />
+              <rect className="ttr-car" x={-car.length / 2} y={-h / 2} width={car.length} height={h} rx={2} style={locoSpace ? { fill: `url(#${loco})` } : undefined} />
+              {locoSpace && <LocoMark />}
               {owner && <rect className="ttr-car-windows" x={-car.length / 2 + 3} y={-1.75} width={car.length - 6} height={3.5} rx={1} />}
             </g>
           </g>
@@ -140,54 +159,19 @@ function Track({ route, claims, bothTracks, colorOf, nameOf, claimable, selected
   );
 }
 
-const MOUNTAINS: [number, number][] = [
-  [196, 262],
-  [222, 284],
-  [300, 290],
-  [318, 312],
-  [204, 388],
-  [326, 420],
-  [446, 240],
-  [470, 262],
-];
-const TREES: [number, number][] = [
-  [560, 68],
-  [574, 76],
-  [618, 84],
-  [632, 76],
-  [760, 70],
-  [774, 78],
-  [404, 122],
-  [184, 232],
-  [197, 240],
-  [860, 262],
-  [872, 270],
-];
-const CACTI: [number, number][] = [
-  [236, 598],
-  [300, 604],
-  [352, 596],
-  [196, 470],
-];
-const WAVES: [number, number][] = [
-  [34, 300],
-  [30, 470],
-  [102, 610],
-  [560, 612],
-  [640, 600],
-  [960, 400],
-  [972, 250],
-  [958, 560],
-];
+/** A little locomotive on a ferry's locomotive space. */
+function LocoMark() {
+  return <path className="ttr-loco-mark" d="M-6,2.5 h11 v-3 h-3 v-2.5 h-4 v2.5 h-4 Z M4,-3.5 v-1.5" />;
+}
 
 /** The printed board under the tracks: paper, land, water, borders, a compass. Drawn once. */
-const Scenery = memo(function Scenery() {
+const Scenery = memo(function Scenery({ board }: { board: Board }) {
   const id = useId().replace(/:/g, "");
-  const { x, y, w, h } = VIEWBOX;
+  const { x, y, w, h } = board.viewbox;
   return (
     <svg className="ttr-scenery" viewBox={`${x} ${y} ${w} ${h}`} aria-hidden>
       <defs>
-        {/* Hills: lit noise, strongest over the Rockies, a little over the Appalachians. */}
+        {/* Hills: lit noise, stronger in places (the board's relief). */}
         <filter id={`${id}-relief`} x="0" y="0" width="100%" height="100%">
           <feTurbulence type="fractalNoise" baseFrequency="0.009" numOctaves="5" seed="3" />
           <feDiffuseLighting surfaceScale="12" lightingColor="#ffffff">
@@ -195,18 +179,15 @@ const Scenery = memo(function Scenery() {
           </feDiffuseLighting>
         </filter>
         <linearGradient id={`${id}-ranges`} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.55" />
-          <stop offset="0.3" stopColor="#fff" stopOpacity="1" />
-          <stop offset="0.48" stopColor="#fff" stopOpacity="0.35" />
-          <stop offset="0.62" stopColor="#fff" stopOpacity="0.15" />
-          <stop offset="0.8" stopColor="#fff" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0.3" />
+          {board.relief.map(([offset, opacity]) => (
+            <stop key={offset} offset={offset} stopColor="#fff" stopOpacity={opacity} />
+          ))}
         </linearGradient>
         <mask id={`${id}-ranges-mask`}>
           <rect x={x} y={y} width={w} height={h} fill={`url(#${id}-ranges)`} />
         </mask>
         {/* Deeper water away from the coasts, and a darker edge around the whole board. */}
-        <radialGradient id={`${id}-sea`} gradientUnits="userSpaceOnUse" cx={505} cy={330} r={600}>
+        <radialGradient id={`${id}-sea`} gradientUnits="userSpaceOnUse" cx={board.sea.cx} cy={board.sea.cy} r={board.sea.r}>
           <stop offset="0.45" className="ttr-sea-near" />
           <stop offset="0.75" className="ttr-sea-mid" />
           <stop offset="1" className="ttr-sea-far" />
@@ -220,8 +201,8 @@ const Scenery = memo(function Scenery() {
         </clipPath>
         {/* The land, to keep the hills and the props off the water. */}
         <clipPath id={`${id}-land`}>
-          {LAND.map((l) => (
-            <path key={l.id} d={l.d} />
+          {board.land.map((l, i) => (
+            <path key={i} d={l.d} />
           ))}
         </clipPath>
         <filter id={`${id}-paper`} x="0" y="0" width="100%" height="100%">
@@ -232,53 +213,58 @@ const Scenery = memo(function Scenery() {
       <g clipPath={`url(#${id}-board)`}>
         {/* Water everywhere, with lighter bands along the coasts (land drawn over their inner half), as on old maps. */}
         <rect x={x} y={y} width={w} height={h} fill={`url(#${id}-sea)`} />
-        {LAND.map((l) => (
-          <path key={l.id} className="ttr-shore far" d={l.d} />
+        {board.land.map((l, i) => (
+          <path key={i} className="ttr-shore far" d={l.d} />
         ))}
-        {LAND.map((l) => (
-          <path key={l.id} className="ttr-shore" d={l.d} />
+        {board.land.map((l, i) => (
+          <path key={i} className="ttr-shore" d={l.d} />
         ))}
-        {LAND.map((l) => (
-          <path key={l.id} className={l.id === "USA" ? "ttr-land" : "ttr-land abroad"} d={l.d} />
+        {board.land.map((l, i) => (
+          <path key={i} className={l.abroad ? "ttr-land abroad" : "ttr-land"} d={l.d} />
         ))}
         <g clipPath={`url(#${id}-land)`}>
           <rect x={x} y={y} width={w} height={h} filter={`url(#${id}-relief)`} mask={`url(#${id}-ranges-mask)`} className="ttr-relief" />
-          {MOUNTAINS.map(([mx, my], i) => (
+          {board.mountains.map(([mx, my], i) => (
             <path
               key={i}
               className="ttr-mountain"
               d={`M${mx - 8},${my + 5} L${mx - 1},${my - 6} L${mx + 3},${my - 1} L${mx + 5},${my - 3} L${mx + 10},${my + 5}`}
             />
           ))}
-          {TREES.map(([tx, ty], i) => (
+          {board.trees.map(([tx, ty], i) => (
             <g key={i} className="ttr-tree" transform={`translate(${tx} ${ty})`}>
               <path d="M0,-9 L5,0 L2,0 L6,5 L-6,5 L-2,0 L-5,0 Z" />
               <path className="trunk" d="M0,5 V8" />
             </g>
           ))}
-          {CACTI.map(([cx, cy], i) => (
+          {board.cacti.map(([cx, cy], i) => (
             <path key={i} className="ttr-cactus" d={`M${cx},${cy + 7} V${cy - 7} M${cx},${cy + 1} h-4 v-5 M${cx},${cy - 1} h4 v-4`} />
           ))}
         </g>
-        {BORDERS.map((d, i) => (
+        {board.borders.map((d, i) => (
           <path key={i} className="ttr-border" d={d} />
         ))}
-        {LAKES.map((l, i) => (
-          <path key={i} className="ttr-lake" d={l.d} fill={`url(#${id}-sea)`} />
+        {board.lakes.map((l, i) => (
+          <path key={i} className="ttr-lake" d={l.d} fill={`url(#${id}-sea)`} fillRule="evenodd" />
         ))}
-        {LAND.map((l) => (
-          <path key={l.id} className="ttr-coast" d={l.d} />
-        ))}
-        {LAKES.map((l, i) => (
+        {board.land.map((l, i) => (
           <path key={i} className="ttr-coast" d={l.d} />
         ))}
-        {WAVES.map(([wx, wy], i) => (
+        {board.lakes.map((l, i) => (
+          <path key={i} className="ttr-coast" d={l.d} />
+        ))}
+        {board.waves.map(([wx, wy], i) => (
           <path key={i} className="ttr-wave" d={`M${wx - 9},${wy} q4.5,-4 9,0 t9,0`} />
         ))}
-        <Compass cx={78} cy={570} />
+        <Compass cx={board.compass.cx} cy={board.compass.cy} />
         <rect x={x} y={y} width={w} height={h} fill={`url(#${id}-vignette)`} className="ttr-vignette" />
         <rect x={x} y={y} width={w} height={h} filter={`url(#${id}-paper)`} className="ttr-paper" />
         <rect className="ttr-rule" x={x + 5} y={y + 5} width={w - 10} height={h - 10} rx={6} />
+        {board.credit && (
+          <text className="ttr-credit" x={x + w - 12} y={y + h - 11} textAnchor="end">
+            {board.credit}
+          </text>
+        )}
       </g>
     </svg>
   );

@@ -327,6 +327,16 @@
 .ttr-track-glow { fill: none; stroke: var(--pc); stroke-width: 17; stroke-linecap: round; opacity: 0.38; }
 .ttr-track.claimed .ttr-car { fill: var(--pc); stroke: var(--map-ink); stroke-width: 1.8; filter: drop-shadow(0 1.5px 1px rgb(0 0 0 / 0.5)); }
 .ttr-car-windows { fill: var(--map-halo); opacity: 0.7; }
+/* Ferries: gray spaces, and their locomotive spaces in the locomotive card's rainbow with a little engine on. */
+.ttr-loco-stop.c-red { stop-color: var(--train-red); }
+.ttr-loco-stop.c-orange { stop-color: var(--train-orange); }
+.ttr-loco-stop.c-yellow { stop-color: var(--train-yellow); }
+.ttr-loco-stop.c-green { stop-color: var(--train-green); }
+.ttr-loco-stop.c-blue { stop-color: var(--train-blue); }
+.ttr-loco-stop.c-pink { stop-color: var(--train-pink); }
+.ttr-track.free.ferry .ttr-car { stroke-dasharray: 3 1.6; }
+.ttr-credit { font-family: var(--font-body); font-size: 8px; fill: var(--map-ink); opacity: 0.55; }
+.ttr-loco-mark { fill: var(--map-halo); stroke: var(--map-ink); stroke-width: 0.6; opacity: 0.9; pointer-events: none; }
 .ttr-track.closed { opacity: 0.22; }
 .ttr-track.claimable { cursor: pointer; }
 .ttr-track.claimable .ttr-car { stroke: var(--brand); stroke-width: 1.6; opacity: 1; }
@@ -620,3 +630,24 @@
 .ttr-scoring-len .muted { font-size: 12px; }
 .ttr-scoring-pts { font-size: 12px; color: var(--text-2); white-space: nowrap; text-align: right; }
 .ttr-scoring-pts .num { font-size: 18px; color: var(--gold-text); }
+
+/* Choosing the map, when opening the table. */
+.ttr-maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.ttr-map-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ttr-map-choice:hover { border-color: var(--accent); }
+.ttr-map-choice.chosen { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.ttr-map-choice:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.ttr-map-name { display: flex; align-items: center; gap: 8px; font-weight: 700; }

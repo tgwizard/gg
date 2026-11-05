@@ -21,15 +21,16 @@ import {
   type TtrState,
   viewFor,
 } from "./engine";
-import { cheapestPath, connects, longestPath } from "./graph";
+import { cheapestPath, connects, longestPath, routeOpen } from "./graph";
+import { LONGEST_ROUTE, ROUTE_POINTS } from "./map";
 import { ticketToRide } from "./index";
-import { ROUTES, TICKETS } from "./map";
+import { MAPS, mapById, STOCKHOLM, USA } from "./maps";
 
-function setup(n: number, opts: { seed?: number; turnSeconds?: number; choose?: boolean } = {}) {
+function setup(n: number, opts: { seed?: number; turnSeconds?: number; choose?: boolean; map?: string } = {}) {
   const announcements: string[] = [];
   const rand = seededRandomInt(opts.seed ?? 1);
   const ctx = (now = 0): GameContext => ({ now, randomInt: rand, nameOf: (id) => id, announce: (t) => announcements.push(t) });
-  const state = createState({ turnSeconds: opts.turnSeconds ?? 60 });
+  const state = createState({ turnSeconds: opts.turnSeconds ?? 60, ...(opts.map ? { map: opts.map } : {}) });
   const ids = ["a", "b", "c", "d", "e"].slice(0, n);
   ids.forEach((id, i) => sit(state, id, i));
   state.starter = n - 1; // so "a" (seat 0) goes first
@@ -100,7 +101,7 @@ describe("starting", () => {
   it("chooses the cheapest tickets for anyone out of time, and marks them away", () => {
     const { state, ctx } = setup(2, { choose: false, turnSeconds: 30 });
     keep(state, "a", player(state, "a").offered!, ctx());
-    const offered = player(state, "b").offered!.map((id) => TICKETS[id]!);
+    const offered = player(state, "b").offered!.map((id) => USA.tickets[id]!);
     expect(nextDeadline(state)).toBe(60_000);
     onDeadline(state, ctx(60_000));
     const cheapest = [...offered].sort((x, y) => x.points - y.points).slice(0, 2);
@@ -279,9 +280,9 @@ describe("the end", () => {
     const a = player(state, "a");
     const b = player(state, "b");
     // a: Denver–El Paso (4 points) done via Santa Fe; b: Kansas City–Houston (5) not done.
-    a.tickets = [TICKETS.findIndex((t) => t.a === "DEN" && t.b === "ELP")];
-    b.tickets = [TICKETS.findIndex((t) => t.a === "KAN" && t.b === "HOU")];
-    state.ticketDeck = TICKETS.map((t) => t.id).filter((id) => id !== a.tickets[0] && id !== b.tickets[0]);
+    a.tickets = [USA.tickets.findIndex((t) => t.a === "DEN" && t.b === "ELP")];
+    b.tickets = [USA.tickets.findIndex((t) => t.a === "KAN" && t.b === "HOU")];
+    state.ticketDeck = USA.tickets.map((t) => t.id).filter((id) => id !== a.tickets[0] && id !== b.tickets[0]);
     rigHand(state, "a", { red: 4 });
     claim(state, "a", "DEN-SAF", { color: "red", locos: 0 }, ctx());
     rigHand(state, "b", { blue: 2 });
@@ -299,8 +300,8 @@ describe("the end", () => {
     const { state, ctx } = setup(2);
     const [a, b] = [player(state, "a"), player(state, "b")];
     a.tickets = [];
-    b.tickets = [TICKETS.findIndex((t) => t.a === "DEN" && t.b === "ELP")];
-    state.ticketDeck = TICKETS.map((t) => t.id).filter((id) => id !== b.tickets[0]);
+    b.tickets = [USA.tickets.findIndex((t) => t.a === "DEN" && t.b === "ELP")];
+    state.ticketDeck = USA.tickets.map((t) => t.id).filter((id) => id !== b.tickets[0]);
     // a: 9 route points, longest 4 (Denver–Omaha), no tickets: 19.
     // b: 5 route points, longest 4 (Denver–Santa Fe–El Paso), Denver–El Paso done (4): 19.
     a.routes = ["SEA-POR/1", "VAN-SEA/1", "DEN-OMA"];
@@ -324,28 +325,28 @@ describe("the end", () => {
 describe("the map as a graph", () => {
   it("finds the longest path through branches and loops, each route once", () => {
     // Denver–Kansas City (4), then round the loop of Kansas City–Omaha's two tracks (1 + 1).
-    expect(longestPath(["OMA-KAN/1", "OMA-KAN/2", "DEN-KAN/1"])).toBe(6);
+    expect(longestPath(USA, ["OMA-KAN/1", "OMA-KAN/2", "DEN-KAN/1"])).toBe(6);
     // With Omaha–Duluth (2) as well, the loop can't be used both ways: Duluth–Omaha–Kansas City–Denver.
-    expect(longestPath(["OMA-KAN/1", "OMA-KAN/2", "DEN-KAN/1", "DUL-OMA/1"])).toBe(7);
-    expect(longestPath(["SEA-HEL", "CAL-HEL", "HEL-DEN"])).toBe(10);
-    expect(longestPath([])).toBe(0);
+    expect(longestPath(USA, ["OMA-KAN/1", "OMA-KAN/2", "DEN-KAN/1", "DUL-OMA/1"])).toBe(7);
+    expect(longestPath(USA, ["SEA-HEL", "CAL-HEL", "HEL-DEN"])).toBe(10);
+    expect(longestPath(USA, [])).toBe(0);
   });
 
   it("connects cities through any path", () => {
-    expect(connects(["DEN-SAF", "SAF-ELP"], "ELP", "DEN")).toBe(true);
-    expect(connects(["DEN-SAF", "SAF-ELP"], "ELP", "OKC")).toBe(false);
+    expect(connects(USA, ["DEN-SAF", "SAF-ELP"], "ELP", "DEN")).toBe(true);
+    expect(connects(USA, ["DEN-SAF", "SAF-ELP"], "ELP", "OKC")).toBe(false);
   });
 
   it("plans around routes others have, using your own for free", () => {
-    const path = cheapestPath({ "DEN-SAF": "me", "SAF-ELP": "you" }, "me", false, "DEN", "ELP")!;
+    const path = cheapestPath(USA, { "DEN-SAF": "me", "SAF-ELP": "you" }, "me", false, "DEN", "ELP")!;
     expect(path.routes.map((r) => r.id)).toEqual(["PHX-ELP", "PHX-SAF"]);
     expect(path.cost).toBe(6);
   });
 
   it("has the standard map", () => {
-    expect(ROUTES).toHaveLength(100);
-    expect(ROUTES.filter((r) => r.twin)).toHaveLength(44);
-    expect(TICKETS).toHaveLength(30);
+    expect(USA.routes).toHaveLength(100);
+    expect(USA.routes.filter((r) => r.twin)).toHaveLength(44);
+    expect(USA.tickets).toHaveLength(30);
   });
 });
 
@@ -399,11 +400,66 @@ describe("views", () => {
   });
 });
 
+describe("maps", () => {
+  it.each(MAPS.map((m) => [m.id, m] as const))("%s is well formed", (_, m) => {
+    const ids = m.cities.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(m.routes.map((r) => r.id)).size).toBe(m.routes.length);
+    for (const r of m.routes) {
+      expect(m.cityById.has(r.a) && m.cityById.has(r.b), r.id).toBe(true);
+      expect(r.length >= 1 && r.length <= LONGEST_ROUTE && ROUTE_POINTS[r.length] !== undefined, r.id).toBe(true);
+      expect(r.ferry <= r.length, r.id).toBe(true);
+      if (r.ferry) expect(r.color, r.id).toBe("gray");
+    }
+    // Every city is on a route, and every ticket can be done on an empty map.
+    for (const c of ids) expect(m.routes.some((r) => r.a === c || r.b === c), c).toBe(true);
+    for (const t of m.tickets) expect(cheapestPath(m, {}, "me", true, t.a, t.b), `${t.a}-${t.b}`).not.toBeNull();
+    // Enough trains to go round: five players can't use up the map.
+    expect(5 * m.trains).toBeLessThan(m.routes.reduce((n, r) => n + r.length, 0));
+  });
+
+  it("plays a game on the map in its config; one without (from before maps) is on North America", () => {
+    expect(createState({ turnSeconds: 60 }).config.map).toBeUndefined();
+    expect(mapById(undefined)).toBe(USA);
+    const { state } = setup(2, { map: "stockholm" });
+    expect(player(state, "a").trains).toBe(STOCKHOLM.trains);
+    expect(viewFor(state, "a").config.map).toBe("stockholm");
+    expect(STOCKHOLM.ticketById.get(player(state, "a").tickets[0]!)).toBeDefined();
+    expect(() => ticketToRide.configSchema.parse({ map: "atlantis" })).toThrow();
+    expect(ticketToRide.configSchema.parse({}).map).toBe("usa");
+  });
+});
+
+describe("ferries", () => {
+  const ferry = STOCKHOLM.routes.find((r) => r.ferry === 1 && r.length === 2)!;
+  const opening = (state: TtrState) => routeOpen({}, ferry, "a", true) && !state.players.some((p) => p.routes.includes(ferry.id));
+
+  it("take at least their locomotives, the rest in any one color", () => {
+    const { state, ctx } = setup(2, { map: "stockholm" });
+    expect(opening(state)).toBe(true);
+    rigHand(state, "a", { red: 3 });
+    expect(() => claim(state, "a", ferry.id, { color: "red", locos: 0 }, ctx())).toThrow(/locomotive/);
+    rigHand(state, "a", { red: 1, loco: 1 });
+    claim(state, "a", ferry.id, { color: "red", locos: 1 }, ctx());
+    expect(player(state, "a").routes).toContain(ferry.id);
+    expect(player(state, "a").hand.loco).toBe(0);
+  });
+
+  it("are offered only with the locomotives for them", () => {
+    const { state } = setup(2, { map: "stockholm" });
+    rigHand(state, "a", { blue: 4 });
+    expect(ticketToRide.legalOps(state, "a").some((op) => op.type === "claim" && op.route === ferry.id)).toBe(false);
+    rigHand(state, "a", { blue: 4, loco: 1 });
+    const pays = ticketToRide.legalOps(state, "a").filter((op) => op.type === "claim" && op.route === ferry.id);
+    expect(pays).toEqual([{ type: "claim", route: ferry.id, color: "blue", locos: 1 }]);
+  });
+});
+
 describe("built-in bots", () => {
-  it("play whole games to the end, completing tickets", () => {
+  it.each(MAPS.map((m) => [m.id]))("play whole games to the end on %s, completing tickets", (map) => {
     for (let seed = 1; seed <= 6; seed++) {
       const n = 2 + (seed % 4);
-      const { state, ctx } = setup(n, { seed, choose: false });
+      const { state, ctx } = setup(n, { seed, choose: false, map });
       const rand = seededRandomInt(seed + 100);
       let steps = 0;
       while (state.phase !== "over" && steps++ < 2000) {

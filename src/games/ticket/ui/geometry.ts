@@ -1,8 +1,5 @@
-/** Where the train cars of each route go on the drawn map. */
-import { cityById, ROUTES, type Route } from "../map";
-
-/** The map's drawn area, in map coordinates. */
-export const VIEWBOX = { x: 14, y: 44, w: 982, h: 584 };
+/** Where the train cars of each route go on the drawn map, and where each city's name goes. */
+import type { City, Route, TtrMap } from "../map";
 
 const CITY_GAP = 11;
 const CAR_GAP = 3;
@@ -25,9 +22,9 @@ export interface TrackShape {
   mid: { x: number; y: number };
 }
 
-function shapeOf(route: Route): TrackShape {
-  const a = cityById.get(route.a)!;
-  const b = cityById.get(route.b)!;
+function shapeOf(map: TtrMap, route: Route): TrackShape {
+  const a = map.cityById.get(route.a)!;
+  const b = map.cityById.get(route.b)!;
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const dist = Math.hypot(dx, dy);
@@ -66,44 +63,63 @@ function shapeOf(route: Route): TrackShape {
   return { path: `M${p0.x},${p0.y} Q${p1.x},${p1.y} ${p2.x},${p2.y}`, cars, mid: { x: mid.x, y: mid.y } };
 }
 
-export const TRACKS: Map<string, TrackShape> = new Map(ROUTES.map((r) => [r.id, shapeOf(r)]));
+const shapes = new WeakMap<TtrMap, Map<string, TrackShape>>();
 
-/** Where each city's name goes, relative to it: [dx, dy, text-anchor]. Below, centered, unless it would sit on a track. */
-export const LABELS: Record<string, [number, number, "start" | "middle" | "end"]> = {
-  VAN: [0, -13, "middle"],
-  SEA: [-12, 4, "end"],
-  POR: [11, -2, "start"],
-  SFO: [12, 18, "start"],
-  LAX: [-6, 20, "middle"],
-  CAL: [0, -13, "middle"],
-  HEL: [12, -8, "start"],
-  SLC: [-12, -8, "end"],
-  LAS: [-12, 4, "end"],
-  PHX: [0, 21, "middle"],
-  ELP: [0, 21, "middle"],
-  SAF: [12, 14, "start"],
-  DEN: [-8, -17, "end"],
-  WIN: [10, -10, "start"],
-  DUL: [-8, -13, "end"],
-  OMA: [-13, 4, "end"],
-  KAN: [8, -13, "start"],
-  OKC: [6, 23, "start"],
-  DAL: [-12, 16, "end"],
-  HOU: [0, 21, "middle"],
-  SSM: [0, -20, "middle"],
-  CHI: [-12, -6, "end"],
-  STL: [13, -5, "start"],
-  LIT: [12, 5, "start"],
-  NOR: [0, 21, "middle"],
-  TOR: [0, -15, "middle"],
-  PIT: [13, -6, "start"],
-  NAS: [-12, -4, "end"],
-  ATL: [0, 21, "middle"],
-  CHA: [13, 16, "start"],
-  MIA: [-12, 15, "end"],
-  MON: [0, -13, "middle"],
-  BOS: [10, -15, "middle"],
-  NYC: [13, 4, "start"],
-  WAS: [13, 4, "start"],
-  RAL: [13, -4, "start"],
-};
+/** Every route's track on a map, by route id (worked out once per map). */
+export function tracksFor(map: TtrMap): Map<string, TrackShape> {
+  let tracks = shapes.get(map);
+  if (!tracks) shapes.set(map, (tracks = new Map(map.routes.map((r) => [r.id, shapeOf(map, r)]))));
+  return tracks;
+}
+
+export type Label = [dx: number, dy: number, anchor: "start" | "middle" | "end"];
+
+/** Places to try for a name, best first: below, above, right, left, then the corners. */
+const SPOTS: Label[] = [
+  [0, 20, "middle"],
+  [0, -13, "middle"],
+  [12, 4, "start"],
+  [-12, 4, "end"],
+  [11, -9, "start"],
+  [-11, -9, "end"],
+  [11, 16, "start"],
+  [-11, 16, "end"],
+];
+const CHAR_WIDTH = 6.6;
+const TEXT_HEIGHT = 12;
+
+const labelCache = new WeakMap<TtrMap, Record<string, Label>>();
+
+/**
+ * Where each city's name goes: as the board says, or else the first of SPOTS that keeps
+ * clear of tracks, cities, names already placed and the board's edges (or the least crowded one).
+ */
+export function labelsFor(map: TtrMap, given: Record<string, Label>, board: { x: number; y: number; w: number; h: number }): Record<string, Label> {
+  const cached = labelCache.get(map);
+  if (cached) return cached;
+  const tracks = tracksFor(map);
+  const cars = [...tracks.values()].flatMap((t) => t.cars);
+  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = [];
+  const boxOf = (c: City, [dx, dy, anchor]: Label) => {
+    const w = c.name.length * CHAR_WIDTH;
+    const x0 = c.x + dx - (anchor === "middle" ? w / 2 : anchor === "end" ? w : 0);
+    return { x0, y0: c.y + dy - TEXT_HEIGHT + 2, x1: x0 + w, y1: c.y + dy + 2 };
+  };
+  const crowding = (c: City, b: ReturnType<typeof boxOf>) => {
+    let n = 0;
+    for (const car of cars) if (car.x > b.x0 - 4 && car.x < b.x1 + 4 && car.y > b.y0 - 4 && car.y < b.y1 + 4) n++;
+    for (const o of map.cities) if (o !== c && o.x > b.x0 - 8 && o.x < b.x1 + 8 && o.y > b.y0 - 8 && o.y < b.y1 + 8) n += 3;
+    for (const o of boxes) if (o.x0 < b.x1 && b.x0 < o.x1 && o.y0 < b.y1 && b.y0 < o.y1) n += 3;
+    if (b.x0 < board.x + 4 || b.y0 < board.y + 4 || b.x1 > board.x + board.w - 4 || b.y1 > board.y + board.h - 4) n += 20;
+    return n;
+  };
+  const out: Record<string, Label> = {};
+  for (const c of map.cities) {
+    const spot = given[c.id] ?? SPOTS.reduce((best, s) => (crowding(c, boxOf(c, s)) < crowding(c, boxOf(c, best)) ? s : best));
+    out[c.id] = spot;
+    boxes.push(boxOf(c, spot));
+  }
+  labelCache.set(map, out);
+  return out;
+}
+

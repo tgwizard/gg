@@ -1,20 +1,22 @@
 import { LONGEST_BONUS } from "../engine";
-import { ROUTE_POINTS, ROUTES } from "../map";
+import { ROUTE_POINTS } from "../map";
+import { useShownMap } from "./mapContext";
 import "./ticket.css";
 
 const LENGTHS = Object.keys(ROUTE_POINTS)
   .map(Number)
   .sort((a, b) => a - b);
 
-/** For the rules: what a route scores by its length, drawn as trains, with how many of each the map has. */
+/** For the rules: what a route scores by its length, drawn as trains, with how many of each the map being played has. */
 export function RouteScoring() {
+  const map = useShownMap();
   return (
     <section className="ttr-scoring" aria-label="Points per route">
       <h4 className="label">Points per route</h4>
       <ol>
         {LENGTHS.map((n) => {
           const points = ROUTE_POINTS[n]!;
-          const onMap = ROUTES.filter((r) => r.length === n).length;
+          const onMap = map.routes.filter((r) => r.length === n).length;
           return (
             <li key={n}>
               <span className="ttr-scoring-cars" aria-hidden>

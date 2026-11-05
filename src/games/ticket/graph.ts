@@ -3,7 +3,7 @@
  * join two cities, their longest continuous path, and the cheapest way to finish a
  * ticket. Shared by the engine (scoring) and the built-in bot (planning).
  */
-import { ROUTES, type Route, routeById } from "./map";
+import type { Route, TtrMap } from "./map";
 
 /** Who has claimed each route: route id → player id. */
 export type Claims = Record<string, string>;
@@ -24,7 +24,7 @@ export function routeOpen(claims: Claims, route: Route, player: string, bothTrac
 export const bothTracksFor = (players: number) => players >= 4;
 
 /** Whether the routes join cities a and b. */
-export function connects(routeIds: string[], a: string, b: string): boolean {
+export function connects(map: TtrMap, routeIds: string[], a: string, b: string): boolean {
   const parent = new Map<string, string>();
   const find = (x: string): string => {
     let root = x;
@@ -33,7 +33,7 @@ export function connects(routeIds: string[], a: string, b: string): boolean {
     return root;
   };
   for (const id of routeIds) {
-    const r = routeById.get(id)!;
+    const r = map.routeById.get(id)!;
     parent.set(find(r.a), find(r.b));
   }
   return find(a) === find(b);
@@ -43,8 +43,8 @@ export function connects(routeIds: string[], a: string, b: string): boolean {
  * The longest continuous path through the routes, in trains: it may pass through a
  * city more than once but use each route only once.
  */
-export function longestPath(routeIds: string[]): number {
-  const edges = routeIds.map((id) => routeById.get(id)!);
+export function longestPath(map: TtrMap, routeIds: string[]): number {
+  const edges = routeIds.map((id) => map.routeById.get(id)!);
   const used = new Array<boolean>(edges.length).fill(false);
   const from = (city: string): number => {
     let best = 0;
@@ -64,9 +64,10 @@ export function longestPath(routeIds: string[]): number {
 
 /**
  * The cheapest way to join a and b for `player`: the routes still to claim (their own
- * cost nothing, others' are closed), or null if there's no way left.
+ * cost nothing, others' are closed), or null if there's no way left. A ferry costs
+ * its locomotives on top, as they're scarce.
  */
-export function cheapestPath(claims: Claims, player: string, bothTracks: boolean, a: string, b: string): { cost: number; routes: Route[] } | null {
+export function cheapestPath(map: TtrMap, claims: Claims, player: string, bothTracks: boolean, a: string, b: string): { cost: number; routes: Route[] } | null {
   const dist = new Map<string, number>([[a, 0]]);
   const via = new Map<string, Route>();
   const done = new Set<string>();
@@ -76,9 +77,9 @@ export function cheapestPath(claims: Claims, player: string, bothTracks: boolean
     if (city === null) return null;
     if (city === b) break;
     done.add(city);
-    for (const r of ROUTES) {
+    for (const r of map.routes) {
       if (r.a !== city && r.b !== city) continue;
-      const cost = claims[r.id] === player ? 0 : routeOpen(claims, r, player, bothTracks) ? r.length : null;
+      const cost = claims[r.id] === player ? 0 : routeOpen(claims, r, player, bothTracks) ? r.length + r.ferry : null;
       if (cost === null) continue;
       const next = r.a === city ? r.b : r.a;
       const d = dist.get(city)! + cost;

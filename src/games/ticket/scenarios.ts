@@ -1,16 +1,16 @@
 import { type Policy, playUntil, type Scenario, scenarioContext } from "../kit/scenario";
 import type { GameContext } from "../types";
 import { ticketBot } from "./bot";
-import { bothTracks, claimOptions, claimsOf, currentPlayer, playerOf, type TtrState, type TtrView } from "./engine";
+import { bothTracks, claimOptions, claimsOf, currentPlayer, mapOf, playerOf, type TtrState, type TtrView } from "./engine";
 import { routeOpen } from "./graph";
-import { ROUTES, routeById, TRAIN_COLORS, type TrainColor } from "./map";
+import { TRAIN_COLORS, type TrainColor } from "./map";
+import { mapById, MAPS } from "./maps";
 import { type TtrOp, ticketToRide as game } from "./index";
 
 /** Trains you're left with when the scenario starts: one claim from the last round. */
 const YOUR_TRAINS = 3;
 const SEED = 14;
 
-const length = (op: Extract<TtrOp, { type: "claim" }>) => routeById.get(op.route)!.length;
 
 /**
  * Plays like the built-in bot until it's down to 20 trains. Then it greedily draws three
@@ -21,6 +21,7 @@ const rusher =
   (keep: number): Policy<TtrView, TtrOp> =>
   (view, ops, rand) => {
     const me = view.players.find((p) => p.seat === view.you.seat)!;
+    const length = (op: Extract<TtrOp, { type: "claim" }>) => mapById(view.config.map).routeById.get(op.route)!.length;
     if (me.trains > 20 || view.phase === "choosing") return ticketBot.play(view, ops, rand);
     const keeps = ops.filter((op) => op.type === "keep");
     if (keeps.length) return keeps.reduce((most, op) => (op.tickets.length > most.tickets.length ? op : most));
@@ -37,26 +38,35 @@ const rusher =
  * You played the built-in bot's game, then took on more tickets and rushed, so some of
  * yours aren't done.
  */
-function lastRound(players: string[], ctx: GameContext): TtrState {
-  const c = scenarioContext(ctx, SEED);
-  const you = players[0]!;
-  const state = game.create(game.configSchema.parse({}), c);
-  players.forEach((id, seat) => game.apply(state, id, { type: "sit", seat }, c));
-  game.apply(state, you, { type: "start" }, c);
-  playUntil(game, state, c, (s) => currentPlayer(s)?.playerId === you && s.stage === "start" && playerOf(s, you)!.trains === YOUR_TRAINS, {
-    policies: { [you]: rusher(YOUR_TRAINS) },
-    seed: SEED,
-  });
-  if (state.finalTurns) throw new Error("the last round started early");
-  holdCardsForLastClaim(state, you);
-  return state;
+function lastRound(players: string[], ctx: GameContext, map: string): { state: TtrState; seed: number } {
+  // Not every game gets there (someone else can end it first): the first seed from SEED that does.
+  let failed: unknown;
+  for (let seed = SEED; seed < SEED + 50; seed++) {
+    try {
+      const c = scenarioContext(ctx, seed);
+      const you = players[0]!;
+      const state = game.create(game.configSchema.parse({ map }), c);
+      players.forEach((id, seat) => game.apply(state, id, { type: "sit", seat }, c));
+      game.apply(state, you, { type: "start" }, c);
+      playUntil(game, state, c, (s) => currentPlayer(s)?.playerId === you && s.stage === "start" && playerOf(s, you)!.trains === YOUR_TRAINS, {
+        policies: { [you]: rusher(YOUR_TRAINS) },
+        seed,
+      });
+      if (state.finalTurns) throw new Error("the last round started early");
+      holdCardsForLastClaim(state, you);
+      return { state, seed };
+    } catch (e) {
+      failed = e;
+    }
+  }
+  throw failed;
 }
 
 /** Make sure `playerId` holds the cards for the longest open route their trains reach. */
 function holdCardsForLastClaim(state: TtrState, playerId: string) {
   const p = playerOf(state, playerId)!;
   const claims = claimsOf(state);
-  const route = ROUTES.filter((r) => r.length <= p.trains && routeOpen(claims, r, playerId, bothTracks(state))).sort((a, b) => b.length - a.length)[0];
+  const route = mapOf(state).routes.filter((r) => r.length <= p.trains && !r.ferry && routeOpen(claims, r, playerId, bothTracks(state))).sort((a, b) => b.length - a.length)[0];
   if (!route) throw new Error("no route left to claim");
   if (claimOptions(state, playerId).some((o) => o.route === route.id)) return;
   // Take them from the deck (or the discards), so every card is still somewhere.
@@ -72,24 +82,29 @@ function holdCardsForLastClaim(state: TtrState, playerId: string) {
 /** Cards of a color in the deck and discards. */
 const left = (state: TtrState, color: TrainColor) => [...state.deck, ...state.discard].filter((c) => c === color).length;
 
-export const scenarios: Scenario<TtrState>[] = [
-  {
-    id: "last-round",
-    name: "Last round",
-    description: "Your turn with 3 trains left: claim a route with them and everyone gets one last turn.",
-    bots: 2,
-    build: lastRound,
-  },
-  {
-    id: "game-over",
-    name: "Game over",
-    description: "The last round played out: the final scores, with tickets done and failed and the longest-path bonus.",
-    bots: 2,
-    build(players, ctx) {
-      const state = lastRound(players, ctx);
-      const c = scenarioContext(ctx, SEED);
-      playUntil(game, state, c, (s) => s.phase === "over", { policies: { [players[0]!]: rusher(0) }, seed: SEED });
-      return state;
+/** The same moments on every map (North America's keep their plain ids). */
+export const scenarios: Scenario<TtrState>[] = MAPS.flatMap((m): Scenario<TtrState>[] => {
+  const id = (s: string) => (m.id === "usa" ? s : `${m.id}-${s}`);
+  const on = m.id === "usa" ? "" : ` (${m.name})`;
+  return [
+    {
+      id: id("last-round"),
+      name: `Last round${on}`,
+      description: "Your turn with 3 trains left: claim a route with them and everyone gets one last turn.",
+      bots: 2,
+      build: (players, ctx) => lastRound(players, ctx, m.id).state,
     },
-  },
-];
+    {
+      id: id("game-over"),
+      name: `Game over${on}`,
+      description: "The last round played out: the final scores, with tickets done and failed and the longest-path bonus.",
+      bots: 2,
+      build(players, ctx) {
+        const { state, seed } = lastRound(players, ctx, m.id);
+        const c = scenarioContext(ctx, seed);
+        playUntil(game, state, c, (s) => s.phase === "over", { policies: { [players[0]!]: rusher(0) }, seed });
+        return state;
+      },
+    },
+  ];
+});

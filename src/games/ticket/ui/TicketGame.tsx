@@ -8,9 +8,11 @@ import { TurnTimer } from "../../kit/ui/TurnTimer";
 import type { GameUIProps } from "../../ui";
 import { AUTO_PLAY_DELAY_MS, type Hand, LONGEST_BONUS, type TicketView, type TtrEvent, type TtrPlayerView, type TtrView } from "../engine";
 import { routeOpen } from "../graph";
-import { CARD_COLORS, type CardColor, cityName, ROUTE_POINTS, ROUTES, type Route, routeById, routeName, type Ticket, ticketById, TRAIN_COLORS } from "../map";
+import { CARD_COLORS, type CardColor, ROUTE_POINTS, type Route, type Ticket, type TtrMap, TRAIN_COLORS } from "../map";
+import { mapById } from "../maps";
 import type { TtrOp } from "../index";
-import { VIEWBOX } from "./geometry";
+import { boardFor } from "./boards";
+import { MapContext, useShowMap, useTtrMap } from "./mapContext";
 import { TicketMap } from "./TicketMap";
 import { ZoomableBoard } from "./ZoomableBoard";
 import { CardBack, cardName, DeckPile, TrainCard } from "./TrainCards";
@@ -32,7 +34,8 @@ export function payments(hand: Hand, route: Route): Payment[] {
   const colors = route.color === "gray" ? TRAIN_COLORS : [route.color];
   const out: Payment[] = [];
   for (const color of colors) {
-    for (let locos = Math.max(0, n - hand[color]); locos < n && locos <= hand.loco; locos++) out.push({ color, locos });
+    // A ferry takes at least its locomotives.
+    for (let locos = Math.max(route.ferry, n - hand[color]); locos < n && locos <= hand.loco; locos++) out.push({ color, locos });
   }
   if (hand.loco >= n) out.push({ color: "loco", locos: n });
   return out;
@@ -51,6 +54,9 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   const [logShown, setLogShown] = useState(LOG_PAGE);
   const logRef = useRef<HTMLDivElement>(null);
   const flights = useCardFlights(view, me);
+  const m = mapById(view.config.map);
+  const board = boardFor(m.id);
+  useShowMap(m.id);
   const root = useRef<HTMLDivElement>(null);
   const layout = useLayout(root);
 
@@ -65,12 +71,12 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   const claimable = useMemo(() => {
     const out = new Set<string>();
     if (!myTurn || view.stage !== "start" || !hand || !mine) return out;
-    for (const r of ROUTES) {
+    for (const r of m.routes) {
       if (mine.trains >= r.length && routeOpen(view.claims, r, me, view.bothTracks) && payments(hand, r).length) out.add(r.id);
     }
     return out;
-  }, [myTurn, view.stage, view.claims, view.bothTracks, hand, mine, me]);
-  const route = picked && claimable.has(picked) ? routeById.get(picked)! : null;
+  }, [myTurn, view.stage, view.claims, view.bothTracks, hand, mine, me, m]);
+  const route = picked && claimable.has(picked) ? m.routeById.get(picked)! : null;
 
   const offered = view.you.offered;
   const keeping = offered ? keepSel.filter((id) => offered.some((t) => t.id === id)) : [];
@@ -124,143 +130,146 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
     ) : line.type === "claim" ? (
       <ClaimStory e={line} nameOf={nameOf} />
     ) : (
-      <span className="ttr-story-text">{describe(line, nameOf)}</span>
+      <span className="ttr-story-text">{describe(line, nameOf, m)}</span>
     );
 
   return (
-    <div ref={root} className={`ttr ${layout}`} data-layout={layout}>
-      <div className="ttr-grid">
-        <div className="ttr-board">
-          <ZoomableBoard aspect={VIEWBOX.w / VIEWBOX.h}>
-            <TicketMap
-              claims={view.claims}
-              bothTracks={view.bothTracks}
-              colorOf={colorOf}
-              nameOf={plainName}
-              claimable={claimable}
-              selected={route?.id ?? null}
-              onSelect={(id) => setPicked(id === picked ? null : id)}
-              marked={marked}
-              focus={hovered ? [hovered.a, hovered.b] : undefined}
-              recent={lastClaim?.type === "claim" ? lastClaim.route : null}
-              laying={laying}
-              owner={hoveredPlayer}
-              picking={!!route}
-            >
-              {route && hand && (
-                <ClaimPopover
-                  route={route}
-                  hand={hand}
-                  why={why}
-                  onPay={(p) => send({ type: "claim", route: route.id, color: p.color, locos: p.locos })}
-                  onCancel={() => setPicked(null)}
-                />
-              )}
-            </TicketMap>
-          </ZoomableBoard>
-        </div>
+    <MapContext.Provider value={m}>
+      <div ref={root} className={`ttr ${layout}`} data-layout={layout}>
+        <div className="ttr-grid">
+          <div className="ttr-board">
+            <ZoomableBoard aspect={board.viewbox.w / board.viewbox.h}>
+              <TicketMap
+                map={m}
+                claims={view.claims}
+                bothTracks={view.bothTracks}
+                colorOf={colorOf}
+                nameOf={plainName}
+                claimable={claimable}
+                selected={route?.id ?? null}
+                onSelect={(id) => setPicked(id === picked ? null : id)}
+                marked={marked}
+                focus={hovered ? [hovered.a, hovered.b] : undefined}
+                recent={lastClaim?.type === "claim" ? lastClaim.route : null}
+                laying={laying}
+                owner={hoveredPlayer}
+                picking={!!route}
+              >
+                {route && hand && (
+                  <ClaimPopover
+                    route={route}
+                    hand={hand}
+                    why={why}
+                    onPay={(p) => send({ type: "claim", route: route.id, color: p.color, locos: p.locos })}
+                    onCancel={() => setPicked(null)}
+                  />
+                )}
+              </TicketMap>
+            </ZoomableBoard>
+          </div>
 
-        <Result view={view} me={me} name={plainName} start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null} why={why} />
+          <Result view={view} me={me} name={plainName} start={view.canStart && view.you.seat !== null ? () => send({ type: "start" }) : null} why={why} />
 
-        {/* Your side of the table: beside the map when there's room, under it otherwise. */}
-        <div className="ttr-side">
-          <Players view={view} me={me} members={members} connected={connected} busy={busy} send={send} serverNow={serverNow} onHover={setHoveredPlayer} hurry={hurry} />
-          {inGame ? (
-            <News view={view} myTurn={myTurn} away={away} nameOf={plainName} recent={lines.slice(-2)} story={story} className={turnClass} onOpen={openLog} />
-          ) : (
-            <Herald testId="ttr-news">
-              <span>{view.seats.filter(Boolean).length < 2 ? "Take a seat. Two to five can play." : "Start when everyone's seated."}</span>
-            </Herald>
-          )}
-
-          <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="ttr-tray" className={turnClass}>
-            {away && (
-              <div className="ttr-away" data-testid="ttr-away">
-                <span>
-                  <strong>You're away.</strong> Your turns are played for you (two cards from the deck). Tap your name above, or:
-                </span>
-                <Button className="btn primary small" why={why} onClick={() => send({ type: "sitIn" })}>
-                  I'm back
-                </Button>
-              </div>
-            )}
-            {offered ? (
-              <TicketChoice
-                offered={offered}
-                keepAtLeast={view.you.keepAtLeast}
-                selected={keeping}
-                onToggle={(id) => setKeepSel(keeping.includes(id) ? keeping.filter((x) => x !== id) : [...keeping, id])}
-                onHover={setHovered}
-                deadline={view.phase === "choosing" ? view.setupDeadline : view.turnDeadline}
-                totalMs={view.phase === "choosing" ? view.config.turnSeconds * 2000 : view.config.turnSeconds * 1000}
-                serverNow={serverNow}
-                why={why}
-                onKeep={() => send({ type: "keep", tickets: keeping })}
-              />
-            ) : mine && hand && view.phase === "playing" ? (
-              <div className="ttr-me">
-                <Market view={view} turnWhy={turnWhy} why={why} send={send} onTake={flights.takeFrom} />
-                <HandView hand={hand} />
-                {/* Last in the tray, in a space of its own that's always there, so nothing moves as it changes:
-                    what to do now on your turn (whose turn it is otherwise is in the news), else what you drew blind. */}
-                <div className="ttr-note">
-                  {myTurn ? (
-                    <span className="ttr-hint" data-testid="ttr-hint">
-                      {route
-                        ? `Choose how to pay for ${routeName(route)}, on the map.`
-                        : view.stage === "second"
-                          ? "Take one more card (not a face-up locomotive)."
-                          : claimable.size
-                            ? "Draw cards, take tickets, or tap a highlighted route to claim it."
-                            : "Draw cards or take tickets."}
-                    </span>
-                  ) : (
-                    view.you.drawn.length > 0 && <span className="ttr-drawn">From the deck last turn: {view.you.drawn.map((c) => cardName(c)).join(", ")}</span>
-                  )}
-                </div>
-              </div>
+          {/* Your side of the table: beside the map when there's room, under it otherwise. */}
+          <div className="ttr-side">
+            <Players view={view} me={me} members={members} connected={connected} busy={busy} send={send} serverNow={serverNow} onHover={setHoveredPlayer} hurry={hurry} />
+            {inGame ? (
+              <News view={view} myTurn={myTurn} away={away} nameOf={plainName} recent={lines.slice(-2)} story={story} className={turnClass} onOpen={openLog} />
             ) : (
-              <Status view={view} />
+              <Herald testId="ttr-news">
+                <span>{view.seats.filter(Boolean).length < 2 ? "Take a seat. Two to five can play." : "Start when everyone's seated."}</span>
+              </Herald>
             )}
-          </ActionTray>
 
-          {view.you.tickets.length > 0 && view.phase !== "over" && <YourTickets tickets={view.you.tickets} onHover={setHovered} />}
+            <ActionTray aside={<Controls view={view} connected={connected} busy={busy} send={send} />} testId="ttr-tray" className={turnClass}>
+              {away && (
+                <div className="ttr-away" data-testid="ttr-away">
+                  <span>
+                    <strong>You're away.</strong> Your turns are played for you (two cards from the deck). Tap your name above, or:
+                  </span>
+                  <Button className="btn primary small" why={why} onClick={() => send({ type: "sitIn" })}>
+                    I'm back
+                  </Button>
+                </div>
+              )}
+              {offered ? (
+                <TicketChoice
+                  offered={offered}
+                  keepAtLeast={view.you.keepAtLeast}
+                  selected={keeping}
+                  onToggle={(id) => setKeepSel(keeping.includes(id) ? keeping.filter((x) => x !== id) : [...keeping, id])}
+                  onHover={setHovered}
+                  deadline={view.phase === "choosing" ? view.setupDeadline : view.turnDeadline}
+                  totalMs={view.phase === "choosing" ? view.config.turnSeconds * 2000 : view.config.turnSeconds * 1000}
+                  serverNow={serverNow}
+                  why={why}
+                  onKeep={() => send({ type: "keep", tickets: keeping })}
+                />
+              ) : mine && hand && view.phase === "playing" ? (
+                <div className="ttr-me">
+                  <Market view={view} turnWhy={turnWhy} why={why} send={send} onTake={flights.takeFrom} />
+                  <HandView hand={hand} />
+                  {/* Last in the tray, in a space of its own that's always there, so nothing moves as it changes:
+                      what to do now on your turn (whose turn it is otherwise is in the news), else what you drew blind. */}
+                  <div className="ttr-note">
+                    {myTurn ? (
+                      <span className="ttr-hint" data-testid="ttr-hint">
+                        {route
+                          ? `Choose how to pay for ${m.routeName(route)}, on the map.`
+                          : view.stage === "second"
+                            ? "Take one more card (not a face-up locomotive)."
+                            : claimable.size
+                              ? "Draw cards, take tickets, or tap a highlighted route to claim it."
+                              : "Draw cards or take tickets."}
+                      </span>
+                    ) : (
+                      view.you.drawn.length > 0 && <span className="ttr-drawn">From the deck last turn: {view.you.drawn.map((c) => cardName(c)).join(", ")}</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <Status view={view} />
+              )}
+            </ActionTray>
+
+            {view.you.tickets.length > 0 && view.phase !== "over" && <YourTickets tickets={view.you.tickets} onHover={setHovered} />}
+          </div>
+
+          <TableFooter
+            log={
+              view.log.length > 0 && (
+                // Most recent first, a page at a time.
+                <div ref={logRef} className="ttr-log">
+                  <GameLog
+                    title="What happened"
+                    open={logOpen}
+                    onToggle={setLogOpen}
+                    footer={
+                      lines.length > logShown && (
+                        <button type="button" className="btn ghost small" onClick={() => setLogShown((n) => n + LOG_PAGE)} data-testid="ttr-log-more">
+                          Load more
+                        </button>
+                      )
+                    }
+                  >
+                    {lines
+                      .map((line, i) => (
+                        <li key={i} className="ttr-story">
+                          {story(line)}
+                        </li>
+                      ))
+                      .reverse()
+                      .slice(0, logShown)}
+                  </GameLog>
+                </div>
+              )
+            }
+            actions={<SeatActions view={view} connected={connected} busy={busy} send={send} />}
+          />
         </div>
-
-        <TableFooter
-          log={
-            view.log.length > 0 && (
-              // Most recent first, a page at a time.
-              <div ref={logRef} className="ttr-log">
-                <GameLog
-                  title="What happened"
-                  open={logOpen}
-                  onToggle={setLogOpen}
-                  footer={
-                    lines.length > logShown && (
-                      <button type="button" className="btn ghost small" onClick={() => setLogShown((n) => n + LOG_PAGE)} data-testid="ttr-log-more">
-                        Load more
-                      </button>
-                    )
-                  }
-                >
-                  {lines
-                    .map((line, i) => (
-                      <li key={i} className="ttr-story">
-                        {story(line)}
-                      </li>
-                    ))
-                    .reverse()
-                    .slice(0, logShown)}
-                </GameLog>
-              </div>
-            )
-          }
-          actions={<SeatActions view={view} connected={connected} busy={busy} send={send} />}
-        />
+        <Flights flights={flights.flights} onLand={flights.land} />
       </div>
-      <Flights flights={flights.flights} onLand={flights.land} />
-    </div>
+    </MapContext.Provider>
   );
 }
 
@@ -761,16 +770,17 @@ function HandView({ hand }: { hand: Hand }) {
  * anywhere else backs out.
  */
 function ClaimPopover({ route, hand, why, onPay, onCancel }: { route: Route; hand: Hand; why: string | null; onPay(p: Payment): void; onCancel(): void }) {
+  const m = useTtrMap();
   const options = payments(hand, route);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => setAnchor(document.querySelector<HTMLElement>(`.ttr-map [data-route="${route.id}"]`)), [route.id]);
   const points = ROUTE_POINTS[route.length]!;
   if (!anchor) return null;
   return (
-    <Popover anchor={anchor} label={`Claim ${routeName(route)}`} onClose={onCancel} align="left" className="ttr-claim">
+    <Popover anchor={anchor} label={`Claim ${m.routeName(route)}`} onClose={onCancel} align="left" className="ttr-claim">
       <div className="ttr-claim-body" data-testid="ttr-claim">
         <div className="ttr-claim-head">
-          <strong>{routeName(route)}</strong>
+          <strong>{m.routeName(route)}</strong>
           <span className="muted">
             {route.length} {route.length === 1 ? "train" : "trains"}, {route.color === "gray" ? "any one color" : route.color} · {points}{" "}
             {points === 1 ? "point" : "points"}
@@ -853,6 +863,7 @@ function TicketChoice(props: {
 }
 
 function TicketCard({ ticket, done }: { ticket: Ticket; done?: boolean }) {
+  const { cityName } = useTtrMap();
   return (
     <span className={`ttr-ticket${done ? " done" : ""}`}>
       <span className="ttr-ticket-cities">
@@ -901,7 +912,7 @@ function summarize(log: TtrEvent[]): Line[] {
   return out;
 }
 
-function describe(e: Line, nameOf: (id: string) => string): string {
+function describe(e: Line, nameOf: (id: string) => string, m: TtrMap): string {
   const who = (id: string) => nameOf(id);
   switch (e.type) {
     case "cards": {
@@ -913,8 +924,8 @@ function describe(e: Line, nameOf: (id: string) => string): string {
     case "card":
       return `${who(e.who)} took a card.`;
     case "claim": {
-      const r = routeById.get(e.route)!;
-      return `${who(e.who)} claimed ${routeName(r)} (${r.length} ${r.length === 1 ? "train" : "trains"}, ${ROUTE_POINTS[r.length]} points).`;
+      const r = m.routeById.get(e.route)!;
+      return `${who(e.who)} claimed ${m.routeName(r)} (${r.length} ${r.length === 1 ? "train" : "trains"}, ${ROUTE_POINTS[r.length]} points).`;
     }
     case "tickets":
       return `${who(e.who)} drew ${e.drew} tickets and kept ${e.kept}.`;
@@ -1028,12 +1039,13 @@ function CardsStory({ line, nameOf, blind }: { line: Extract<Line, { type: "card
 
 /** "Ann claimed Seattle–Helena with [cards] · 15 points": the cards paid are shown, as at the table. */
 function ClaimStory({ e, nameOf }: { e: Extract<Line, { type: "claim" }>; nameOf(id: string): string }) {
-  const r = routeById.get(e.route)!;
+  const m = useTtrMap();
+  const r = m.routeById.get(e.route)!;
   const cards: CardColor[] = [...Array<CardColor>(r.length - e.locos).fill(e.color), ...Array<CardColor>(e.locos).fill("loco")];
   return (
     <>
       <span className="ttr-story-text">
-        {nameOf(e.who)} claimed {routeName(r)} with
+        {nameOf(e.who)} claimed {m.routeName(r)} with
       </span>
       <span className="ttr-story-cards">
         {cards.map((c, i) => (
@@ -1092,6 +1104,7 @@ function Result({ view, me, name, start, why }: { view: TtrView; me: string; nam
 
 /** How a final score adds up (routes, tickets, the longest railway), and the tickets, as little tickets. */
 function FinalScore({ s }: { s: NonNullable<TtrView["result"]>["scores"][number] }) {
+  const { ticketById, cityName } = useTtrMap();
   const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
   // Finished tickets first, then the missed ones; biggest first within each.
   const tickets = [...s.tickets].sort((a, b) => Number(b.done) - Number(a.done) || ticketById.get(b.id)!.points - ticketById.get(a.id)!.points);

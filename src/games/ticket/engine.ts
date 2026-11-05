@@ -1,8 +1,9 @@
 /**
- * Coast to Coast: Ticket to Ride's rules on its standard North American map (fan-made,
- * not affiliated with Days of Wonder), as a pure state machine.
+ * Coast to Coast: Ticket to Ride's rules (fan-made, not affiliated with Days of Wonder),
+ * as a pure state machine, on one of several maps (`maps/`): the standard North
+ * American one, and our own.
  *
- * Rules: 2–5 players get 45 trains, 4 train cards and 3 destination tickets each,
+ * Rules: 2–5 players get 45 trains (or as many as the map says), 4 train cards and 3 destination tickets each,
  * keeping at least 2 of the tickets. Five cards lie face up. On your turn you do one
  * of three things:
  *   - draw two train cards, from the face-up five or blind from the deck. A face-up
@@ -16,7 +17,8 @@
  * one last turn. Routes score as they're claimed (1, 2, 4, 7, 10, 15 points for 1–6
  * trains), tickets add their value if completed and subtract it if not, and the
  * longest continuous path earns 10. Ties go to the most completed tickets, then
- * the longest path.
+ * the longest path. A ferry (as in Ticket to Ride: Europe) takes at least as many
+ * locomotives as it shows.
  *
  * Hidden information: hands, tickets, tickets being chosen, cards drawn blind, and
  * the decks. How many of each a player has is public, as are face-up draws and the
@@ -38,24 +40,10 @@ import {
 import { nextTimer, setTimer, takeDueTimer, type Timers } from "../kit/timers";
 import { type GameContext, GameError } from "../types";
 import { bothTracksFor, type Claims, connects, longestPath, routeOpen } from "./graph";
-import {
-  CARD_COLORS,
-  type CardColor,
-  ROUTE_POINTS,
-  ROUTES,
-  type Route,
-  routeById,
-  routeName,
-  TICKETS,
-  type Ticket,
-  ticketById,
-  ticketName,
-  TRAIN_COLORS,
-  type TrainColor,
-} from "./map";
+import { CARD_COLORS, type CardColor, ROUTE_POINTS, type Route, type Ticket, TRAIN_COLORS, type TrainColor, type TtrMap } from "./map";
+import { mapById } from "./maps";
 
 export const SEAT_COUNT = 5;
-export const TRAINS = 45;
 export const FACE_UP = 5;
 /** Cards of each color, and locomotives. */
 export const CARDS_PER_COLOR = 12;
@@ -70,6 +58,8 @@ export const LOG_KEEP = 40;
 export interface TtrConfig {
   /** Seconds per turn before it's played for you (and you're marked away); 0 = no clock. Choosing the first tickets gets twice as long. */
   turnSeconds: number;
+  /** Which map (`maps/`). Games from before there were several have none: North America. */
+  map?: string;
 }
 
 export type TtrSeat = Seat & { gamesWon: number };
@@ -182,6 +172,9 @@ export function createState(config: TtrConfig): TtrState {
 
 // --- helpers ---------------------------------------------------------------
 
+/** The map the game is played on. */
+export const mapOf = (state: TtrState): TtrMap => mapById(state.config.map);
+
 export const emptyHand = (): Hand => Object.fromEntries(CARD_COLORS.map((c) => [c, 0])) as Hand;
 const handSize = (h: Hand) => CARD_COLORS.reduce((n, c) => n + h[c], 0);
 
@@ -253,6 +246,7 @@ export interface Payment {
 function paymentError(p: TtrPlayer, route: Route, pay: Payment): string | null {
   const n = route.length;
   if (!Number.isInteger(pay.locos) || pay.locos < 0 || pay.locos > n) return "That's not a way to pay for it.";
+  if (pay.locos < route.ferry) return `That ferry takes ${route.ferry} ${route.ferry === 1 ? "locomotive" : "locomotives"}.`;
   if (pay.color === "loco") {
     if (pay.locos !== n) return "Paying with locomotives only takes one for every train.";
   } else {
@@ -276,7 +270,8 @@ function claimError(state: TtrState, p: TtrPlayer, route: Route): string | null 
 
 /**
  * Ways `p` can pay for a route: for each color they could use, the fewest
- * locomotives (or all locomotives, when that's the only way).
+ * locomotives (or all locomotives, when that's the only way). A ferry takes at least
+ * its locomotives.
  */
 export function paymentsFor(p: { hand: Hand; trains: number }, route: Route): Payment[] {
   if (p.trains < route.length) return [];
@@ -284,7 +279,7 @@ export function paymentsFor(p: { hand: Hand; trains: number }, route: Route): Pa
   const out: Payment[] = [];
   for (const color of colors) {
     if (p.hand[color] === 0) continue;
-    const locos = Math.max(0, route.length - p.hand[color]);
+    const locos = Math.max(route.ferry, route.length - p.hand[color]);
     if (locos < route.length && locos <= p.hand.loco) out.push({ color, locos });
   }
   if (out.length === 0 && p.hand.loco >= route.length) out.push({ color: "loco", locos: route.length });
@@ -296,7 +291,8 @@ export function claimOptions(state: TtrState, playerId: string): { route: string
   const p = currentPlayer(state);
   if (!p || p.playerId !== playerId || state.stage !== "start") return [];
   const claims = claimsOf(state);
-  return ROUTES.filter((r) => routeOpen(claims, r, p.playerId, bothTracks(state)))
+  return mapOf(state)
+    .routes.filter((r) => routeOpen(claims, r, p.playerId, bothTracks(state)))
     .map((r) => ({ route: r.id, pay: paymentsFor(p, r) }))
     .filter((o) => o.pay.length > 0);
 }
@@ -304,7 +300,7 @@ export function claimOptions(state: TtrState, playerId: string): { route: string
 function hasAnyMove(state: TtrState, p: TtrPlayer): boolean {
   if (canDraw(state, false) || state.ticketDeck.length > 0) return true;
   const claims = claimsOf(state);
-  return ROUTES.some((r) => routeOpen(claims, r, p.playerId, bothTracks(state)) && paymentsFor(p, r).length > 0);
+  return mapOf(state).routes.some((r) => routeOpen(claims, r, p.playerId, bothTracks(state)) && paymentsFor(p, r).length > 0);
 }
 
 // --- seating ---------------------------------------------------------------
@@ -362,13 +358,13 @@ export function start(state: TtrState, actor: string, ctx: GameContext) {
   state.deck = shuffle([...TRAIN_COLORS.flatMap((c) => Array<CardColor>(CARDS_PER_COLOR).fill(c)), ...Array<CardColor>(LOCOS).fill("loco")], ctx.randomInt);
   state.discard = [];
   state.ticketDeck = shuffle(
-    TICKETS.map((t) => t.id),
+    mapOf(state).tickets.map((t) => t.id),
     ctx.randomInt,
   );
   state.players = seats.map((seat) => ({
     seat,
     playerId: state.seats[seat]!.playerId,
-    trains: TRAINS,
+    trains: mapOf(state).trains,
     hand: emptyHand(),
     tickets: [],
     offered: null,
@@ -416,7 +412,7 @@ export function keep(state: TtrState, actor: string, ids: number[], ctx: GameCon
 
 function autoKeep(state: TtrState, p: TtrPlayer, ctx: GameContext) {
   // The cheapest tickets: the least to lose.
-  const ids = [...p.offered!].sort((a, b) => ticketById.get(a)!.points - ticketById.get(b)!.points).slice(0, p.keepAtLeast);
+  const ids = [...p.offered!].sort((a, b) => mapOf(state).ticketById.get(a)!.points - mapOf(state).ticketById.get(b)!.points).slice(0, p.keepAtLeast);
   keep(state, p.playerId, ids, ctx);
 }
 
@@ -458,7 +454,7 @@ export function drawCard(state: TtrState, actor: string, from: "deck" | number, 
 export function claim(state: TtrState, actor: string, routeId: string, pay: Payment, ctx: GameContext) {
   const p = myTurn(state, actor);
   if (state.stage !== "start") throw new GameError("mid_turn", state.stage === "second" ? "Draw your second card." : "Choose which tickets to keep first.");
-  const route = routeById.get(routeId);
+  const route = mapOf(state).routeById.get(routeId);
   if (!route) throw new GameError("bad_route", "No such route.");
   const err = claimError(state, p, route) ?? paymentError(p, route, pay);
   if (err) throw new GameError("cant_claim", err);
@@ -581,13 +577,14 @@ function finish(state: TtrState, ctx: GameContext) {
     p.offered = null;
   }
 
+  const m = mapOf(state);
   const scores: PlayerScore[] = state.players.map((p) => {
     const tickets = p.tickets.map((id) => {
-      const t = ticketById.get(id)!;
-      return { id, done: connects(p.routes, t.a, t.b) };
+      const t = m.ticketById.get(id)!;
+      return { id, done: connects(m, p.routes, t.a, t.b) };
     });
-    const ticketPoints = tickets.reduce((n, t) => n + (t.done ? 1 : -1) * ticketById.get(t.id)!.points, 0);
-    return { playerId: p.playerId, routePoints: p.points, tickets, ticketPoints, longest: longestPath(p.routes), bonus: 0, total: 0, left: p.left };
+    const ticketPoints = tickets.reduce((n, t) => n + (t.done ? 1 : -1) * m.ticketById.get(t.id)!.points, 0);
+    return { playerId: p.playerId, routePoints: p.points, tickets, ticketPoints, longest: longestPath(m, p.routes), bonus: 0, total: 0, left: p.left };
   });
   const contenders = scores.filter((s) => !s.left);
   const longest = Math.max(0, ...contenders.map((s) => s.longest));
@@ -691,19 +688,20 @@ export function waitingOn(state: TtrState): string[] {
 
 export function checkInvariants(state: TtrState) {
   if (state.phase === "lobby") return;
+  const m = mapOf(state);
   const cards = state.deck.length + state.discard.length + state.faceUp.filter((c) => c !== null).length + state.players.reduce((n, p) => n + handSize(p.hand), 0);
   if (cards !== TRAIN_COLORS.length * CARDS_PER_COLOR + LOCOS) throw new Error(`${cards} train cards`);
   for (const p of state.players) for (const c of CARD_COLORS) if (p.hand[c] < 0) throw new Error("negative cards");
   const tickets = [...state.ticketDeck, ...state.players.flatMap((p) => [...p.tickets, ...(p.offered ?? [])])];
-  if (tickets.length !== TICKETS.length || new Set(tickets).size !== TICKETS.length) throw new Error(`${tickets.length} tickets`);
+  if (tickets.length !== m.tickets.length || new Set(tickets).size !== m.tickets.length) throw new Error(`${tickets.length} tickets`);
   const claimed = state.players.flatMap((p) => p.routes);
   if (new Set(claimed).size !== claimed.length) throw new Error("a route claimed twice");
   for (const p of state.players) {
-    const used = p.routes.reduce((n, id) => n + routeById.get(id)!.length, 0);
-    if (p.trains !== TRAINS - used) throw new Error(`${p.playerId} has ${p.trains} trains but used ${used}`);
-    if (p.points !== p.routes.reduce((n, id) => n + ROUTE_POINTS[routeById.get(id)!.length]!, 0)) throw new Error("route points don't add up");
+    const used = p.routes.reduce((n, id) => n + m.routeById.get(id)!.length, 0);
+    if (p.trains !== m.trains - used) throw new Error(`${p.playerId} has ${p.trains} trains but used ${used}`);
+    if (p.points !== p.routes.reduce((n, id) => n + ROUTE_POINTS[m.routeById.get(id)!.length]!, 0)) throw new Error("route points don't add up");
     for (const id of p.routes) {
-      const twin = routeById.get(id)!.twin;
+      const twin = m.routeById.get(id)!.twin;
       if (twin && p.routes.includes(twin)) throw new Error(`${p.playerId} has both tracks of ${id}`);
       if (twin && !bothTracks(state) && claimed.includes(twin)) throw new Error(`both tracks of ${id} used with ${state.players.length} players`);
     }
@@ -740,7 +738,7 @@ export interface TicketView extends Ticket {
 }
 
 export interface TtrView {
-  config: TtrConfig;
+  config: { turnSeconds: number; map: string };
   seats: (TtrSeat | null)[];
   phase: TtrState["phase"];
   game: number;
@@ -774,8 +772,8 @@ export interface TtrView {
   };
 }
 
-const ticketOf = (id: number): Ticket => {
-  const t = ticketById.get(id)!;
+const ticketOf = (m: TtrMap, id: number): Ticket => {
+  const t = m.ticketById.get(id)!;
   return { id: t.id, a: t.a, b: t.b, points: t.points };
 };
 
@@ -783,8 +781,9 @@ const ticketOf = (id: number): Ticket => {
 export function viewFor(state: TtrState, viewer: string): TtrView {
   const seat = seatOf(state, viewer);
   const me = playerOf(state, viewer);
+  const m = mapOf(state);
   return {
-    config: { turnSeconds: state.config.turnSeconds },
+    config: { turnSeconds: state.config.turnSeconds, map: m.id },
     seats: state.seats.map((s) => (s ? { playerId: s.playerId, sittingOut: s.sittingOut, gamesWon: s.gamesWon } : null)),
     phase: state.phase,
     game: state.game,
@@ -821,12 +820,11 @@ export function viewFor(state: TtrState, viewer: string): TtrView {
       seat: seat < 0 ? null : seat,
       inGame: !!me,
       hand: me ? { ...me.hand } : null,
-      tickets: me ? me.tickets.map((id) => ({ ...ticketOf(id), done: connects(me.routes, ticketById.get(id)!.a, ticketById.get(id)!.b) })) : [],
-      offered: me?.offered ? me.offered.map(ticketOf) : null,
+      tickets: me ? me.tickets.map((id) => ({ ...ticketOf(m, id), done: connects(m, me.routes, m.ticketById.get(id)!.a, m.ticketById.get(id)!.b) })) : [],
+      offered: me?.offered ? me.offered.map((id) => ticketOf(m, id)) : null,
       keepAtLeast: me?.offered ? me.keepAtLeast : 0,
       drawn: me ? [...me.drawn] : [],
     },
   };
 }
 
-export { routeName, ticketName };

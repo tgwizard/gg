@@ -1,20 +1,22 @@
 /**
- * Builds the Coast to Coast map's coastlines, lakes and borders
- * (src/games/ticket/ui/geography.ts) from Natural Earth's 1:50m data (public domain).
+ * Builds the North American Coast to Coast board's coastlines, lakes and borders
+ * (src/games/ticket/ui/boards/usa-geography.ts) from Natural Earth's 1:50m data (public domain).
  *
  * The board isn't a real projection: cities sit where the printed board puts them.
  * So real outlines are bent onto it with a thin-plate spline fitted to the 36 cities'
  * real positions (lightly smoothed), which keeps coastal cities on their coasts.
  *
- *   node tools/ttr-geography.ts <dir with the Natural Earth GeoJSON files>
+ *   node --import ./tools/ts-hooks.mjs tools/ttr-geography.ts <dir with the Natural Earth GeoJSON files>
  *
  * Needs ne_50m_admin_0_countries, ne_50m_lakes and ne_50m_admin_0_boundary_lines_land
  * (.geojson) from github.com/nvkelso/natural-earth-vector.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { CITIES } from "../src/games/ticket/map.ts";
+import { USA } from "../src/games/ticket/maps/usa.ts";
 
-/** The board's drawn area (as in ui/geometry.ts, which node can't import directly). */
+const CITIES = USA.cities;
+
+/** The board's drawn area (as in ui/boards/usa.ts). */
 const VIEWBOX = { x: 14, y: 44, w: 982, h: 584 };
 
 type Pt = [number, number];
@@ -208,4 +210,4 @@ export const LAKES: { name: string; d: string }[] = ${JSON.stringify(lakes, null
 
 export const BORDERS: string[] = ${JSON.stringify(borders, null, 1)};
 `;
-writeFileSync(new URL("../src/games/ticket/ui/geography.ts", import.meta.url), out);
+writeFileSync(new URL("../src/games/ticket/ui/boards/usa-geography.ts", import.meta.url), out);

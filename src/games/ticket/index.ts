@@ -29,10 +29,16 @@ import {
   viewFor,
   waitingOn,
 } from "./engine";
-import { CARD_COLORS, ROUTE_IDS, TICKETS } from "./map";
+import { CARD_COLORS, LONGEST_ROUTE } from "./map";
+import { DEFAULT_MAP, MAP_IDS, MAPS } from "./maps";
 import { ticketMeta } from "./meta";
 
-const configSchema = z.object({ turnSeconds: z.number().int().min(0).max(600).default(60) });
+const configSchema = z.object({
+  turnSeconds: z.number().int().min(0).max(600).default(60),
+  map: z.enum(MAP_IDS).default(DEFAULT_MAP),
+});
+/** Route ids and ticket ids differ by map: these only bound them; the engine checks them against the game's map. */
+const MOST_TICKETS = Math.max(...MAPS.map((m) => m.tickets.length));
 
 export const ttrOp = z.discriminatedUnion("type", [
   lobbyOps.sit(SEAT_COUNT),
@@ -45,14 +51,14 @@ export const ttrOp = z.discriminatedUnion("type", [
   /** Claim a route, paying (length − locos) cards of `color` and `locos` locomotives ("loco": all locomotives). */
   z.object({
     type: z.literal("claim"),
-    route: z.enum(ROUTE_IDS),
+    route: z.string().max(24),
     color: z.enum(CARD_COLORS),
-    locos: z.number().int().min(0).max(6),
+    locos: z.number().int().min(0).max(LONGEST_ROUTE),
   }),
   /** Draw three destination tickets. */
   z.object({ type: z.literal("tickets") }),
   /** Keep some of the tickets drawn. */
-  z.object({ type: z.literal("keep"), tickets: z.array(z.number().int().min(0).max(TICKETS.length - 1)).min(1).max(3) }),
+  z.object({ type: z.literal("keep"), tickets: z.array(z.number().int().min(0).max(MOST_TICKETS - 1)).min(1).max(3) }),
 ]);
 export type TtrOp = z.infer<typeof ttrOp>;
 
