@@ -59,6 +59,8 @@ test("Coast to Coast: choose tickets in private, draw cards and claim a route", 
   }
   const route = second.getByTestId("ttr-claimable").first();
   const id = (await route.getAttribute("data-route"))!;
+  // On screen first, as for a person: the pay bubble closes if its route is out of sight.
+  await route.scrollIntoViewIfNeeded();
   await route.dispatchEvent("click");
   await expect(second.getByTestId("ttr-claim")).toBeVisible();
   await second.getByTestId("ttr-pay").first().click();

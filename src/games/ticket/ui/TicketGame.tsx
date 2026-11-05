@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent, type ReactNode, type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, busyWhy, play, PlayerName, playerStyle, Popover, urgency, usePeek, usePlayerColors } from "../../../ui";
 import { reducedMotion } from "../../kit/ui/Flights";
 import { Flights, useFlights, useOnChange } from "../../kit/ui/Flights";
@@ -52,6 +52,8 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
   const [logShown, setLogShown] = useState(LOG_PAGE);
   const logRef = useRef<HTMLDivElement>(null);
   const flights = useCardFlights(view.game, view.you.hand);
+  const root = useRef<HTMLDivElement>(null);
+  const layout = useLayout(root);
 
   const mine = view.players.find((p) => p.playerId === me && !p.left);
   const current = view.players.find((p) => p.seat === view.turn && !p.left);
@@ -115,7 +117,7 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
     );
 
   return (
-    <div className="ttr">
+    <div ref={root} className={`ttr ${layout}`} data-layout={layout}>
       <div className="ttr-grid">
         <div className="ttr-board">
           <ZoomableBoard aspect={VIEWBOX.w / VIEWBOX.h}>
@@ -248,6 +250,41 @@ export function TicketGame({ view, me, members, connected, sendOp, serverNow }: 
       <Flights flights={flights.flights} onLand={flights.land} />
     </div>
   );
+}
+
+/** The game's width (and more) your side of the table goes beside the map at, in a landscape window. */
+const BESIDE_WIDTH = 1000;
+/** ...and how much wider than tall the window has to be: a tall window has room for the map the whole width. */
+const BESIDE_ASPECT = 1.35;
+/** Narrower than this, everything is one column (a phone). */
+const MIDDLE_WIDTH = 680;
+
+/**
+ * Which layout fits (see ticket.css): beside the map in a wide, landscape window, where
+ * everything then fits on one screen; otherwise the map takes the whole width, with your
+ * side in two columns under it, or one on a phone. Needs the window's shape as well as the
+ * game's width, which a container query can't see.
+ */
+function useLayout(root: RefObject<HTMLDivElement | null>): "beside" | "middle" | "stacked" {
+  const [layout, setLayout] = useState<"beside" | "middle" | "stacked">("stacked");
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      const landscape = window.innerWidth / window.innerHeight >= BESIDE_ASPECT;
+      setLayout(w >= BESIDE_WIDTH && landscape ? "beside" : w >= MIDDLE_WIDTH ? "middle" : "stacked");
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [root]);
+  return layout;
 }
 
 /**
